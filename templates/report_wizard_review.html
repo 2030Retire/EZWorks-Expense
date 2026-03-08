@@ -44,6 +44,7 @@
           <tbody id="rows"></tbody>
         </table>
       </div>
+      <datalist id="categoryOptions"></datalist>
       <div class="small text-muted">Selected items with LOW_CONFIDENCE/OCR errors require manual confirmation before Generate.</div>
       <div class="d-flex justify-content-between mt-2">
         <a href="/reports/wizard/ocr" class="btn btn-sm btn-outline-secondary">Back</a>
@@ -69,6 +70,7 @@
     let personalRiskOrder = [];
     let riskMode = "default";
     let riskSortable = null;
+    let categoryOptions = [];
     const riskLabelMap = {
       OCR_FAILED: "OCR parse failed",
       IMAGE_UNREADABLE: "Image unreadable",
@@ -150,6 +152,14 @@
         const d = await r.json();
         const arr = (d?.wizard?.risk_priority || []);
         if (Array.isArray(arr) && arr.length) defaultRiskOrder = arr.map(x => String(x || "").toUpperCase()).filter(Boolean);
+        categoryOptions = (d?.expense_types || [])
+          .filter(x => x && x.enabled && x.id)
+          .map(x => String(x.id || "").toUpperCase())
+          .filter(Boolean);
+        const listEl = document.getElementById("categoryOptions");
+        if (listEl) {
+          listEl.innerHTML = categoryOptions.map((c) => `<option value="${esc(c)}"></option>`).join("");
+        }
         const hours = Number(d?.wizard?.cache_ttl_hours || 168);
         if (Number.isFinite(hours)) wizardTtlMs = Math.max(1, Math.min(24 * 30, Math.round(hours))) * 60 * 60 * 1000;
       } catch(_) {}
@@ -336,11 +346,11 @@
         <tr data-id="${x.id}" data-risky="${isRisky(x) ? "1" : "0"}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${isRisky(x) ? "table-warning" : ""} ${dirtySet.has(Number(x.id)) ? "table-active" : ""}">
           <td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td>
           <td>${esc(x.orig_filename||"")}</td>
-          <td><input class="form-control form-control-sm f-date" value="${esc(x.date||"")}" oninput="markDirty(this)"></td>
+          <td><input class="form-control form-control-sm f-date" type="date" value="${esc(x.date||"")}" oninput="markDirty(this)"></td>
           <td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant||"")}" oninput="markDirty(this)"></td>
           <td><input class="form-control form-control-sm f-amount" type="number" min="0" value="${Number(x.amount||0)}" oninput="markDirty(this)"></td>
           <td><input class="form-control form-control-sm f-currency" value="${esc(x.currency||"")}" oninput="markDirty(this)"></td>
-          <td><input class="form-control form-control-sm f-category" value="${esc(x.category||"")}" oninput="markDirty(this)"></td>
+          <td><input class="form-control form-control-sm f-category" list="categoryOptions" value="${esc(x.category||"")}" oninput="markDirty(this)"></td>
           <td><input class="form-control form-control-sm f-memo" value="${esc(x.memo||"")}" oninput="markDirty(this)"></td>
           <td>${esc(x.confidence || "-")}</td>
           <td>${esc(x.lifecycle_state || "-")}</td>

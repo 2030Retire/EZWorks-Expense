@@ -1694,6 +1694,16 @@ def inbox_ocr_receipt(receipt_id: int):
         return jsonify({"error": "Receipt not found."}), 404
     if not _can_access_receipt_row(host, row):
         return jsonify({"error": "Cannot OCR receipt uploaded by another user."}), 403
+    body = request.get_json(silent=True) or {}
+    force = str(request.args.get("force") or body.get("force") or "").strip().lower() in ("1", "true", "yes", "on")
+    lc = str(row.get("lifecycle_state") or "").upper()
+    status_now = str(row.get("status") or "").strip().lower()
+    confidence_now = str(row.get("confidence") or "").strip().lower()
+    if not force:
+        if lc in {"READY_FOR_REPORT", "ASSIGNED_TO_REPORT"}:
+            return jsonify({"error": "Receipt already processed. OCR rerun is blocked to avoid duplicate cost."}), 400
+        if status_now == "processed" and confidence_now in {"high", "medium", "manual"} and not str(row.get("ocr_error") or "").strip():
+            return jsonify({"error": "Receipt already has successful OCR result. Use force=true to rerun."}), 400
     image_path = Path(row.get("file_path") or "")
     if not image_path.exists():
         return jsonify({"error": "Receipt image file not found."}), 404

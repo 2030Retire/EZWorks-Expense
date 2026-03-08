@@ -23,11 +23,17 @@
       </div>
       <div id="progressSummary" class="small text-muted mb-2"></div>
 
-      <input id="files" type="file" multiple class="form-control mb-2" accept=".jpg,.jpeg,.png,.webp,.heic">
+      <input id="files" type="file" multiple class="form-control mb-2" accept=".jpg,.jpeg,.png,.webp,.heic" onchange="analyzeSelectedFiles()">
       <div class="d-flex gap-2 mb-2">
         <button class="btn btn-primary btn-sm" onclick="uploadReceipts()">Upload</button>
         <button class="btn btn-outline-secondary btn-sm" onclick="refreshRows()">Refresh</button>
       </div>
+
+      <div class="progress mb-2" id="uploadProgressWrap" style="display:none; height:18px;">
+        <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%">0%</div>
+      </div>
+
+      <div id="qualityHints" class="small mb-2"></div>
       <div id="msg" class="small mt-1 text-muted"></div>
 
       <div class="table-responsive mt-3">
@@ -35,6 +41,7 @@
           <thead>
             <tr>
               <th>#</th>
+              <th>Preview</th>
               <th>File</th>
               <th>Date</th>
               <th>Merchant</th>
@@ -71,28 +78,41 @@
       }
       return out;
     }
+    function canRerunOcr(x){
+      const lc = String(x.lifecycle_state || "").toUpperCase();
+      if (lc === "READY_FOR_REPORT" || lc === "ASSIGNED_TO_REPORT") return false;
+      const status = String(x.status || "").toLowerCase();
+      const confidence = String(x.confidence || "").toLowerCase();
+      const hasError = !!String(x.ocr_error || "").trim();
+      if (status === "processed" && ["high","medium","manual"].includes(confidence) && !hasError) return false;
+      return true;
+    }
     function renderRows(){
       const body = document.getElementById("rows");
       if (!rows.length) {
-        body.innerHTML = `<tr><td colspan="9" class="small text-muted">No unassigned receipts yet.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="10" class="small text-muted">No unassigned receipts yet.</td></tr>`;
         return;
       }
-      body.innerHTML = rows.map((x, i) => `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${esc(x.orig_filename || "")}</td>
-          <td>${esc(x.date || "-")}</td>
-          <td>${esc(x.merchant || "-")}</td>
-          <td>${Number(x.amount || 0).toLocaleString()}</td>
-          <td>${esc(x.currency || "-")}</td>
-          <td>${esc(x.status || "-")}</td>
-          <td>${esc(x.lifecycle_state || "-")}</td>
-          <td>
-            <button class="btn btn-sm btn-outline-primary" onclick="runOcr(${Number(x.id)})">OCR</button>
-            <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteReceipt(${Number(x.id)})">Delete</button>
-          </td>
-        </tr>
-      `).join("");
+      body.innerHTML = rows.map((x, i) => {
+        const canOcr = canRerunOcr(x);
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td>
+            <td>${esc(x.orig_filename || "")}</td>
+            <td>${esc(x.date || "-")}</td>
+            <td>${esc(x.merchant || "-")}</td>
+            <td>${Number(x.amount || 0).toLocaleString()}</td>
+            <td>${esc(x.currency || "-")}</td>
+            <td>${esc(x.status || "-")}</td>
+            <td>${esc(x.lifecycle_state || "-")}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary" ${canOcr ? "" : "disabled"} onclick="runOcr(${Number(x.id)})">${canOcr ? "OCR" : "Done"}</button>
+              <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteReceipt(${Number(x.id)})">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
     }
     function renderSummary(){
       const s = summarizeLifecycle(rows);
@@ -110,19 +130,108 @@
       renderSummary();
       renderRows();
     }
+
+    function showUploadProgress(percent){
+      const wrap = document.getElementById("uploadProgressWrap");
+      const bar = document.getElementById("uploadProgressBar");
+      wrap.style.display = "";
+      bar.style.width = `${percent}%`;
+      bar.textContent = `${percent}%`;
+    }
+    function hideUploadProgress(){
+      const wrap = document.getElementById("uploadProgressWrap");
+      const bar = document.getElementById("uploadProgressBar");
+      bar.style.width = "0%";
+      bar.textContent = "0%";
+      wrap.style.display = "none";
+    }
+
+    async function analyzeSelectedFiles(){
+      const inp = document.getElementById("files");
+      const out = document.getElementById("qualityHints");
+      const files = [...inp.files || []];
+      if (!files.length) {
+        out.innerHTML = "";
+        return;
+      }
+      const rows = await Promise.all(files.map((f) => new Promise((resolve) => {
+        const url = URL.createObjectURL(f);
+        const img = new Image();
+        img.onload = () => {
+          const w = Number(img.naturalWidth || 0);
+          const h = Number(img.naturalHeight || 0);
+          URL.revokeObjectURL(url);
+          const mp = (w * h) / 1000000;
+          const lowRes = (w < 1200 || h < 1200 || mp < 1.2);
+          resolve({ name: f.name, w, h, mb: (f.size / (1024*1024)), lowRes });
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          resolve({ name: f.name, w: 0, h: 0, mb: (f.size / (1024*1024)), lowRes: true });
+        };
+        img.src = url;
+      })));
+      const warns = rows.filter(x => x.lowRes);
+      out.innerHTML = rows.map(x => {
+        const badge = x.lowRes ? '<span class="badge text-bg-warning">Low OCR quality risk</span>' : '<span class="badge text-bg-success">OK</span>';
+        return `<div>${badge} <span class="ms-1">${esc(x.name)} (${x.w}x${x.h}, ${x.mb.toFixed(2)}MB)</span></div>`;
+      }).join("");
+      if (warns.length) {
+        out.innerHTML += `<div class="text-warning mt-1">${warns.length} file(s) may have low OCR accuracy. Consider retaking or replacing before OCR.</div>`;
+      }
+    }
+
+    function uploadWithProgress(formData){
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/inbox/upload");
+        xhr.upload.onprogress = (e) => {
+          if (!e.lengthComputable) return;
+          const p = Math.max(1, Math.min(99, Math.round((e.loaded / e.total) * 100)));
+          showUploadProgress(p);
+        };
+        xhr.onload = () => {
+          try {
+            const data = JSON.parse(xhr.responseText || "{}");
+            if (xhr.status >= 200 && xhr.status < 300) {
+              showUploadProgress(100);
+              resolve(data);
+            } else {
+              reject(new Error(data.error || "Upload failed"));
+            }
+          } catch (_) {
+            reject(new Error("Upload failed"));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Network error during upload"));
+        xhr.send(formData);
+      });
+    }
+
     async function uploadReceipts() {
       const inp = document.getElementById("files");
       if (!inp.files.length) return alert("Select files.");
       const fd = new FormData();
       for (const f of inp.files) fd.append("receipts", f);
-      const r = await fetch("/api/inbox/upload", { method:"POST", body: fd });
-      const d = await r.json();
-      if (!r.ok) return alert(d.error || "Upload failed");
-      document.getElementById("msg").textContent = `Uploaded ${d.count} files`;
-      inp.value = "";
-      await refreshRows();
+      try {
+        showUploadProgress(1);
+        const d = await uploadWithProgress(fd);
+        document.getElementById("msg").textContent = `Uploaded ${d.count} files`;
+        inp.value = "";
+        document.getElementById("qualityHints").innerHTML = "";
+        await refreshRows();
+      } catch (e) {
+        alert(e.message || "Upload failed");
+      } finally {
+        setTimeout(hideUploadProgress, 500);
+      }
     }
     async function runOcr(id){
+      const target = rows.find(x => Number(x.id) === Number(id));
+      if (target && !canRerunOcr(target)) {
+        alert("Already OCR-processed. Re-run is blocked to prevent unnecessary API cost.");
+        return;
+      }
       const r = await fetch(`/api/inbox/ocr/${id}`, { method: "POST" });
       const d = await r.json();
       if (!r.ok) return alert(d.error || "OCR failed");
@@ -131,7 +240,7 @@
     async function runOcrForPending(){
       const targets = rows.filter(x => {
         const lc = String(x.lifecycle_state || "").toUpperCase();
-        return lc === "UPLOADED" || lc === "NEEDS_REVIEW" || lc === "LOW_CONFIDENCE" || lc === "OCR_FAILED" || lc === "IMAGE_UNREADABLE";
+        return canRerunOcr(x) && (lc === "UPLOADED" || lc === "NEEDS_REVIEW" || lc === "LOW_CONFIDENCE" || lc === "OCR_FAILED" || lc === "IMAGE_UNREADABLE");
       }).map(x => Number(x.id));
       if (!targets.length) return alert("No pending receipts for OCR.");
       for (const id of targets) {

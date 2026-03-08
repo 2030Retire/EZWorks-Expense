@@ -30,6 +30,15 @@
       <div class="row g-2">
         <div class="col-md-4"><label class="form-label small">Mode</label><select id="mode" class="form-select form-select-sm"><option value="domestic">domestic</option><option value="international">international</option></select></div>
         <div class="col-md-8"><label class="form-label small">Title</label><input id="title" class="form-control form-control-sm"></div>
+        <div class="col-md-4"><label class="form-label small">FX Base (to USD)</label><input id="exchangeRate" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1"></div>
+        <div class="col-md-8">
+          <label class="form-label small">Currency Rates</label>
+          <div class="d-flex gap-2 align-items-center">
+            <button class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRates()">Fetch Latest Rates</button>
+            <div id="rateUpdatedAt" class="small text-muted"></div>
+          </div>
+          <div id="exchangeRatesEditor" class="small mt-1"></div>
+        </div>
       </div>
       <div class="d-flex justify-content-between mt-3">
         <a id="backToReviewLink" href="/reports/wizard/review" class="btn btn-sm btn-outline-secondary">Back</a>
@@ -62,6 +71,7 @@
     const IDS_KEY = "report_wizard_selected_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
     let wizardTtlMs = 7 * 24 * 60 * 60 * 1000;
+    let selectedRowsCache = [];
     let wizardExpired = false;
     const expiredKeys = new Set();
     const isKo = String(navigator.language || "").toLowerCase().startsWith("ko");
@@ -174,6 +184,8 @@
       if (!el) return;
       if (!ids.length) {
         el.textContent = "No selected receipts.";
+        selectedRowsCache = [];
+        renderExchangeRateEditor();
         return;
       }
       const details = await Promise.all(ids.map(async (id) => {
@@ -186,6 +198,8 @@
         }
       }));
       const rows = details.filter(Boolean);
+      selectedRowsCache = rows;
+      renderExchangeRateEditor();
       const out = { total: rows.length, risky: 0, ready: 0, assigned: 0 };
       for (const x of rows) {
         const lc = String(x.lifecycle_state || "").toUpperCase();
@@ -194,6 +208,60 @@
         if (["LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE","NEEDS_REVIEW"].includes(lc) || String(x.status || "") === "needs_review") out.risky += 1;
       }
       el.textContent = `Selected ${out.total} · Risky ${out.risky} · Ready ${out.ready} · Assigned ${out.assigned}`;
+    }
+    function getCurrenciesFromSelection(){
+      const set = new Set();
+      for (const r of (selectedRowsCache || [])) {
+        const c = String(r.currency || "").trim().toUpperCase();
+        if (c && c !== "USD") set.add(c);
+      }
+      return [...set].sort();
+    }
+    function renderExchangeRateEditor(){
+      const wrap = document.getElementById("exchangeRatesEditor");
+      if (!wrap) return;
+      const currencies = getCurrenciesFromSelection();
+      if (!currencies.length) {
+        wrap.innerHTML = `<span class="text-muted">No non-USD currencies in selected receipts.</span>`;
+        return;
+      }
+      wrap.innerHTML = currencies.map((c) => `
+        <div class="d-inline-flex align-items-center me-2 mb-1">
+          <span class="badge text-bg-light border me-1">${esc(c)} -> USD</span>
+          <input id="rate-${esc(c)}" class="form-control form-control-sm" style="width:110px;" type="number" step="0.0001" min="0" value="">
+        </div>
+      `).join("");
+    }
+    function collectExchangeRates(){
+      const out = {};
+      for (const c of getCurrenciesFromSelection()) {
+        const el = document.getElementById(`rate-${c}`);
+        if (!el) continue;
+        const v = Number(el.value || 0);
+        if (Number.isFinite(v) && v > 0) out[c] = v;
+      }
+      return out;
+    }
+    async function fetchRates(){
+      const currencies = getCurrenciesFromSelection();
+      if (!currencies.length) return alert("No non-USD currencies in selected receipts.");
+      const symbols = currencies.join(",");
+      try{
+        const r = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${encodeURIComponent(symbols)}`);
+        const d = await r.json();
+        if (!r.ok || !d || !d.rates) throw new Error(d?.error?.info || "Rate API failed");
+        for (const c of currencies) {
+          const usdToCur = Number(d.rates[c] || 0);
+          if (!usdToCur) continue;
+          const curToUsd = 1 / usdToCur;
+          const input = document.getElementById(`rate-${c}`);
+          if (input) input.value = String(curToUsd.toFixed(6));
+        }
+        const t = document.getElementById("rateUpdatedAt");
+        if (t) t.textContent = `Updated: ${new Date().toLocaleString()}`;
+      }catch(e){
+        alert(e.message || "Could not fetch rates.");
+      }
     }
     async function openPrecheck(){
       const dirty = getSelectedDirtyIds();
@@ -235,6 +303,8 @@
         title: document.getElementById("title").value.trim(),
         currency: (s.currency || "USD").trim().toUpperCase(),
         period_mode: (s.periodMode || "auto").trim().toLowerCase(),
+        exchange_rate: Number(document.getElementById("exchangeRate").value || 1),
+        exchange_rates: collectExchangeRates(),
         receipt_ids: ids,
         employee_name: s.employeeName || "",
         department: s.department || "",
