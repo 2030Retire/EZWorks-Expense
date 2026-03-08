@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,49 +12,50 @@
     {% include "_module_nav.html" %}
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h4 class="mb-0 page-header-title">Expense Report Process</h4>
-      <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
+      <a href="/reports" class="btn btn-sm btn-outline-secondary">취소</a>
     </div>
     {% set wizard_step = 3 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
-      <h6 class="mb-2">Step 3. Finalize Report</h6>
-      <div class="small text-muted mb-2">Selected receipts: <span id="receiptCount">0</span> · <span id="progressSummary"></span></div>
+      <h6 class="mb-2">Step 3. 최종 생성</h6>
+      <div class="small text-muted mb-2">선택 영수증: <span id="receiptCount">0</span> · <span id="progressSummary"></span></div>
       <div id="dirtyBanner" class="alert alert-warning py-2 px-3 small mb-2" style="display:none;">
-        Unsaved edits were detected from Review. Save those rows before generating.
+        Review 단계에서 저장되지 않은 편집이 있습니다. 먼저 저장해 주세요.
       </div>
 
-      <div class="small fw-semibold mt-1 mb-1">Document Settings</div>
+      <div class="small fw-semibold mt-1 mb-1">문서 설정</div>
       <div class="row g-2 mb-2">
-        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Expense Type</label><input id="mode" class="form-control form-control-sm" readonly></div>
-        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
-        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Period Mode</label><select id="periodMode" class="form-select form-select-sm"><option value="auto">auto</option><option value="manual">manual</option></select></div>
-        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Document Type</label><input id="documentType" class="form-control form-control-sm" placeholder="Expense Report"></div>
+        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Expense Type</label><input id="mode" class="form-control form-control-sm" readonly></div>
+        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
+        <div class="col-xl-2 col-lg-2 col-md-6"><label class="form-label small mb-1">문서종류</label><select id="documentType" class="form-select form-select-sm"></select></div>
+        <div class="col-xl-2 col-lg-2 col-md-6"><label class="form-label small mb-1">기간 입력 방식</label><select id="periodMode" class="form-select form-select-sm"><option value="auto">자동(영수증)</option><option value="manual">수동 입력</option></select></div>
+        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
+        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
       </div>
 
-      <div class="small fw-semibold mt-2 mb-1">Basic Info</div>
+      <div class="small fw-semibold mt-2 mb-1">기본 정보</div>
       <div class="row g-2 mb-2">
-        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Employee Name</label><input id="employeeName" class="form-control form-control-sm"></div>
-        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Department</label><input id="department" class="form-control form-control-sm"></div>
-        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
-        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Manager</label><input id="manager" class="form-control form-control-sm"></div>
+        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">직원명</label><input id="employeeName" class="form-control form-control-sm"></div>
+        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">부서</label><input id="department" class="form-control form-control-sm"></div>
+        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">사번</label><input id="employeeId" class="form-control form-control-sm"></div>
+        <div class="col-xl-3 col-lg-3 col-md-6"><label class="form-label small mb-1">매니저 이름</label><input id="manager" class="form-control form-control-sm"></div>
+        <div class="col-xl-3 col-lg-12 col-md-12"><label class="form-label small mb-1">매니저 이메일</label><input id="managerEmail" type="email" class="form-control form-control-sm" placeholder="manager@company.com"></div>
       </div>
 
-      <div class="small fw-semibold mt-2 mb-1">Report Details</div>
+      <div class="small fw-semibold mt-2 mb-1">리포트 정보</div>
       <div class="row g-2">
-        <div class="col-lg-8 col-md-12"><label class="form-label small mb-1">Title</label><input id="title" class="form-control form-control-sm"></div>
-        <div class="col-lg-4 col-md-12"><label class="form-label small mb-1">Project</label><input id="project" class="form-control form-control-sm"></div>
-        <div class="col-lg-4 col-md-6"><label class="form-label small mb-1">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
-        <div class="col-lg-4 col-md-6"><label class="form-label small mb-1">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
-        <div class="col-lg-4 col-md-12"><label class="form-label small mb-1">Submission Date</label><input id="submitDate" type="date" class="form-control form-control-sm"></div>
-        <div class="col-12"><label class="form-label small mb-1">Trip Purpose</label><textarea id="tripPurpose" class="form-control form-control-sm" rows="2"></textarea></div>
-        <div class="col-12"><label class="form-label small mb-1">Notes</label><textarea id="notes" class="form-control form-control-sm" rows="2"></textarea></div>
+        <div class="col-xl-6 col-lg-6 col-md-12"><label class="form-label small mb-1">제목</label><input id="title" class="form-control form-control-sm"></div>
+        <div class="col-xl-3 col-lg-3 col-md-6"><label class="form-label small mb-1">Project</label><input id="project" class="form-control form-control-sm"></div>
+        <div class="col-xl-3 col-lg-3 col-md-6"><label class="form-label small mb-1">제출일</label><input id="submitDate" type="date" class="form-control form-control-sm"></div>
+        <div class="col-12"><label class="form-label small mb-1">Trip Purpose</label><textarea id="tripPurpose" class="form-control form-control-sm" rows="3"></textarea></div>
+        <div class="col-12"><label class="form-label small mb-1">Notes</label><textarea id="notes" class="form-control form-control-sm" rows="3"></textarea></div>
       </div>
 
       <div class="d-flex justify-content-between mt-3">
-        <a href="/reports/wizard/review" class="btn btn-sm btn-outline-secondary">Back</a>
+        <a href="/reports/wizard/review" class="btn btn-sm btn-outline-secondary">이전</a>
         <div class="d-flex gap-2">
-          <button class="btn btn-sm btn-outline-secondary" onclick="saveProfile()">Save Profile</button>
-          <button class="btn btn-sm btn-success" onclick="generateReport()">Generate Report</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="saveProfile()">프로필 저장</button>
+          <button class="btn btn-sm btn-success" onclick="generateReport()">리포트 생성</button>
         </div>
       </div>
       <div id="msg" class="small mt-2"></div>
@@ -65,6 +66,8 @@
     const IDS_KEY = "report_wizard_selected_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
     const FX_KEY = "report_wizard_fx_by_date_v1";
+    let selectedRows = [];
+    let cfg = {};
 
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
@@ -87,21 +90,48 @@
       return (dirty || []).map(Number).filter(x => x && ids.has(Number(x)));
     }
 
-    function applyPeriodRules(){
-      const manual = String(document.getElementById("periodMode").value || "auto") === "manual";
-      document.getElementById("periodFrom").disabled = !manual;
-      document.getElementById("periodTo").disabled = !manual;
-      if (!manual) {
-        document.getElementById("periodFrom").value = "";
-        document.getElementById("periodTo").value = "";
+    function normalizeDateInput(v){
+      const s = String(v || "").trim();
+      if (!s) return "";
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      const mdY = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (mdY) {
+        const mm = String(mdY[1]).padStart(2, "0");
+        const dd = String(mdY[2]).padStart(2, "0");
+        return `${mdY[3]}-${mm}-${dd}`;
       }
+      return "";
+    }
+
+    function applyPeriodRules(){
+      const mode = String(document.getElementById("periodMode").value || "auto");
+      const fromEl = document.getElementById("periodFrom");
+      const toEl = document.getElementById("periodTo");
+      const dates = selectedRows.map((r)=>normalizeDateInput(r.date || "")).filter(Boolean).sort();
+      if (mode === "auto") {
+        fromEl.readOnly = true;
+        toEl.readOnly = true;
+        fromEl.value = dates[0] || "";
+        toEl.value = dates[dates.length - 1] || "";
+      } else {
+        fromEl.readOnly = false;
+        toEl.readOnly = false;
+      }
+    }
+
+    function loadDocumentTypeOptions(){
+      const sel = document.getElementById("documentType");
+      const fromCfg = (cfg.document_types || []).filter((x)=>x && x.enabled !== false && x.id && x.label);
+      const opts = fromCfg.length ? fromCfg : [{id:"expense_report", label:"경비보고서", enabled:true}];
+      sel.innerHTML = opts.map((x)=>`<option value="${esc(x.label)}" data-doc-id="${esc(x.id)}">${esc(x.label)}</option>`).join("");
     }
 
     async function loadSelectedSummary(){
       const ids = getSelectedIds();
       document.getElementById("receiptCount").textContent = ids.length;
       if (!ids.length) {
-        document.getElementById("progressSummary").textContent = "No selected receipts";
+        document.getElementById("progressSummary").textContent = "선택된 영수증이 없습니다";
+        selectedRows = [];
         return;
       }
       const details = await Promise.all(ids.map(async (id) => {
@@ -111,15 +141,15 @@
           return r.ok ? (d.receipt || null) : null;
         } catch (_) { return null; }
       }));
-      const rows = details.filter(Boolean);
+      selectedRows = details.filter(Boolean);
       const out = { risky: 0, ready: 0, assigned: 0 };
-      for (const x of rows) {
+      for (const x of selectedRows) {
         const lc = String(x.lifecycle_state || "").toUpperCase();
         if (lc === "READY_FOR_REPORT") out.ready += 1;
         if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
         if (["LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE","NEEDS_REVIEW"].includes(lc) || String(x.status || "") === "needs_review") out.risky += 1;
       }
-      document.getElementById("progressSummary").textContent = `Risky ${out.risky} · Ready ${out.ready} · Assigned ${out.assigned}`;
+      document.getElementById("progressSummary").textContent = `검토필요 ${out.risky} · 준비완료 ${out.ready} · 할당됨 ${out.assigned}`;
     }
 
     async function loadProfile(){
@@ -132,6 +162,7 @@
         document.getElementById("department").value = p.department || "";
         document.getElementById("employeeId").value = p.employee_id || "";
         document.getElementById("manager").value = p.manager || "";
+        document.getElementById("managerEmail").value = p.manager_email || "";
       }catch(_){ }
     }
 
@@ -141,11 +172,12 @@
         department: document.getElementById("department").value.trim(),
         employee_id: document.getElementById("employeeId").value.trim(),
         manager: document.getElementById("manager").value.trim(),
+        manager_email: document.getElementById("managerEmail").value.trim(),
       };
       const r = await fetch("/api/profile", { method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
       const d = await r.json();
-      if(!r.ok) return alert(d.error || "Profile save failed");
-      document.getElementById("msg").innerHTML = `<span class="text-success">Profile saved.</span>`;
+      if(!r.ok) return alert(d.error || "프로필 저장 실패");
+      document.getElementById("msg").innerHTML = `<span class="text-success">프로필이 저장되었습니다.</span>`;
     }
 
     function loadBasicSettings(){
@@ -154,26 +186,46 @@
       document.getElementById("currency").value = (s.currency || "USD").toUpperCase();
     }
 
+    async function loadConfig(){
+      try {
+        const r = await fetch("/api/config");
+        const d = await r.json();
+        if (r.ok) cfg = d || {};
+      } catch(_) {}
+      loadDocumentTypeOptions();
+      const fxPolicy = String(cfg?.accounting?.fx_policy || "date_based").toLowerCase();
+      const fx = wizardGet(FX_KEY, {}) || {};
+      if (!fx.rate_mode || fxPolicy !== "user_select") {
+        fx.rate_mode = fxPolicy;
+      }
+      if (fxPolicy === "company_average") {
+        fx.default_rate = Number(cfg?.accounting?.company_average_fx || fx.default_rate || 1);
+      }
+      try { localStorage.setItem(FX_KEY, JSON.stringify({ ts: Date.now(), value: fx })); } catch(_) {}
+    }
+
     async function generateReport(){
       const dirty = getSelectedDirtyIds();
-      if (dirty.length) return alert(`Unsaved edited rows detected (${dirty.length}). Save rows in Review first.`);
+      if (dirty.length) return alert(`저장되지 않은 편집 ${dirty.length}건이 있습니다. Review에서 먼저 저장해 주세요.`);
       const ids = getSelectedIds();
-      if (!ids.length) return alert("No selected receipts. Go back to Review.");
+      if (!ids.length) return alert("선택된 영수증이 없습니다. Review에서 선택해 주세요.");
 
       const fx = wizardGet(FX_KEY, {}) || {};
+      const rateMode = String(fx.rate_mode || cfg?.accounting?.fx_policy || "date_based").toLowerCase();
       const body = {
         mode: document.getElementById("mode").value,
         title: document.getElementById("title").value.trim(),
         document_type: document.getElementById("documentType").value.trim(),
         currency: document.getElementById("currency").value.trim().toUpperCase(),
-        exchange_rate: Number(fx.default_rate || 1),
-        exchange_rates: fx.rates || {},
+        exchange_rate: Number(fx.default_rate || cfg?.accounting?.company_average_fx || 1),
+        exchange_rates: rateMode === "date_based" ? (fx.rates || {}) : {},
         period_mode: document.getElementById("periodMode").value,
         receipt_ids: ids,
         employee_name: document.getElementById("employeeName").value.trim(),
         department: document.getElementById("department").value.trim(),
         employee_id: document.getElementById("employeeId").value.trim(),
         manager: document.getElementById("manager").value.trim(),
+        manager_email: document.getElementById("managerEmail").value.trim(),
         project: document.getElementById("project").value.trim(),
         period_from: document.getElementById("periodFrom").value.trim(),
         period_to: document.getElementById("periodTo").value.trim(),
@@ -183,10 +235,10 @@
       };
       const r = await fetch("/api/inbox/reports/generate", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
       const d = await r.json();
-      if(!r.ok) return alert(d.error || "Generate failed");
+      if(!r.ok) return alert(d.error || "생성 실패");
       localStorage.removeItem(IDS_KEY);
       localStorage.removeItem(DIRTY_KEY);
-      document.getElementById("msg").innerHTML = `<span class="text-success">Generated: <a href="${d.download_url}">${esc(d.report.output_filename)}</a></span>`;
+      document.getElementById("msg").innerHTML = `<span class="text-success">생성 완료: <a href="${d.download_url}">${esc(d.report.output_filename)}</a></span>`;
     }
 
     (async()=>{
@@ -194,6 +246,7 @@
         document.getElementById("dirtyBanner").style.display = "";
       }
       document.getElementById("submitDate").value = new Date().toISOString().slice(0, 10);
+      await loadConfig();
       loadBasicSettings();
       await loadProfile();
       await loadSelectedSummary();

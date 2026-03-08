@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,51 +12,61 @@
     {% include "_module_nav.html" %}
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h4 class="mb-0 page-header-title">Expense Report Process</h4>
-      <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
+      <a href="/reports" class="btn btn-sm btn-outline-secondary">취소</a>
     </div>
     {% set wizard_step = 2 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="mb-0">Step 2. Review</h6>
+        <h6 class="mb-0">Step 2. 리뷰</h6>
         <div class="d-flex gap-2">
-          <button class="btn btn-sm btn-outline-primary" onclick="saveSelection()">Save Selection</button>
-          <button class="btn btn-sm btn-success" onclick="saveAllDirty()">Save All Dirty</button>
+          <button class="btn btn-sm btn-outline-primary" onclick="saveSelection()">선택 저장</button>
+          <button class="btn btn-sm btn-success" onclick="saveAllDirty()">변경 전체 저장</button>
         </div>
       </div>
-      <div id="progressSummary" class="small text-muted mb-2"></div>
-      <div id="dirtySummary" class="small text-warning mb-2"></div>
+      <div id="progressSummary" class="small text-muted mb-1"></div>
+      <div id="dirtySummary" class="small text-warning mb-1"></div>
+      <div id="requiredSummary" class="small text-danger mb-2"></div>
+
       <div class="table-responsive">
         <table class="table table-sm align-middle">
           <thead>
             <tr>
               <th><input type="checkbox" onchange="toggleAll(this)"></th>
-              <th>Preview</th>
-              <th>File</th>
-              <th>Date</th>
-              <th>Merchant</th>
-              <th>Amount</th>
-              <th>USD Amount</th>
-              <th>Category</th>
-              <th>Memo</th>
-              <th>Status</th>
-              <th>Lifecycle</th>
-              <th>Dirty</th>
+              <th>미리보기</th>
+              <th>파일</th>
+              <th>날짜</th>
+              <th>가맹점</th>
+              <th>금액</th>
+              <th>USD 금액</th>
+              <th>카테고리</th>
+              <th>메모</th>
+              <th>상태</th>
+              <th>라이프사이클</th>
+              <th>확인</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
+
       <div class="border-top pt-2 mt-2">
         <div class="row g-2 align-items-end">
-          <div class="col-md-3">
-            <label class="form-label small mb-1">Default FX (to USD)</label>
+          <div class="col-lg-3 col-md-6" id="fxPolicyWrap" style="display:none;">
+            <label class="form-label small mb-1">환율 적용 방식</label>
+            <select id="fxRateMode" class="form-select form-select-sm" onchange="onRateModeChange()">
+              <option value="company_average">회사 기준 환율</option>
+              <option value="date_based">날짜별 환율</option>
+            </select>
+          </div>
+          <div class="col-lg-3 col-md-6" id="defaultFxWrap">
+            <label class="form-label small mb-1">기준 환율 (to USD)</label>
             <input id="defaultFx" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1" oninput="saveFxState(); updateUsdAmounts();">
           </div>
-          <div class="col-md-9">
-            <label class="form-label small mb-1">Date-based FX Rates</label>
+          <div class="col-lg-6 col-md-12" id="dateFxWrap">
+            <label class="form-label small mb-1">날짜별 환율</label>
             <div class="d-flex align-items-center gap-2 mb-1">
-              <button class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRatesByDate()">Fetch by Date</button>
+              <button id="fetchByDateBtn" class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRatesByDate()">날짜별 환율 조회</button>
               <span class="small text-muted" id="fxUpdatedAt"></span>
             </div>
             <div id="fxEditor" class="small"></div>
@@ -64,8 +74,8 @@
         </div>
       </div>
       <div class="d-flex justify-content-between mt-2">
-        <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
-        <button class="btn btn-sm btn-primary" onclick="goNext()">Next: Generate</button>
+        <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">이전</a>
+        <button class="btn btn-sm btn-primary" onclick="goNext()">다음: 생성</button>
       </div>
       <div id="msg" class="small text-muted mt-2"></div>
     </div>
@@ -76,20 +86,14 @@
     const FX_KEY = "report_wizard_fx_by_date_v1";
     let rowsAll = [];
     let categoryChoices = [];
+    let cfg = {};
 
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
-      try{
-        const raw = localStorage.getItem(key);
-        if(!raw) return fallback;
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value")) return parsed.value;
-        return parsed;
-      }catch(_){ return fallback; }
+      try{ const raw = localStorage.getItem(key); if(!raw) return fallback; const parsed = JSON.parse(raw); if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value")) return parsed.value; return parsed; }catch(_){ return fallback; }
     }
-    function wizardSet(key, value){
-      try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){ }
-    }
+    function wizardSet(key, value){ try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){ } }
+
     function normalizeDateInput(v){
       const s = String(v || "").trim();
       if (!s) return "";
@@ -111,7 +115,25 @@
       const n = Number(v || 0);
       return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0";
     }
-
+    function statusKo(v){
+      const k = String(v || "").toLowerCase();
+      const m = { processed: "처리완료", needs_review: "검토필요", duplicate: "중복", ocr_processing: "OCR 진행중", uploaded: "업로드됨" };
+      return m[k] || (v || "-");
+    }
+    function lifecycleKo(v){
+      const k = String(v || "").toUpperCase();
+      const m = {
+        UPLOADED: "업로드됨",
+        OCR_PROCESSING: "OCR 진행중",
+        OCR_FAILED: "OCR 실패",
+        LOW_CONFIDENCE: "신뢰도 낮음",
+        IMAGE_UNREADABLE: "이미지 불량",
+        NEEDS_REVIEW: "검토필요",
+        READY_FOR_REPORT: "리포트 준비완료",
+        ASSIGNED_TO_REPORT: "리포트 할당됨",
+      };
+      return m[k] || (v || "-");
+    }
     function getSavedSelection(){
       const v = wizardGet(KEY, []);
       return Array.isArray(v) ? v : [];
@@ -119,6 +141,82 @@
     function getDirtySet(){
       return new Set((wizardGet(DIRTY_KEY, []) || []).map(Number).filter(Boolean));
     }
+
+    function getFxState(){
+      const base = wizardGet(FX_KEY, {}) || {};
+      return {
+        rate_mode: String(base.rate_mode || "date_based").toLowerCase(),
+        default_rate: Number(base.default_rate || 1),
+        rates: base.rates || {},
+      };
+    }
+    function saveFxState(){
+      const fx = getFxState();
+      fx.rate_mode = String(document.getElementById("fxRateMode")?.value || fx.rate_mode || "date_based").toLowerCase();
+      fx.default_rate = Number(document.getElementById("defaultFx").value || 1);
+      fx.rates = {};
+      document.querySelectorAll("#fxEditor input[data-date][data-currency]").forEach((el) => {
+        const d = String(el.dataset.date || "").trim();
+        const c = String(el.dataset.currency || "").trim().toUpperCase();
+        const v = Number(el.value || 0);
+        if (!d || !c || !Number.isFinite(v) || v <= 0) return;
+        if (!fx.rates[d]) fx.rates[d] = {};
+        fx.rates[d][c] = v;
+      });
+      wizardSet(FX_KEY, fx);
+    }
+
+    function getFxRate(dateIso, currency){
+      const c = String(currency || "USD").toUpperCase();
+      if (c === "USD") return 1;
+      const fx = getFxState();
+      if (fx.rate_mode === "company_average") {
+        return Number(fx.default_rate || cfg?.accounting?.company_average_fx || 1);
+      }
+      const d = String(dateIso || "").trim();
+      const byDate = (fx.rates || {})[d] || {};
+      const specific = Number(byDate[c] || 0);
+      if (specific > 0) return specific;
+      return Number(fx.default_rate || 1);
+    }
+
+    function countMissingFromTr(tr){
+      const dateVal = normalizeDateInput(tr.querySelector(".f-date")?.value || "");
+      const amountVal = Number(tr.querySelector(".f-amount")?.value || 0);
+      const sel = tr.querySelector(".f-category-select");
+      const custom = tr.querySelector(".f-category-custom");
+      let categoryVal = "";
+      if (!sel) categoryVal = "";
+      else if (sel.value === "__CUSTOM__") categoryVal = String(custom?.value || "").trim();
+      else categoryVal = String(sel.value || "").trim();
+      const missing = [];
+      if (!dateVal) missing.push("날짜");
+      if (!(amountVal > 0)) missing.push("금액");
+      if (!categoryVal) missing.push("카테고리");
+      return missing;
+    }
+
+    function updateRequiredState(tr){
+      const missing = countMissingFromTr(tr);
+      const badge = tr.querySelector(".f-required");
+      tr.classList.remove("table-warning");
+      if (missing.length) {
+        tr.classList.add("table-warning");
+        if (badge) badge.innerHTML = `<span class="badge text-bg-warning">필수 확인</span>`;
+      } else if (badge) {
+        badge.innerHTML = `<span class="text-success small">ok</span>`;
+      }
+      return missing.length;
+    }
+
+    function renderRequiredSummary(){
+      let missingRows = 0;
+      document.querySelectorAll("#rows tr[data-id]").forEach((tr) => {
+        if (updateRequiredState(tr) > 0) missingRows += 1;
+      });
+      document.getElementById("requiredSummary").textContent = missingRows ? `필수값 누락 ${missingRows}건 (날짜/금액/카테고리)` : "";
+    }
+
     function markDirty(tr){
       const id = Number(tr.dataset.id || 0);
       if (!id) return;
@@ -129,10 +227,11 @@
       wizardSet(DIRTY_KEY, [...set]);
       renderDirtySummary();
       updateUsdAmountForRow(tr);
+      renderRequiredSummary();
     }
     function renderDirtySummary(){
       const cnt = getDirtySet().size;
-      document.getElementById("dirtySummary").textContent = cnt ? `Unsaved edits: ${cnt}` : "";
+      document.getElementById("dirtySummary").textContent = cnt ? `저장 필요: ${cnt}` : "";
     }
 
     function renderProgressSummary(){
@@ -145,18 +244,35 @@
         if (lc === "READY_FOR_REPORT") out.ready += 1;
         if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
       }
-      document.getElementById("progressSummary").textContent = `Total ${out.total} · Uploaded ${out.uploaded} · Needs Review ${out.needs_review} · Ready ${out.ready} · Assigned ${out.assigned}`;
+      document.getElementById("progressSummary").textContent = `전체 ${out.total} · 업로드 ${out.uploaded} · 검토필요 ${out.needs_review} · 준비완료 ${out.ready} · 할당됨 ${out.assigned}`;
     }
 
-    async function loadCategories(){
-      try{
+    async function loadConfig(){
+      try {
         const r = await fetch("/api/config");
         const d = await r.json();
-        if(!r.ok) return;
-        categoryChoices = (d?.expense_types || []).filter(x => x && x.enabled && x.id).map(x => String(x.id || "").toUpperCase());
-        if (!categoryChoices.length) categoryChoices = ["MISCELLANEOUS"];
-      }catch(_){ }
+        if (r.ok) cfg = d || {};
+      } catch(_) {}
+      categoryChoices = (cfg?.expense_types || []).filter(x => x && x.enabled && x.id).map(x => String(x.id || "").toUpperCase());
+      if (!categoryChoices.length) categoryChoices = ["MISCELLANEOUS"];
+      const fx = getFxState();
+      const policy = String(cfg?.accounting?.fx_policy || "date_based").toLowerCase();
+      if (!fx.rate_mode || policy !== "user_select") fx.rate_mode = policy;
+      if (fx.rate_mode === "company_average") {
+        fx.default_rate = Number(cfg?.accounting?.company_average_fx || fx.default_rate || 1);
+      }
+      wizardSet(FX_KEY, fx);
+      document.getElementById("fxRateMode").value = fx.rate_mode;
+      document.getElementById("defaultFx").value = fx.default_rate;
+
+      if (policy === "user_select") {
+        document.getElementById("fxPolicyWrap").style.display = "";
+      } else {
+        document.getElementById("fxPolicyWrap").style.display = "none";
+      }
+      syncFxVisibility();
     }
+
     function buildCategoryCell(row){
       const current = String(row.category || "MISCELLANEOUS").toUpperCase();
       const useCustom = !categoryChoices.includes(current);
@@ -165,21 +281,17 @@
         <div class="d-flex gap-1">
           <select class="form-select form-select-sm f-category-select" onchange="onCategoryChange(this)">
             ${opts}
-            <option value="__CUSTOM__" ${useCustom ? "selected" : ""}>Custom...</option>
+            <option value="__CUSTOM__" ${useCustom ? "selected" : ""}>직접입력...</option>
           </select>
-          <input class="form-control form-control-sm f-category-custom" placeholder="CUSTOM CATEGORY" value="${useCustom ? esc(current) : ""}" style="${useCustom ? "" : "display:none;"}" oninput="markDirty(this.closest('tr'))">
+          <input class="form-control form-control-sm f-category-custom" placeholder="카테고리 입력" value="${useCustom ? esc(current) : ""}" style="${useCustom ? "" : "display:none;"}" oninput="markDirty(this.closest('tr'))">
         </div>
       `;
     }
     function onCategoryChange(sel){
       const tr = sel.closest("tr");
       const custom = tr.querySelector(".f-category-custom");
-      if (sel.value === "__CUSTOM__") {
-        custom.style.display = "";
-      } else {
-        custom.style.display = "none";
-        custom.value = "";
-      }
+      if (sel.value === "__CUSTOM__") custom.style.display = "";
+      else { custom.style.display = "none"; custom.value = ""; }
       markDirty(tr);
     }
 
@@ -202,17 +314,6 @@
       if (sym) sym.textContent = currencySymbol(sel.value);
       updateUsdAmountForRow(tr);
     }
-    function getFxRate(dateIso, currency){
-      const c = String(currency || "USD").toUpperCase();
-      if (c === "USD") return 1;
-      const fx = wizardGet(FX_KEY, {}) || {};
-      const d = String(dateIso || "").trim();
-      const byDate = (fx.rates || {})[d] || {};
-      const specific = Number(byDate[c] || 0);
-      if (specific > 0) return specific;
-      const fallback = Number(fx.default_rate || document.getElementById("defaultFx")?.value || 1);
-      return fallback > 0 ? fallback : 1;
-    }
     function updateUsdAmountForRow(tr){
       if (!tr) return;
       const amount = Number(tr.querySelector(".f-amount")?.value || 0);
@@ -224,7 +325,7 @@
       if (el) el.textContent = `$ ${formatMoney(usd)}`;
     }
     function updateUsdAmounts(){
-      document.querySelectorAll("#rows tr").forEach((tr)=>updateUsdAmountForRow(tr));
+      document.querySelectorAll("#rows tr[data-id]").forEach((tr)=>updateUsdAmountForRow(tr));
     }
 
     function renderRows(){
@@ -244,20 +345,21 @@
           <td class="text-end f-usd">$ 0</td>
           <td>${buildCategoryCell(x)}</td>
           <td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td>
-          <td>${esc(x.status || "-")}</td>
-          <td>${esc(x.lifecycle_state || "-")}</td>
-          <td>${dirtySet.has(Number(x.id)) ? '<span class="badge text-bg-warning">Unsaved</span>' : '<span class="text-muted">-</span>'}</td>
+          <td>${esc(statusKo(x.status || "-"))}</td>
+          <td>${esc(lifecycleKo(x.lifecycle_state || "-"))}</td>
+          <td class="f-required"></td>
         </tr>
-      `).join("") || `<tr><td colspan="12" class="text-muted small">No receipts.</td></tr>`;
+      `).join("") || `<tr><td colspan="12" class="text-muted small">영수증이 없습니다.</td></tr>`;
       if (autoSelectAll) wizardSet(KEY, [...selected]);
       renderDirtySummary();
       updateUsdAmounts();
+      renderRequiredSummary();
     }
 
     async function loadRows(){
       const r = await fetch("/api/inbox/receipts?report_status=unassigned&limit=300");
       const d = await r.json();
-      if(!r.ok) return alert(d.error||"Failed");
+      if(!r.ok) return alert(d.error||"조회 실패");
       rowsAll = d.receipts || [];
       renderProgressSummary();
       renderRows();
@@ -283,7 +385,7 @@
       };
       const r = await fetch(`/api/inbox/receipts/${id}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
       const d = await r.json();
-      if(!r.ok) throw new Error(d.error || "Save failed");
+      if(!r.ok) throw new Error(d.error || "저장 실패");
       tr.dataset.dirty = "0";
       tr.classList.remove("table-active");
       const set = getDirtySet();
@@ -294,11 +396,11 @@
     async function saveAllDirty(){
       const dirtyRows = [...document.querySelectorAll("#rows tr[data-dirty='1']")];
       if (!dirtyRows.length) {
-        document.getElementById("msg").textContent = "No dirty rows.";
+        document.getElementById("msg").textContent = "저장할 변경이 없습니다.";
         return;
       }
       for (const tr of dirtyRows) await saveRowByTr(tr);
-      document.getElementById("msg").textContent = `Saved ${dirtyRows.length} row(s).`;
+      document.getElementById("msg").textContent = `저장 완료: ${dirtyRows.length}건`;
       await loadRows();
     }
 
@@ -312,14 +414,37 @@
       renderFxEditor();
       saveFxState();
       updateUsdAmounts();
-      document.getElementById("msg").textContent = "Selection saved.";
+      document.getElementById("msg").textContent = "선택 항목 저장됨";
     }
     function getEffectiveRowsForFx(){
       const ids = new Set(getSavedSelection().map(Number));
       const selected = rowsAll.filter((r) => ids.has(Number(r.id)));
       return selected.length ? selected : rowsAll;
     }
+
+    function syncFxVisibility(){
+      const mode = String(document.getElementById("fxRateMode")?.value || "date_based");
+      const dateWrap = document.getElementById("dateFxWrap");
+      const fetchBtn = document.getElementById("fetchByDateBtn");
+      if (mode === "date_based") {
+        dateWrap.style.display = "";
+        fetchBtn.style.display = "";
+      } else {
+        dateWrap.style.display = "none";
+      }
+    }
+    function onRateModeChange(){
+      syncFxVisibility();
+      saveFxState();
+      updateUsdAmounts();
+    }
+
     function renderFxEditor(){
+      const fxMode = String(document.getElementById("fxRateMode")?.value || "date_based");
+      if (fxMode !== "date_based") {
+        document.getElementById("fxEditor").innerHTML = "";
+        return;
+      }
       const rows = getEffectiveRowsForFx();
       const pairs = [];
       const seen = new Set();
@@ -335,7 +460,7 @@
       pairs.sort((a,b)=> a.date < b.date ? -1 : 1);
       const wrap = document.getElementById("fxEditor");
       if (!pairs.length){
-        wrap.innerHTML = `<span class="text-muted">No dated non-USD receipts (selected/all).</span>`;
+        wrap.innerHTML = `<span class="text-muted">선택/전체 항목 중 날짜+외화 데이터가 없습니다.</span>`;
         return;
       }
       wrap.innerHTML = pairs.map((p,i)=>`
@@ -345,33 +470,18 @@
           <input id="fx-${i}" data-date="${esc(p.date)}" data-currency="${esc(p.currency)}" class="form-control form-control-sm" style="max-width:140px;" type="number" step="0.0001" min="0" value="" oninput="saveFxState(); updateUsdAmounts();">
         </div>
       `).join("");
-      loadFxStateIntoEditor();
-    }
-    function saveFxState(){
-      const payload = { default_rate: Number(document.getElementById("defaultFx").value || 1), rates: {} };
-      document.querySelectorAll("#fxEditor input[data-date][data-currency]").forEach((el) => {
-        const d = String(el.dataset.date || "").trim();
-        const c = String(el.dataset.currency || "").trim().toUpperCase();
-        const v = Number(el.value || 0);
-        if (!d || !c || !Number.isFinite(v) || v <= 0) return;
-        if (!payload.rates[d]) payload.rates[d] = {};
-        payload.rates[d][c] = v;
-      });
-      wizardSet(FX_KEY, payload);
-    }
-    function loadFxStateIntoEditor(){
-      const fx = wizardGet(FX_KEY, {}) || {};
+      const fx = getFxState();
       const rates = fx.rates || {};
-      if (fx.default_rate) document.getElementById("defaultFx").value = fx.default_rate;
       document.querySelectorAll("#fxEditor input[data-date][data-currency]").forEach((el) => {
         const d = String(el.dataset.date || "").trim();
         const c = String(el.dataset.currency || "").trim().toUpperCase();
         if (rates[d] && rates[d][c]) el.value = String(rates[d][c]);
       });
     }
+
     async function fetchRatesByDate(){
       const inputs = [...document.querySelectorAll("#fxEditor input[data-date][data-currency]")];
-      if (!inputs.length) return alert("No dated non-USD receipts available.");
+      if (!inputs.length) return alert("조회할 날짜별 외화 데이터가 없습니다.");
       for (const el of inputs){
         const d = String(el.dataset.date || "");
         const c = String(el.dataset.currency || "");
@@ -384,11 +494,12 @@
       }
       saveFxState();
       updateUsdAmounts();
-      document.getElementById("fxUpdatedAt").textContent = `Updated: ${new Date().toLocaleString()}`;
+      document.getElementById("fxUpdatedAt").textContent = `갱신: ${new Date().toLocaleString()}`;
     }
+
     function goNext(){
       if (getDirtySet().size) {
-        document.getElementById("msg").textContent = "Save all dirty rows first.";
+        document.getElementById("msg").textContent = "변경 사항을 먼저 저장해 주세요.";
         return;
       }
       saveSelection();
@@ -396,10 +507,10 @@
     }
 
     (async()=>{
-      await loadCategories();
+      await loadConfig();
       await loadRows();
       renderFxEditor();
-      loadFxStateIntoEditor();
+      saveFxState();
       updateUsdAmounts();
     })();
   </script>

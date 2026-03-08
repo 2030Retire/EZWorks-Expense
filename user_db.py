@@ -27,6 +27,7 @@ def init_user_db(db_path: str):
                 department TEXT DEFAULT '',
                 employee_code TEXT DEFAULT '',
                 manager_name TEXT DEFAULT '',
+                manager_email TEXT DEFAULT '',
                 tenant_id TEXT DEFAULT '',
                 org_name TEXT DEFAULT '',
                 is_admin INTEGER NOT NULL DEFAULT 0,
@@ -61,6 +62,8 @@ def init_user_db(db_path: str):
             conn.execute("ALTER TABLE users ADD COLUMN employee_code TEXT DEFAULT ''")
         if "manager_name" not in user_cols:
             conn.execute("ALTER TABLE users ADD COLUMN manager_name TEXT DEFAULT ''")
+        if "manager_email" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN manager_email TEXT DEFAULT ''")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS user_host_permissions (
@@ -167,6 +170,7 @@ def _row_to_user(row):
         "department": row["department"] or "",
         "employee_code": row["employee_code"] or "",
         "manager_name": row["manager_name"] or "",
+        "manager_email": row["manager_email"] or "",
         "tenant_id": row["tenant_id"] or "",
         "org_name": row["org_name"] or "",
         "is_admin": bool(row["is_admin"]),
@@ -184,7 +188,7 @@ def list_users(db_path: str):
     with _connect(db_path) as conn:
         rows = conn.execute(
             """
-            SELECT id, email, name, department, employee_code, manager_name, tenant_id, org_name, is_admin, is_active, created_at, updated_at
+            SELECT id, email, name, department, employee_code, manager_name, manager_email, tenant_id, org_name, is_admin, is_active, created_at, updated_at
             FROM users
             ORDER BY is_admin DESC, updated_at DESC, id DESC
             """
@@ -234,6 +238,7 @@ def update_user_profile(
     department: str | None = None,
     employee_code: str | None = None,
     manager_name: str | None = None,
+    manager_email: str | None = None,
 ):
     updates = []
     values = []
@@ -249,6 +254,9 @@ def update_user_profile(
     if manager_name is not None:
         updates.append("manager_name = ?")
         values.append(str(manager_name or "").strip())
+    if manager_email is not None:
+        updates.append("manager_email = ?")
+        values.append(str(manager_email or "").strip().lower())
     if not updates:
         raise ValueError("no profile updates requested")
     now = _utc_now()

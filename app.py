@@ -138,6 +138,7 @@ MS_CLIENT_SECRET = os.environ.get("MS_CLIENT_SECRET", "").strip()
 MS_REDIRECT_URI = os.environ.get("MS_REDIRECT_URI", "").strip()
 SSO_SCOPES = os.environ.get("SSO_SCOPES", "openid profile email User.Read").strip()
 SSO_FETCH_ORG = os.environ.get("SSO_FETCH_ORG", "true").lower() in ("1", "true", "yes", "on")
+SSO_FETCH_MANAGER = os.environ.get("SSO_FETCH_MANAGER", "false").lower() in ("1", "true", "yes", "on")
 SSO_PROMPT = os.environ.get("SSO_PROMPT", "select_account").strip()
 ADMIN_EMAILS = {
     x.strip().lower()
@@ -236,9 +237,17 @@ DEFAULT_CONFIG = {
         "domestic":      {"enabled": True, "label": "Domestic (USD)"},
         "international": {"enabled": True, "label": "International"},
     },
+    "document_types": [
+        {"id": "expense_report", "label": "경비보고서", "enabled": True},
+        {"id": "trip_expense", "label": "출장비 정산서", "enabled": True},
+    ],
     "login_page": {
         "interval_sec": 8,
         "slides": [],
+    },
+    "accounting": {
+        "fx_policy": "date_based",   # date_based | company_average | user_select
+        "company_average_fx": 1.0,
     },
     "wizard": {
         "risk_priority": ["OCR_FAILED", "IMAGE_UNREADABLE", "LOW_CONFIDENCE", "NEEDS_REVIEW"],
@@ -304,11 +313,13 @@ DEFAULT_ADMIN_PERMISSIONS = {
 def _merge_with_default(data: dict) -> dict:
     merged = copy.deepcopy(DEFAULT_CONFIG)
     merged.update({k: v for k, v in data.items() if k in merged})
-    for section in ("company", "fields", "modes", "login_page", "wizard", "auth"):
+    for section in ("company", "fields", "modes", "login_page", "wizard", "auth", "accounting"):
         if section in data and isinstance(data[section], dict):
             merged[section].update(data[section])
     if "expense_types" in data:
         merged["expense_types"] = data["expense_types"]
+    if "document_types" in data and isinstance(data["document_types"], list):
+        merged["document_types"] = data["document_types"]
     return merged
 
 
@@ -877,6 +888,23 @@ def _fetch_ms_org_name(access_token: str) -> str:
     except Exception:
         pass
     return ""
+
+
+def _fetch_ms_manager(access_token: str) -> tuple[str, str]:
+    if not access_token or not SSO_FETCH_MANAGER:
+        return "", ""
+    try:
+        req = urlrequest.Request(
+            "https://graph.microsoft.com/v1.0/me/manager?$select=displayName,mail,userPrincipalName",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        with urlrequest.urlopen(req, timeout=5) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        name = str(payload.get("displayName") or "").strip()
+        email = str(payload.get("mail") or payload.get("userPrincipalName") or "").strip().lower()
+        return name, email
+    except Exception:
+        return "", ""
 
 
 def _exchange_ms_code_directly(code: str, redirect_uri: str) -> dict:
@@ -2103,7 +2131,8 @@ def inbox_generate_report():
         "manager": body.get("manager", ""),
         "project": body.get("project", ""),
     }
-    trip_title = str(body.get("trip_title") or body.get("title") or "").strip()
+    document_type = str(body.get("document_type") or "").strip()
+    trip_title = str(body.get("trip_title") or body.get("title") or document_type or "").strip()
     submission_date = parse_date(body.get("submission_date"))
     settlement_month = body.get("settlement_month")
     period_mode = str(body.get("period_mode") or "manual").strip().lower()
@@ -2163,7 +2192,7 @@ def inbox_generate_report():
         host=host,
         creator_user_id=int(session.get("user_id")) if session.get("user_id") else None,
         creator_email=(session.get("user_email") or ""),
-        title=str(body.get("title") or "").strip(),
+        title=str(body.get("title") or document_type or "").strip(),
         mode=mode,
         receipt_count=len(rows),
         total_amount=float(total_amount),
@@ -2524,6 +2553,14 @@ def auth_callback_microsoft():
         org_name=org_name,
         admin_emails=EFFECTIVE_ADMIN_EMAILS,
     )
+    mgr_name, mgr_email = _fetch_ms_manager(access_token)
+    if mgr_name or mgr_email:
+        user = update_user_profile(
+            db_path=str(USER_DB_PATH),
+            user_id=int(user["id"]),
+            manager_name=mgr_name if mgr_name else None,
+            manager_email=mgr_email if mgr_email else None,
+        )
     if _is_operator_identity(email) and not user.get("is_admin"):
         user = update_user_flags(str(USER_DB_PATH), user["id"], is_admin=True)
     _set_session_user(user, provider="microsoft")
@@ -2568,6 +2605,7 @@ def api_profile():
                     "department": str(user.get("department") or ""),
                     "employee_id": str(user.get("employee_code") or ""),
                     "manager": str(user.get("manager_name") or ""),
+                    "manager_email": str(user.get("manager_email") or ""),
                     "email": str(user.get("email") or ""),
                 }
             }
@@ -2580,6 +2618,7 @@ def api_profile():
         department=body.get("department"),
         employee_code=body.get("employee_id"),
         manager_name=body.get("manager"),
+        manager_email=body.get("manager_email"),
     )
     return jsonify(
         {
@@ -2589,6 +2628,7 @@ def api_profile():
                 "department": str(user.get("department") or ""),
                 "employee_id": str(user.get("employee_code") or ""),
                 "manager": str(user.get("manager_name") or ""),
+                "manager_email": str(user.get("manager_email") or ""),
                 "email": str(user.get("email") or ""),
             },
         }
@@ -2771,6 +2811,14 @@ def admin_save_config():
         ok, err = _require_any_permission(host, ["policy.manage"])
         if not ok:
             return jsonify({"error": err}), 403
+    if "accounting" in body:
+        ok, err = _require_any_permission(host, ["policy.manage"])
+        if not ok:
+            return jsonify({"error": err}), 403
+    if "document_types" in body:
+        ok, err = _require_any_permission(host, ["policy.manage"])
+        if not ok:
+            return jsonify({"error": err}), 403
     cfg  = load_config(host)
 
     # company
@@ -2847,6 +2895,40 @@ def admin_save_config():
                 cfg["wizard"]["cache_ttl_hours"] = max(1, min(ttl, 24 * 30))
             except Exception:
                 pass
+
+    # accounting
+    if "accounting" in body and isinstance(body["accounting"], dict):
+        ab = body["accounting"]
+        cfg.setdefault("accounting", {})
+        if "fx_policy" in ab:
+            policy = str(ab.get("fx_policy") or "date_based").strip().lower()
+            if policy in {"date_based", "company_average", "user_select"}:
+                cfg["accounting"]["fx_policy"] = policy
+        if "company_average_fx" in ab:
+            try:
+                fx = float(ab.get("company_average_fx"))
+                if fx > 0:
+                    cfg["accounting"]["company_average_fx"] = fx
+            except Exception:
+                pass
+
+    # document_types
+    if "document_types" in body and isinstance(body["document_types"], list):
+        doc_types = []
+        for x in body["document_types"]:
+            if not isinstance(x, dict):
+                continue
+            did = str(x.get("id") or "").strip().lower().replace(" ", "_")
+            label = str(x.get("label") or "").strip()
+            if not did or not label:
+                continue
+            doc_types.append({
+                "id": did[:40],
+                "label": label[:60],
+                "enabled": bool(x.get("enabled", True)),
+            })
+        if doc_types:
+            cfg["document_types"] = doc_types
 
     save_config(cfg, host)
     return jsonify({"status": "ok", "config": cfg})
