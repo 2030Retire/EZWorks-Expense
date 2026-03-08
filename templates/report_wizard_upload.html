@@ -8,17 +8,42 @@
   <link href="/static/app_ui.css" rel="stylesheet">
 </head>
 <body class="app-shell">
-  <div class="container py-4">
+  <div class="container-fluid py-3 px-3">
     {% include "_module_nav.html" %}
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
       <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
     </div>
-    {% set wizard_step = 2 %}{% include "_wizard_progress.html" %}
+    {% set wizard_step = 1 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
+      <h6 class="mb-2">Step 1. Start</h6>
+      <div class="row g-2 mb-3">
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Expense Type</label>
+          <select id="startReportType" class="form-select form-select-sm" onchange="applyStartRules(); saveStartOptions();">
+            <option value="domestic">Domestic</option>
+            <option value="international">International</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Base Currency</label>
+          <select id="startCurrency" class="form-select form-select-sm" onchange="saveStartOptions();">
+            <option value="USD">USD</option>
+            <option value="KRW">KRW</option>
+            <option value="EUR">EUR</option>
+            <option value="JPY">JPY</option>
+            <option value="CNY">CNY</option>
+            <option value="GBP">GBP</option>
+          </select>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <div id="startMsg" class="small text-muted"></div>
+        </div>
+      </div>
+
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="mb-0">Step 2. Upload + OCR</h6>
+        <h6 class="mb-0">Step 1. Upload + OCR</h6>
         <button class="btn btn-sm btn-outline-primary" onclick="runOcrForPending()">Run OCR for Pending</button>
       </div>
       <div id="progressSummary" class="small text-muted mb-2"></div>
@@ -57,12 +82,13 @@
       </div>
 
       <div class="d-flex justify-content-between mt-3">
-        <a href="/reports/wizard/settings" class="btn btn-sm btn-outline-secondary">Back</a>
+        <a href="/reports" class="btn btn-sm btn-outline-secondary">Back</a>
         <a href="/reports/wizard/review" class="btn btn-sm btn-primary">Next: Review</a>
       </div>
     </div>
   </div>
   <script>
+    const SETTINGS_KEY = "report_wizard_settings_v2";
     let rows = [];
     let uploading = false;
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
@@ -163,7 +189,7 @@
           const h = Number(img.naturalHeight || 0);
           URL.revokeObjectURL(url);
           const mp = (w * h) / 1000000;
-          const lowRes = (w < 1200 || h < 1200 || mp < 1.2);
+          const lowRes = (Math.min(w, h) < 900 || mp < 1.0);
           resolve({ name: f.name, w, h, mb: (f.size / (1024*1024)), lowRes });
         };
         img.onerror = () => {
@@ -177,8 +203,9 @@
         const badge = x.lowRes ? '<span class="badge text-bg-warning">Low OCR quality risk</span>' : '<span class="badge text-bg-success">OK</span>';
         return `<div>${badge} <span class="ms-1">${esc(x.name)} (${x.w}x${x.h}, ${x.mb.toFixed(2)}MB)</span></div>`;
       }).join("");
+      out.innerHTML += `<div class="text-muted mt-1">Pre-check complete. Click <strong>Upload</strong> to continue.</div>`;
       if (warns.length) {
-        out.innerHTML += `<div class="text-warning mt-1">${warns.length} file(s) may have low OCR accuracy. Consider retaking or replacing before OCR.</div>`;
+        out.innerHTML += `<div class="text-warning mt-1">${warns.length} file(s) flagged by pre-check (heuristic only). Upload/OCR is still available.</div>`;
       }
     }
 
@@ -260,6 +287,59 @@
       await refreshRows();
     }
     refreshRows();
+    initStartOptions();
   </script>
 </body>
 </html>
+    function wizardGet(key, fallback){
+      try{
+        const raw = localStorage.getItem(key);
+        if(!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value")) return parsed.value;
+        return parsed;
+      }catch(_){ return fallback; }
+    }
+    function wizardSet(key, value){
+      try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){}
+    }
+    function saveStartOptions(){
+      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      s.reportType = String(document.getElementById("startReportType").value || "domestic");
+      s.currency = String(document.getElementById("startCurrency").value || "USD").toUpperCase();
+      if (s.reportType === "domestic") s.currency = "USD";
+      wizardSet(SETTINGS_KEY, s);
+      document.getElementById("startMsg").textContent = "Saved.";
+    }
+    function applyStartRules(){
+      const mode = String(document.getElementById("startReportType").value || "domestic");
+      const cur = document.getElementById("startCurrency");
+      if (mode === "domestic"){
+        cur.value = "USD";
+        cur.disabled = true;
+      } else {
+        cur.disabled = false;
+      }
+    }
+    async function initStartOptions(){
+      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      document.getElementById("startReportType").value = s.reportType || "domestic";
+      document.getElementById("startCurrency").value = (s.currency || "USD").toUpperCase();
+      applyStartRules();
+      try{
+        const r = await fetch("/api/config");
+        const d = await r.json();
+        if(r.ok){
+          const modes = d?.modes || {};
+          const sel = document.getElementById("startReportType");
+          const opts = [];
+          if (modes?.domestic?.enabled !== false) opts.push({v:"domestic",l:modes?.domestic?.label || "Domestic"});
+          if (modes?.international?.enabled !== false) opts.push({v:"international",l:modes?.international?.label || "International"});
+          sel.innerHTML = opts.map(x=>`<option value="${x.v}">${esc(x.l)}</option>`).join("");
+          if ([...sel.options].some(o=>o.value === (s.reportType || ""))) sel.value = s.reportType;
+          else if (opts[0]) sel.value = opts[0].v;
+          applyStartRules();
+        }
+      }catch(_){}
+      saveStartOptions();
+    }

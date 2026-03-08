@@ -41,17 +41,19 @@
         {% endif %}
 
         {% if local_login_enabled %}
-        <div class="small fw-semibold mb-2">Or sign in with password</div>
-        <div class="mb-2">
-          <input id="email" class="form-control" type="email" placeholder="Email">
-        </div>
-        <div class="mb-2">
-          <input id="name" class="form-control" type="text" placeholder="Display name (optional)">
-        </div>
-        <div class="mb-2">
-          <input id="password" class="form-control" type="password" placeholder="Password">
-        </div>
-        <button class="btn btn-primary w-100" onclick="loginLocal()">Sign In</button>
+        <form onsubmit="event.preventDefault(); loginLocal();">
+          <div class="small fw-semibold mb-2">Or sign in with password</div>
+          <div class="mb-2">
+            <input id="email" class="form-control" type="email" placeholder="Email">
+          </div>
+          <div class="mb-2">
+            <input id="name" class="form-control" type="text" placeholder="Display name (optional)">
+          </div>
+          <div class="mb-2">
+            <input id="password" class="form-control" type="password" placeholder="Password">
+          </div>
+          <button class="btn btn-primary w-100" type="submit">Sign In</button>
+        </form>
         {% endif %}
 
         <div id="msg" class="small mt-2"></div>

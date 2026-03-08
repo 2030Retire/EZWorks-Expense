@@ -8,63 +8,46 @@
   <link href="/static/app_ui.css" rel="stylesheet">
 </head>
 <body class="app-shell">
-  <div class="container py-4">
+  <div class="container-fluid py-3 px-3">
     {% include "_module_nav.html" %}
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
       <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
       <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
     </div>
-    {% set wizard_step = 4 %}{% include "_wizard_progress.html" %}
+    {% set wizard_step = 3 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
-      <h6 class="mb-3">Step 4. Generate Report</h6>
-      <div class="small text-muted mb-2">Selected receipts: <span id="receiptCount">0</span></div>
-      <div id="progressSummary" class="small text-muted mb-2"></div>
+      <h6 class="mb-2">Step 3. Generate Report</h6>
+      <div class="small text-muted mb-2">Selected receipts: <span id="receiptCount">0</span> · <span id="progressSummary"></span></div>
       <div id="dirtyBanner" class="alert alert-warning py-2 px-3 small mb-2" style="display:none;">
         Unsaved edits were detected from Review. Save those rows before generating.
-        <a id="dirtyBackLink" class="ms-2" href="/reports/wizard/review">Go to Review</a>
       </div>
 
       <div class="row g-2">
-        <div class="col-md-6"><label class="form-label small">Title</label><input id="title" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small">Expense Type</label><select id="mode" class="form-select form-select-sm"><option value="domestic">domestic</option><option value="international">international</option></select></div>
-        <div class="col-md-3"><label class="form-label small">Base Currency</label><input id="currency" class="form-control form-control-sm"></div>
+        <div class="col-md-5"><label class="form-label small mb-1">Title</label><input id="title" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><label class="form-label small mb-1">Expense Type</label><input id="mode" class="form-control form-control-sm" readonly></div>
+        <div class="col-md-2"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
+        <div class="col-md-3"><label class="form-label small mb-1">Period Mode</label><select id="periodMode" class="form-select form-select-sm"><option value="auto">auto</option><option value="manual">manual</option></select></div>
 
-        <div class="col-md-3"><label class="form-label small">Employee Name</label><input id="employeeName" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small">Department</label><input id="department" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small">Manager</label><input id="manager" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small mb-1">Employee Name</label><input id="employeeName" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small mb-1">Department</label><input id="department" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small mb-1">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small mb-1">Manager</label><input id="manager" class="form-control form-control-sm"></div>
 
-        <div class="col-md-6"><label class="form-label small">Project</label><input id="project" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small">Expense Context</label><select id="expenseContext" class="form-select form-select-sm"><option value="general">general</option><option value="travel">travel</option></select></div>
-        <div class="col-md-3"><label class="form-label small">Period Mode</label><select id="periodMode" class="form-select form-select-sm"><option value="auto">auto</option><option value="manual">manual</option></select></div>
+        <div class="col-md-6"><label class="form-label small mb-1">Project</label><input id="project" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small mb-1">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small mb-1">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
 
-        <div class="col-md-6"><label class="form-label small">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
-        <div class="col-md-6"><label class="form-label small">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
-        <div class="col-md-12"><label class="form-label small">Trip Purpose</label><input id="tripPurpose" class="form-control form-control-sm"></div>
-        <div class="col-md-12"><label class="form-label small">Notes</label><textarea id="notes" rows="2" class="form-control form-control-sm"></textarea></div>
-      </div>
-
-      <div class="d-flex justify-content-end mt-2">
-        <button class="btn btn-sm btn-outline-secondary" onclick="saveProfile()">Save Profile</button>
-      </div>
-
-      <hr>
-      <div class="row g-2">
-        <div class="col-md-3"><label class="form-label small">Default FX (to USD)</label><input id="exchangeRate" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1"></div>
-        <div class="col-md-9">
-          <label class="form-label small">Date-based FX Rates (receipt date + currency)</label>
-          <div class="d-flex align-items-center gap-2 mb-1">
-            <button class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRatesByDate()">Fetch by Date</button>
-            <div id="rateUpdatedAt" class="small text-muted"></div>
-          </div>
-          <div id="fxEditor" class="small"></div>
-        </div>
+        <div class="col-md-6"><label class="form-label small mb-1">Trip Purpose</label><input id="tripPurpose" class="form-control form-control-sm"></div>
+        <div class="col-md-6"><label class="form-label small mb-1">Notes</label><input id="notes" class="form-control form-control-sm"></div>
       </div>
 
       <div class="d-flex justify-content-between mt-3">
         <a href="/reports/wizard/review" class="btn btn-sm btn-outline-secondary">Back</a>
-        <button class="btn btn-sm btn-success" onclick="generateReport()">Generate Report</button>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" onclick="saveProfile()">Save Profile</button>
+          <button class="btn btn-sm btn-success" onclick="generateReport()">Generate Report</button>
+        </div>
       </div>
       <div id="msg" class="small mt-2"></div>
     </div>
@@ -73,7 +56,7 @@
     const SETTINGS_KEY = "report_wizard_settings_v2";
     const IDS_KEY = "report_wizard_selected_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
-    let selectedRows = [];
+    const FX_KEY = "report_wizard_fx_by_date_v1";
 
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
@@ -96,16 +79,6 @@
       return (dirty || []).map(Number).filter(x => x && ids.has(Number(x)));
     }
 
-    function applyModeRules(){
-      const mode = String(document.getElementById("mode").value || "domestic").toLowerCase();
-      const c = document.getElementById("currency");
-      if (mode === "domestic") {
-        c.value = "USD";
-        c.readOnly = true;
-      } else {
-        c.readOnly = false;
-      }
-    }
     function applyPeriodRules(){
       const manual = String(document.getElementById("periodMode").value || "auto") === "manual";
       document.getElementById("periodFrom").disabled = !manual;
@@ -116,13 +89,11 @@
       }
     }
 
-    async function loadSelectedRows(){
+    async function loadSelectedSummary(){
       const ids = getSelectedIds();
       document.getElementById("receiptCount").textContent = ids.length;
       if (!ids.length) {
-        selectedRows = [];
-        renderProgressSummary();
-        renderFxEditor();
+        document.getElementById("progressSummary").textContent = "No selected receipts";
         return;
       }
       const details = await Promise.all(ids.map(async (id) => {
@@ -132,84 +103,15 @@
           return r.ok ? (d.receipt || null) : null;
         } catch (_) { return null; }
       }));
-      selectedRows = details.filter(Boolean);
-      renderProgressSummary();
-      renderFxEditor();
-    }
-
-    function renderProgressSummary(){
-      const out = { total: selectedRows.length, risky: 0, ready: 0, assigned: 0 };
-      for (const x of selectedRows) {
+      const rows = details.filter(Boolean);
+      const out = { risky: 0, ready: 0, assigned: 0 };
+      for (const x of rows) {
         const lc = String(x.lifecycle_state || "").toUpperCase();
         if (lc === "READY_FOR_REPORT") out.ready += 1;
         if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
         if (["LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE","NEEDS_REVIEW"].includes(lc) || String(x.status || "") === "needs_review") out.risky += 1;
       }
-      document.getElementById("progressSummary").textContent = `Selected ${out.total} · Risky ${out.risky} · Ready ${out.ready} · Assigned ${out.assigned}`;
-    }
-
-    function getDateCurrencyPairs(){
-      const keys = new Set();
-      const out = [];
-      for (const r of selectedRows) {
-        const dt = String(r.date || "").trim();
-        const c = String(r.currency || "").trim().toUpperCase();
-        if (!dt || !c || c === "USD") continue;
-        const k = `${dt}|${c}`;
-        if (keys.has(k)) continue;
-        keys.add(k);
-        out.push({ date: dt, currency: c });
-      }
-      return out.sort((a,b) => (a.date < b.date ? -1 : 1));
-    }
-
-    function renderFxEditor(){
-      const pairs = getDateCurrencyPairs();
-      const wrap = document.getElementById("fxEditor");
-      if (!pairs.length) {
-        wrap.innerHTML = `<span class="text-muted">No dated non-USD receipts selected.</span>`;
-        return;
-      }
-      wrap.innerHTML = pairs.map((p, i) => `
-        <div class="d-flex align-items-center gap-2 mb-1">
-          <span class="badge text-bg-light border">${esc(p.date)}</span>
-          <span class="badge text-bg-light border">${esc(p.currency)} -> USD</span>
-          <input id="fx-${i}" data-date="${esc(p.date)}" data-currency="${esc(p.currency)}" class="form-control form-control-sm" style="max-width:140px;" type="number" step="0.0001" min="0" value="">
-        </div>
-      `).join("");
-    }
-
-    function collectExchangeRatesByDate(){
-      const out = {};
-      document.querySelectorAll("#fxEditor input[data-date][data-currency]").forEach((el) => {
-        const d = String(el.dataset.date || "").trim();
-        const c = String(el.dataset.currency || "").trim().toUpperCase();
-        const v = Number(el.value || 0);
-        if (!d || !c || !Number.isFinite(v) || v <= 0) return;
-        if (!out[d]) out[d] = {};
-        out[d][c] = v;
-      });
-      return out;
-    }
-
-    async function fetchRatesByDate(){
-      const pairs = getDateCurrencyPairs();
-      if (!pairs.length) return alert("No dated non-USD receipts selected.");
-      for (let i = 0; i < pairs.length; i++) {
-        const p = pairs[i];
-        try {
-          const r = await fetch(`https://api.frankfurter.app/${encodeURIComponent(p.date)}?from=USD&to=${encodeURIComponent(p.currency)}`);
-          const d = await r.json();
-          const usdToCur = Number(d?.rates?.[p.currency] || 0);
-          if (usdToCur > 0) {
-            const toUsd = 1 / usdToCur;
-            const el = document.getElementById(`fx-${i}`);
-            if (el) el.value = String(toUsd.toFixed(6));
-          }
-        } catch (_) {}
-      }
-      const tag = document.getElementById("rateUpdatedAt");
-      if (tag) tag.textContent = `Updated: ${new Date().toLocaleString()}`;
+      document.getElementById("progressSummary").textContent = `Risky ${out.risky} · Ready ${out.ready} · Assigned ${out.assigned}`;
     }
 
     async function loadProfile(){
@@ -240,9 +142,8 @@
 
     function loadBasicSettings(){
       const s = wizardGet(SETTINGS_KEY, {}) || {};
-      document.getElementById("mode").value = s.reportType || "domestic";
+      document.getElementById("mode").value = (s.reportType || "domestic").toLowerCase();
       document.getElementById("currency").value = (s.currency || "USD").toUpperCase();
-      applyModeRules();
     }
 
     async function generateReport(){
@@ -251,12 +152,13 @@
       const ids = getSelectedIds();
       if (!ids.length) return alert("No selected receipts. Go back to Review.");
 
+      const fx = wizardGet(FX_KEY, {}) || {};
       const body = {
         mode: document.getElementById("mode").value,
         title: document.getElementById("title").value.trim(),
         currency: document.getElementById("currency").value.trim().toUpperCase(),
-        exchange_rate: Number(document.getElementById("exchangeRate").value || 1),
-        exchange_rates: collectExchangeRatesByDate(),
+        exchange_rate: Number(fx.default_rate || 1),
+        exchange_rates: fx.rates || {},
         period_mode: document.getElementById("periodMode").value,
         receipt_ids: ids,
         employee_name: document.getElementById("employeeName").value.trim(),
@@ -266,7 +168,7 @@
         project: document.getElementById("project").value.trim(),
         period_from: document.getElementById("periodFrom").value.trim(),
         period_to: document.getElementById("periodTo").value.trim(),
-        trip_purpose: document.getElementById("expenseContext").value === "travel" ? document.getElementById("tripPurpose").value.trim() : "",
+        trip_purpose: document.getElementById("tripPurpose").value.trim(),
         notes: document.getElementById("notes").value.trim(),
       };
       const r = await fetch("/api/inbox/reports/generate", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
@@ -278,18 +180,15 @@
     }
 
     (async()=>{
-      const dirty = getSelectedDirtyIds();
-      if (dirty.length) {
-        const banner = document.getElementById("dirtyBanner");
-        banner.style.display = "";
+      if (getSelectedDirtyIds().length) {
+        document.getElementById("dirtyBanner").style.display = "";
       }
       loadBasicSettings();
       await loadProfile();
-      await loadSelectedRows();
+      await loadSelectedSummary();
       applyPeriodRules();
     })();
 
-    document.getElementById("mode").addEventListener("change", applyModeRules);
     document.getElementById("periodMode").addEventListener("change", applyPeriodRules);
   </script>
 </body>

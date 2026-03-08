@@ -8,13 +8,13 @@
   <link href="/static/app_ui.css" rel="stylesheet">
 </head>
 <body class="app-shell">
-  <div class="container py-4">
+  <div class="container-fluid py-3 px-3">
     {% include "_module_nav.html" %}
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
       <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
     </div>
-    {% set wizard_step = 3 %}{% include "_wizard_progress.html" %}
+    {% set wizard_step = 2 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
@@ -32,6 +32,22 @@
           <tbody id="rows"></tbody>
         </table>
       </div>
+      <div class="border-top pt-2 mt-2">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Default FX (to USD)</label>
+            <input id="defaultFx" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1" oninput="saveFxState()">
+          </div>
+          <div class="col-md-9">
+            <label class="form-label small mb-1">Date-based FX Rates</label>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <button class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRatesByDate()">Fetch by Date</button>
+              <span class="small text-muted" id="fxUpdatedAt"></span>
+            </div>
+            <div id="fxEditor" class="small"></div>
+          </div>
+        </div>
+      </div>
       <div class="d-flex justify-content-between mt-2">
         <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
         <button class="btn btn-sm btn-primary" onclick="goNext()">Next: Generate</button>
@@ -42,6 +58,7 @@
   <script>
     const KEY = "report_wizard_selected_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
+    const FX_KEY = "report_wizard_fx_by_date_v1";
     let rowsAll = [];
     let categoryChoices = [];
 
@@ -207,7 +224,79 @@
     function saveSelection(){
       const ids = [...document.querySelectorAll(".sel:checked")].map(x=>Number(x.value));
       wizardSet(KEY, ids);
+      renderFxEditor();
+      saveFxState();
       document.getElementById("msg").textContent = "Selection saved.";
+    }
+    function getSelectedRows(){
+      const ids = new Set(getSavedSelection().map(Number));
+      return rowsAll.filter((r) => ids.has(Number(r.id)));
+    }
+    function renderFxEditor(){
+      const rows = getSelectedRows();
+      const pairs = [];
+      const seen = new Set();
+      for (const r of rows){
+        const d = String(r.date || "").trim();
+        const c = String(r.currency || "").trim().toUpperCase();
+        if (!d || !c || c === "USD") continue;
+        const k = `${d}|${c}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        pairs.push({date:d, currency:c});
+      }
+      pairs.sort((a,b)=> a.date < b.date ? -1 : 1);
+      const wrap = document.getElementById("fxEditor");
+      if (!pairs.length){
+        wrap.innerHTML = `<span class="text-muted">No dated non-USD selected receipts.</span>`;
+        return;
+      }
+      wrap.innerHTML = pairs.map((p,i)=>`
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge text-bg-light border">${esc(p.date)}</span>
+          <span class="badge text-bg-light border">${esc(p.currency)} -> USD</span>
+          <input id="fx-${i}" data-date="${esc(p.date)}" data-currency="${esc(p.currency)}" class="form-control form-control-sm" style="max-width:140px;" type="number" step="0.0001" min="0" value="" oninput="saveFxState()">
+        </div>
+      `).join("");
+      loadFxStateIntoEditor();
+    }
+    function saveFxState(){
+      const payload = { default_rate: Number(document.getElementById("defaultFx").value || 1), rates: {} };
+      document.querySelectorAll("#fxEditor input[data-date][data-currency]").forEach((el) => {
+        const d = String(el.dataset.date || "").trim();
+        const c = String(el.dataset.currency || "").trim().toUpperCase();
+        const v = Number(el.value || 0);
+        if (!d || !c || !Number.isFinite(v) || v <= 0) return;
+        if (!payload.rates[d]) payload.rates[d] = {};
+        payload.rates[d][c] = v;
+      });
+      wizardSet(FX_KEY, payload);
+    }
+    function loadFxStateIntoEditor(){
+      const fx = wizardGet(FX_KEY, {}) || {};
+      const rates = fx.rates || {};
+      if (fx.default_rate) document.getElementById("defaultFx").value = fx.default_rate;
+      document.querySelectorAll("#fxEditor input[data-date][data-currency]").forEach((el) => {
+        const d = String(el.dataset.date || "").trim();
+        const c = String(el.dataset.currency || "").trim().toUpperCase();
+        if (rates[d] && rates[d][c]) el.value = String(rates[d][c]);
+      });
+    }
+    async function fetchRatesByDate(){
+      const inputs = [...document.querySelectorAll("#fxEditor input[data-date][data-currency]")];
+      if (!inputs.length) return alert("No dated non-USD selected receipts.");
+      for (const el of inputs){
+        const d = String(el.dataset.date || "");
+        const c = String(el.dataset.currency || "");
+        try{
+          const r = await fetch(`https://api.frankfurter.app/${encodeURIComponent(d)}?from=USD&to=${encodeURIComponent(c)}`);
+          const data = await r.json();
+          const usdToCur = Number(data?.rates?.[c] || 0);
+          if (usdToCur > 0) el.value = String((1 / usdToCur).toFixed(6));
+        }catch(_){}
+      }
+      saveFxState();
+      document.getElementById("fxUpdatedAt").textContent = `Updated: ${new Date().toLocaleString()}`;
     }
     function goNext(){
       if (getDirtySet().size) {
@@ -221,6 +310,8 @@
     (async()=>{
       await loadCategories();
       await loadRows();
+      renderFxEditor();
+      loadFxStateIntoEditor();
     })();
   </script>
 </body>

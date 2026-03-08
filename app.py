@@ -1024,14 +1024,14 @@ def inbox_settings_page():
 def reports_wizard_entry():
     if not _is_user_authenticated():
         return redirect("/login?next=/reports/wizard")
-    return redirect("/reports/wizard/settings")
+    return redirect("/reports/wizard/upload")
 
 
 @app.route("/reports/wizard/settings")
 def reports_wizard_settings_page():
     if not _is_user_authenticated():
         return redirect("/login?next=/reports/wizard/settings")
-    return _render_inbox_page("report_wizard_settings.html", active_module="reports")
+    return redirect("/reports/wizard/upload")
 
 
 @app.route("/reports/wizard/upload")
