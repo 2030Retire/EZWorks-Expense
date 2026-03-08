@@ -1084,6 +1084,7 @@ def login_page():
             + (["MS_CLIENT_SECRET(Value)"] if _looks_like_secret_id(MS_CLIENT_SECRET) else [])
         ),
         sso_callback=_effective_ms_redirect_uri(),
+        sso_error=(request.args.get("sso_error", "") or "").strip(),
         local_login_enabled=local_enabled,
     )
 
@@ -2409,7 +2410,18 @@ def download_file(session_id, filename):
 @app.route("/auth/login/microsoft")
 def auth_login_microsoft():
     if not _is_sso_configured():
-        return jsonify({"error": "Microsoft SSO is not fully configured."}), 400
+        missing = []
+        if not MS_CLIENT_ID:
+            missing.append("MS_CLIENT_ID")
+        if not MS_CLIENT_SECRET:
+            missing.append("MS_CLIENT_SECRET")
+        if _looks_like_secret_id(MS_CLIENT_SECRET):
+            missing.append("MS_CLIENT_SECRET(value looks like Secret ID, use Secret Value)")
+        msg = "Microsoft SSO is not fully configured"
+        if missing:
+            msg = f"{msg}: {', '.join(missing)}"
+        nxt = request.args.get("next", "/")
+        return redirect(f"/login?next={urlparse.quote(nxt)}&sso_error={urlparse.quote(msg)}")
     ms_client = oauth.create_client("microsoft")
 
     session["post_login_redirect"] = request.args.get("next", "/")
@@ -2459,7 +2471,7 @@ def auth_login_local():
 @app.route("/auth/callback/microsoft")
 def auth_callback_microsoft():
     if not _is_sso_configured():
-        return jsonify({"error": "Microsoft SSO is not configured."}), 500
+        return redirect("/login?sso_error=Microsoft%20SSO%20is%20not%20configured")
 
     redirect_uri = _effective_ms_redirect_uri()
     code = request.args.get("code", "")

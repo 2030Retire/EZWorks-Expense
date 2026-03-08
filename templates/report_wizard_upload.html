@@ -42,7 +42,7 @@
 
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div id="progressSummary" class="small text-muted"></div>
-        <button class="btn btn-sm btn-outline-primary" onclick="runOcrForPending()">Run OCR for Pending</button>
+        <button id="runOcrPendingBtn" class="btn btn-sm btn-outline-primary" onclick="runOcrForPending()">Run OCR for Pending</button>
       </div>
 
       <div class="row g-2 align-items-end mb-2">
@@ -53,8 +53,12 @@
         </div>
       </div>
 
-      <div class="progress mb-2" id="uploadProgressWrap" style="display:none; height:16px;">
-        <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%">0%</div>
+      <div class="progress mb-1" id="uploadTotalWrap" style="display:none; height:16px;">
+        <div id="uploadTotalBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:0%">0%</div>
+      </div>
+      <div class="small text-muted mb-1" id="uploadTotalText" style="display:none;"></div>
+      <div class="progress mb-2" id="uploadCurrentWrap" style="display:none; height:14px;">
+        <div id="uploadCurrentBar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width:0%">0%</div>
       </div>
 
       <div id="qualityHints" class="small mb-2"></div>
@@ -82,6 +86,8 @@
     const SETTINGS_KEY = "report_wizard_settings_v2";
     let rows = [];
     let uploading = false;
+    const ocrInFlight = new Set();
+    let ocrBatchRunning = false;
 
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
@@ -151,6 +157,7 @@
       if (!rows.length) { body.innerHTML = `<tr><td colspan="10" class="small text-muted">No unassigned receipts yet.</td></tr>`; return; }
       body.innerHTML = rows.map((x, i) => {
         const canOcr = canRerunOcr(x);
+        const inFlight = ocrInFlight.has(Number(x.id));
         return `<tr>
           <td>${i + 1}</td>
           <td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td>
@@ -162,7 +169,7 @@
           <td>${esc(x.status || "-")}</td>
           <td>${esc(x.lifecycle_state || "-")}</td>
           <td>
-            <button class="btn btn-sm btn-outline-primary" ${canOcr ? "" : "disabled"} onclick="runOcr(${Number(x.id)})">${canOcr ? "OCR" : "Done"}</button>
+            <button class="btn btn-sm btn-outline-primary" ${(canOcr && !inFlight) ? "" : "disabled"} onclick="runOcr(${Number(x.id)})">${inFlight ? "Processing..." : (canOcr ? "OCR" : "Done")}</button>
             <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteReceipt(${Number(x.id)})">Delete</button>
           </td>
         </tr>`;
@@ -181,8 +188,29 @@
       renderRows();
     }
 
-    function showUploadProgress(percent){ const wrap = document.getElementById("uploadProgressWrap"); const bar = document.getElementById("uploadProgressBar"); wrap.style.display = ""; bar.style.width = `${percent}%`; bar.textContent = `${percent}%`; }
-    function hideUploadProgress(){ const wrap = document.getElementById("uploadProgressWrap"); const bar = document.getElementById("uploadProgressBar"); bar.style.width = "0%"; bar.textContent = "0%"; wrap.style.display = "none"; }
+    function showUploadProgress(totalPercent, currentPercent, currentLabel){
+      const totalWrap = document.getElementById("uploadTotalWrap");
+      const totalBar = document.getElementById("uploadTotalBar");
+      const totalText = document.getElementById("uploadTotalText");
+      const currentWrap = document.getElementById("uploadCurrentWrap");
+      const currentBar = document.getElementById("uploadCurrentBar");
+      totalWrap.style.display = "";
+      totalText.style.display = "";
+      currentWrap.style.display = "";
+      totalBar.style.width = `${totalPercent}%`;
+      totalBar.textContent = `${totalPercent}%`;
+      currentBar.style.width = `${currentPercent}%`;
+      currentBar.textContent = `${currentPercent}%`;
+      totalText.textContent = currentLabel || "";
+    }
+    function hideUploadProgress(){
+      const ids = ["uploadTotalWrap","uploadCurrentWrap","uploadTotalText"];
+      ids.forEach((id)=>{ const el = document.getElementById(id); if (el) el.style.display = "none"; });
+      const totalBar = document.getElementById("uploadTotalBar");
+      const currentBar = document.getElementById("uploadCurrentBar");
+      if (totalBar){ totalBar.style.width = "0%"; totalBar.textContent = "0%"; }
+      if (currentBar){ currentBar.style.width = "0%"; currentBar.textContent = "0%"; }
+    }
 
     async function analyzeSelectedFiles(){
       const inp = document.getElementById("files");
@@ -220,20 +248,26 @@
       if (duplicateNames.size) out.innerHTML += `<div class="text-warning mt-1">Duplicate selection detected in this batch: ${esc([...duplicateNames].join(", "))}</div>`;
     }
 
-    function uploadWithProgress(formData){
+    function uploadSingleWithProgress(file, index, total){
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", "/api/inbox/upload");
+        const formData = new FormData();
+        formData.append("receipts", file);
         xhr.upload.onprogress = (e) => {
           if (!e.lengthComputable) return;
-          const p = Math.max(1, Math.min(99, Math.round((e.loaded / e.total) * 100)));
-          showUploadProgress(p);
+          const current = Math.max(1, Math.min(99, Math.round((e.loaded / e.total) * 100)));
+          const overall = Math.max(1, Math.min(99, Math.round(((index + (e.loaded / e.total)) / total) * 100)));
+          showUploadProgress(overall, current, `Uploading ${index + 1}/${total}: ${file.name}`);
         };
         xhr.onload = () => {
           try {
             const data = JSON.parse(xhr.responseText || "{}");
-            if (xhr.status >= 200 && xhr.status < 300) { showUploadProgress(100); resolve(data); }
-            else reject(new Error(data.error || "Upload failed"));
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const overall = Math.round(((index + 1) / total) * 100);
+              showUploadProgress(overall, 100, `Uploaded ${index + 1}/${total}: ${file.name}`);
+              resolve(data);
+            } else reject(new Error(data.error || "Upload failed"));
           } catch (_) { reject(new Error("Upload failed")); }
         };
         xhr.onerror = () => reject(new Error("Network error during upload"));
@@ -245,36 +279,68 @@
       if (uploading) return;
       const inp = document.getElementById("files");
       if (!inp.files.length) return alert("Select files.");
-      const fd = new FormData();
-      for (const f of inp.files) fd.append("receipts", f);
+      const files = [...inp.files];
       try {
         uploading = true;
-        showUploadProgress(1);
-        const d = await uploadWithProgress(fd);
-        document.getElementById("msg").textContent = `Uploaded ${d.count} file(s)`;
+        let uploaded = 0;
+        const errors = [];
+        showUploadProgress(1, 0, "Preparing upload...");
+        for (let i = 0; i < files.length; i++) {
+          try{
+            const d = await uploadSingleWithProgress(files[i], i, files.length);
+            uploaded += Number(d.count || 0);
+          }catch(err){
+            errors.push(`${files[i].name}: ${err.message || "failed"}`);
+          }
+        }
+        if (errors.length) {
+          document.getElementById("msg").innerHTML = `<span class="text-warning">Uploaded ${uploaded}/${files.length}. Failed: ${esc(errors.join(" | "))}</span>`;
+        } else {
+          document.getElementById("msg").textContent = `Uploaded ${uploaded} file(s)`;
+        }
         inp.value = "";
         document.getElementById("qualityHints").innerHTML = "";
         await refreshRows();
       } catch (e) { alert(e.message || "Upload failed"); }
-      finally { uploading = false; setTimeout(hideUploadProgress, 500); }
+      finally { uploading = false; setTimeout(hideUploadProgress, 700); }
     }
 
     async function runOcr(id){
       const target = rows.find(x => Number(x.id) === Number(id));
       if (target && !canRerunOcr(target)) return alert("Already OCR-processed. Re-run blocked.");
-      const r = await fetch(`/api/inbox/ocr/${id}`, { method: "POST" });
-      const d = await r.json();
-      if (!r.ok) return alert(d.error || "OCR failed");
-      await refreshRows();
+      if (ocrInFlight.has(Number(id))) return;
+      ocrInFlight.add(Number(id));
+      renderRows();
+      try{
+        const r = await fetch(`/api/inbox/ocr/${id}`, { method: "POST" });
+        const d = await r.json();
+        if (!r.ok) return alert(d.error || "OCR failed");
+      } finally {
+        ocrInFlight.delete(Number(id));
+        await refreshRows();
+      }
     }
     async function runOcrForPending(){
+      if (ocrBatchRunning) return;
       const targets = rows.filter(x => {
         const lc = String(x.lifecycle_state || "").toUpperCase();
         return canRerunOcr(x) && ["UPLOADED","NEEDS_REVIEW","LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE"].includes(lc);
       }).map(x => Number(x.id));
       if (!targets.length) return alert("No pending receipts for OCR.");
-      for (const id of targets) await runOcr(id);
-      await refreshRows();
+      ocrBatchRunning = true;
+      const btn = document.getElementById("runOcrPendingBtn");
+      if (btn){ btn.disabled = true; btn.textContent = "Running OCR..."; }
+      try{
+        for (let i = 0; i < targets.length; i++) {
+          document.getElementById("msg").textContent = `OCR ${i + 1}/${targets.length} in progress...`;
+          await runOcr(targets[i]);
+        }
+        document.getElementById("msg").textContent = `OCR completed: ${targets.length} file(s).`;
+      } finally {
+        ocrBatchRunning = false;
+        if (btn){ btn.disabled = false; btn.textContent = "Run OCR for Pending"; }
+        await refreshRows();
+      }
     }
     async function deleteReceipt(id){
       if (!confirm("Delete this uploaded receipt?")) return;

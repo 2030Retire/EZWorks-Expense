@@ -28,7 +28,22 @@
       <div id="dirtySummary" class="small text-warning mb-2"></div>
       <div class="table-responsive">
         <table class="table table-sm align-middle">
-          <thead><tr><th><input type="checkbox" onchange="toggleAll(this)"></th><th>File</th><th>Date</th><th>Merchant</th><th>Amount</th><th>Currency</th><th>Category</th><th>Memo</th><th>Status</th><th>Lifecycle</th><th>Dirty</th></tr></thead>
+          <thead>
+            <tr>
+              <th><input type="checkbox" onchange="toggleAll(this)"></th>
+              <th>Preview</th>
+              <th>File</th>
+              <th>Date</th>
+              <th>Merchant</th>
+              <th>Amount</th>
+              <th>USD Amount</th>
+              <th>Category</th>
+              <th>Memo</th>
+              <th>Status</th>
+              <th>Lifecycle</th>
+              <th>Dirty</th>
+            </tr>
+          </thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
@@ -36,7 +51,7 @@
         <div class="row g-2 align-items-end">
           <div class="col-md-3">
             <label class="form-label small mb-1">Default FX (to USD)</label>
-            <input id="defaultFx" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1" oninput="saveFxState()">
+            <input id="defaultFx" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1" oninput="saveFxState(); updateUsdAmounts();">
           </div>
           <div class="col-md-9">
             <label class="form-label small mb-1">Date-based FX Rates</label>
@@ -73,8 +88,30 @@
       }catch(_){ return fallback; }
     }
     function wizardSet(key, value){
-      try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){}
+      try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){ }
     }
+    function normalizeDateInput(v){
+      const s = String(v || "").trim();
+      if (!s) return "";
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      const mdY = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (mdY) {
+        const mm = String(mdY[1]).padStart(2, "0");
+        const dd = String(mdY[2]).padStart(2, "0");
+        return `${mdY[3]}-${mm}-${dd}`;
+      }
+      return "";
+    }
+    function currencySymbol(code){
+      const c = String(code || "USD").toUpperCase();
+      const m = { USD: "$", KRW: "₩", EUR: "€", JPY: "¥", CNY: "¥", GBP: "£" };
+      return m[c] || c;
+    }
+    function formatMoney(v){
+      const n = Number(v || 0);
+      return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0";
+    }
+
     function getSavedSelection(){
       const v = wizardGet(KEY, []);
       return Array.isArray(v) ? v : [];
@@ -91,6 +128,7 @@
       set.add(id);
       wizardSet(DIRTY_KEY, [...set]);
       renderDirtySummary();
+      updateUsdAmountForRow(tr);
     }
     function renderDirtySummary(){
       const cnt = getDirtySet().size;
@@ -103,7 +141,7 @@
         out.total += 1;
         const lc = String(x.lifecycle_state || "").toUpperCase();
         if (lc === "UPLOADED") out.uploaded += 1;
-        if (lc === "NEEDS_REVIEW" || lc === "LOW_CONFIDENCE" || lc === "OCR_FAILED" || lc === "IMAGE_UNREADABLE") out.needs_review += 1;
+        if (["NEEDS_REVIEW", "LOW_CONFIDENCE", "OCR_FAILED", "IMAGE_UNREADABLE"].includes(lc)) out.needs_review += 1;
         if (lc === "READY_FOR_REPORT") out.ready += 1;
         if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
       }
@@ -145,26 +183,75 @@
       markDirty(tr);
     }
 
+    function buildAmountCell(row){
+      const cur = String(row.currency || "USD").toUpperCase();
+      const amount = Number(row.amount || 0);
+      return `
+        <div class="input-group input-group-sm">
+          <span class="input-group-text f-currency-symbol" style="min-width:38px;">${esc(currencySymbol(cur))}</span>
+          <input class="form-control form-control-sm f-amount text-end" type="number" min="0" step="0.01" value="${amount}" oninput="markDirty(this.closest('tr'))">
+          <select class="form-select form-select-sm f-currency" style="max-width:92px;" onchange="syncCurrencySymbol(this); markDirty(this.closest('tr'));">
+            ${["USD","KRW","EUR","JPY","CNY","GBP"].map((c)=>`<option value="${c}" ${c===cur?"selected":""}>${c}</option>`).join("")}
+          </select>
+        </div>
+      `;
+    }
+    function syncCurrencySymbol(sel){
+      const tr = sel.closest("tr");
+      const sym = tr.querySelector(".f-currency-symbol");
+      if (sym) sym.textContent = currencySymbol(sel.value);
+      updateUsdAmountForRow(tr);
+    }
+    function getFxRate(dateIso, currency){
+      const c = String(currency || "USD").toUpperCase();
+      if (c === "USD") return 1;
+      const fx = wizardGet(FX_KEY, {}) || {};
+      const d = String(dateIso || "").trim();
+      const byDate = (fx.rates || {})[d] || {};
+      const specific = Number(byDate[c] || 0);
+      if (specific > 0) return specific;
+      const fallback = Number(fx.default_rate || document.getElementById("defaultFx")?.value || 1);
+      return fallback > 0 ? fallback : 1;
+    }
+    function updateUsdAmountForRow(tr){
+      if (!tr) return;
+      const amount = Number(tr.querySelector(".f-amount")?.value || 0);
+      const currency = String(tr.querySelector(".f-currency")?.value || "USD").toUpperCase();
+      const dateIso = normalizeDateInput(tr.querySelector(".f-date")?.value || "");
+      const rate = getFxRate(dateIso, currency);
+      const usd = amount * rate;
+      const el = tr.querySelector(".f-usd");
+      if (el) el.textContent = `$ ${formatMoney(usd)}`;
+    }
+    function updateUsdAmounts(){
+      document.querySelectorAll("#rows tr").forEach((tr)=>updateUsdAmountForRow(tr));
+    }
+
     function renderRows(){
-      const selected = new Set(getSavedSelection().map(Number));
+      let selected = new Set(getSavedSelection().map(Number));
+      const autoSelectAll = selected.size === 0;
+      if (autoSelectAll) selected = new Set(rowsAll.map((x)=>Number(x.id)));
       const dirtySet = getDirtySet();
       const body = document.getElementById("rows");
       body.innerHTML = rowsAll.map((x)=>`
         <tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}">
           <td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td>
+          <td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td>
           <td>${esc(x.orig_filename || "")}</td>
-          <td><input class="form-control form-control-sm f-date" type="date" value="${esc(x.date || "")}" oninput="markDirty(this.closest('tr'))"></td>
+          <td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td>
           <td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td>
-          <td><input class="form-control form-control-sm f-amount" type="number" min="0" value="${Number(x.amount || 0)}" oninput="markDirty(this.closest('tr'))"></td>
-          <td><input class="form-control form-control-sm f-currency" value="${esc(x.currency || "USD")}" oninput="markDirty(this.closest('tr'))"></td>
+          <td>${buildAmountCell(x)}</td>
+          <td class="text-end f-usd">$ 0</td>
           <td>${buildCategoryCell(x)}</td>
           <td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td>
           <td>${esc(x.status || "-")}</td>
           <td>${esc(x.lifecycle_state || "-")}</td>
           <td>${dirtySet.has(Number(x.id)) ? '<span class="badge text-bg-warning">Unsaved</span>' : '<span class="text-muted">-</span>'}</td>
         </tr>
-      `).join("") || `<tr><td colspan="11" class="text-muted small">No receipts.</td></tr>`;
+      `).join("") || `<tr><td colspan="12" class="text-muted small">No receipts.</td></tr>`;
+      if (autoSelectAll) wizardSet(KEY, [...selected]);
       renderDirtySummary();
+      updateUsdAmounts();
     }
 
     async function loadRows(){
@@ -180,7 +267,7 @@
       const id = Number(tr.dataset.id || 0);
       if (!id) return;
       const body = {
-        date: tr.querySelector(".f-date").value.trim(),
+        date: normalizeDateInput(tr.querySelector(".f-date").value.trim()),
         merchant: tr.querySelector(".f-merchant").value.trim(),
         amount: Number(tr.querySelector(".f-amount").value || 0),
         currency: tr.querySelector(".f-currency").value.trim().toUpperCase(),
@@ -210,9 +297,7 @@
         document.getElementById("msg").textContent = "No dirty rows.";
         return;
       }
-      for (const tr of dirtyRows) {
-        await saveRowByTr(tr);
-      }
+      for (const tr of dirtyRows) await saveRowByTr(tr);
       document.getElementById("msg").textContent = `Saved ${dirtyRows.length} row(s).`;
       await loadRows();
     }
@@ -226,18 +311,20 @@
       wizardSet(KEY, ids);
       renderFxEditor();
       saveFxState();
+      updateUsdAmounts();
       document.getElementById("msg").textContent = "Selection saved.";
     }
-    function getSelectedRows(){
+    function getEffectiveRowsForFx(){
       const ids = new Set(getSavedSelection().map(Number));
-      return rowsAll.filter((r) => ids.has(Number(r.id)));
+      const selected = rowsAll.filter((r) => ids.has(Number(r.id)));
+      return selected.length ? selected : rowsAll;
     }
     function renderFxEditor(){
-      const rows = getSelectedRows();
+      const rows = getEffectiveRowsForFx();
       const pairs = [];
       const seen = new Set();
       for (const r of rows){
-        const d = String(r.date || "").trim();
+        const d = normalizeDateInput(r.date || "");
         const c = String(r.currency || "").trim().toUpperCase();
         if (!d || !c || c === "USD") continue;
         const k = `${d}|${c}`;
@@ -248,14 +335,14 @@
       pairs.sort((a,b)=> a.date < b.date ? -1 : 1);
       const wrap = document.getElementById("fxEditor");
       if (!pairs.length){
-        wrap.innerHTML = `<span class="text-muted">No dated non-USD selected receipts.</span>`;
+        wrap.innerHTML = `<span class="text-muted">No dated non-USD receipts (selected/all).</span>`;
         return;
       }
       wrap.innerHTML = pairs.map((p,i)=>`
         <div class="d-flex align-items-center gap-2 mb-1">
           <span class="badge text-bg-light border">${esc(p.date)}</span>
           <span class="badge text-bg-light border">${esc(p.currency)} -> USD</span>
-          <input id="fx-${i}" data-date="${esc(p.date)}" data-currency="${esc(p.currency)}" class="form-control form-control-sm" style="max-width:140px;" type="number" step="0.0001" min="0" value="" oninput="saveFxState()">
+          <input id="fx-${i}" data-date="${esc(p.date)}" data-currency="${esc(p.currency)}" class="form-control form-control-sm" style="max-width:140px;" type="number" step="0.0001" min="0" value="" oninput="saveFxState(); updateUsdAmounts();">
         </div>
       `).join("");
       loadFxStateIntoEditor();
@@ -284,7 +371,7 @@
     }
     async function fetchRatesByDate(){
       const inputs = [...document.querySelectorAll("#fxEditor input[data-date][data-currency]")];
-      if (!inputs.length) return alert("No dated non-USD selected receipts.");
+      if (!inputs.length) return alert("No dated non-USD receipts available.");
       for (const el of inputs){
         const d = String(el.dataset.date || "");
         const c = String(el.dataset.currency || "");
@@ -293,9 +380,10 @@
           const data = await r.json();
           const usdToCur = Number(data?.rates?.[c] || 0);
           if (usdToCur > 0) el.value = String((1 / usdToCur).toFixed(6));
-        }catch(_){}
+        }catch(_){ }
       }
       saveFxState();
+      updateUsdAmounts();
       document.getElementById("fxUpdatedAt").textContent = `Updated: ${new Date().toLocaleString()}`;
     }
     function goNext(){
@@ -312,6 +400,7 @@
       await loadRows();
       renderFxEditor();
       loadFxStateIntoEditor();
+      updateUsdAmounts();
     })();
   </script>
 </body>
