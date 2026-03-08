@@ -266,10 +266,11 @@ def fill_list_sheet_domestic(ws, receipts, start_row: int,
         if currency == "USD":
             amount_usd = amount
         else:
-            amount_usd = amount / rate if rate else 0.0
+            amount_usd = amount * rate if rate else 0.0
 
         ws.cell(row=row, column=1).value = i
         ws.cell(row=row, column=2).value = r_date
+        ws.cell(row=row, column=2).number_format = "mm/dd/yyyy"
         ws.cell(row=row, column=3).value = r.get("merchant", "")
         ws.cell(row=row, column=4).value = r.get("category", "MISCELLANEOUS")
         ws.cell(row=row, column=5).value = round(amount_usd, 2)
@@ -302,12 +303,13 @@ def fill_list_sheet_international(ws, receipts, start_row: int,
             amount_foreign = amount
             effective_rate = 1.0
         else:
-            amount_usd     = amount / rate if rate else 0.0
+            amount_usd     = amount * rate if rate else 0.0
             amount_foreign = amount
             effective_rate = rate
 
         ws.cell(row=row, column=1).value = i
         ws.cell(row=row, column=2).value = r_date
+        ws.cell(row=row, column=2).number_format = "mm/dd/yyyy"
         ws.cell(row=row, column=3).value = r.get("merchant", "")
         ws.cell(row=row, column=4).value = r.get("category", "MISCELLANEOUS")
         ws.cell(row=row, column=5).value = currency
@@ -342,7 +344,7 @@ def fill_weekly_sheet_domestic(ws, receipts_by_date: dict, date_col_map: dict,
             amount   = float(r.get("amount") or 0)
             currency = r.get("currency", "USD")
             rate     = get_rate_for_date(d, currency, exchange_rate, exchange_rates)
-            usd      = amount if currency == "USD" else (amount / rate if rate else 0.0)
+            usd      = amount if currency == "USD" else (amount * rate if rate else 0.0)
             cat_totals[r.get("category", "MISCELLANEOUS")] += usd
 
         for cat_id, row_idx in cat_row_map.items():
@@ -389,7 +391,7 @@ def fill_weekly_sheet_international(ws, receipts_by_date: dict, date_col_map: di
             if currency == "USD":
                 usd = amount; foreign = amount
             else:
-                usd = amount / rate if rate else 0.0
+                usd = amount * rate if rate else 0.0
                 foreign = amount
             cat_id = r.get("category", "MISCELLANEOUS")
             cat_foreign[cat_id] += foreign
@@ -422,7 +424,8 @@ def fill_employee_info(wb, employee_info: dict, trip_title: str = "",
     project    = employee_info.get("project", "")
     period_str = ""
     if submission_date:
-        period_str = str(submission_date)
+        sd = parse_date(submission_date)
+        period_str = sd.strftime("%m/%d/%Y") if sd else str(submission_date)
 
     label_value_map = {
         "employee name": name,
@@ -442,6 +445,12 @@ def fill_employee_info(wb, employee_info: dict, trip_title: str = "",
     }
 
     for ws in wb.worksheets:
+        for col in range(2, 10):
+            if ws.cell(row=DATE_ROW, column=col).value is not None:
+                ws.column_dimensions[get_column_letter(col)].width = max(
+                    float(ws.column_dimensions[get_column_letter(col)].width or 0), 12.0
+                )
+                ws.cell(row=DATE_ROW, column=col).number_format = "mm/dd/yyyy"
         for row in range(1, 15):
             for col in range(1, 12):
                 cell = ws.cell(row=row, column=col)

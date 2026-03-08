@@ -196,6 +196,27 @@ def _is_sso_configured() -> bool:
     )
 
 
+def _sso_missing_reasons() -> list[str]:
+    missing = []
+    if not oauth:
+        missing.append("AUTHLIB_NOT_INSTALLED")
+    if not MS_CLIENT_ID:
+        missing.append("MS_CLIENT_ID")
+    if not MS_CLIENT_SECRET:
+        missing.append("MS_CLIENT_SECRET")
+    if _looks_like_secret_id(MS_CLIENT_SECRET):
+        missing.append("MS_CLIENT_SECRET(value looks like Secret ID, use Secret Value)")
+    if oauth:
+        try:
+            if not oauth.create_client("microsoft"):
+                missing.append("MICROSOFT_CLIENT_NOT_REGISTERED")
+        except Exception:
+            missing.append("MICROSOFT_CLIENT_NOT_REGISTERED")
+    if not missing and not _is_sso_configured():
+        missing.append("UNKNOWN_CONFIG (check SSO_PROVIDER/redirect URI)")
+    return missing
+
+
 def _looks_like_secret_id(value: str) -> bool:
     v = (value or "").strip()
     if len(v) != 36:
@@ -1107,10 +1128,7 @@ def login_page():
         interval_sec=interval_sec,
         sso_enabled=SSO_ENABLED and SSO_PROVIDER == "microsoft",
         sso_configured=_is_sso_configured(),
-        sso_missing=(
-            [x for x in ("MS_CLIENT_ID", "MS_CLIENT_SECRET") if not {"MS_CLIENT_ID": MS_CLIENT_ID, "MS_CLIENT_SECRET": MS_CLIENT_SECRET}[x]]
-            + (["MS_CLIENT_SECRET(Value)"] if _looks_like_secret_id(MS_CLIENT_SECRET) else [])
-        ),
+        sso_missing=_sso_missing_reasons(),
         sso_callback=_effective_ms_redirect_uri(),
         sso_error=(request.args.get("sso_error", "") or "").strip(),
         local_login_enabled=local_enabled,
@@ -2439,13 +2457,7 @@ def download_file(session_id, filename):
 @app.route("/auth/login/microsoft")
 def auth_login_microsoft():
     if not _is_sso_configured():
-        missing = []
-        if not MS_CLIENT_ID:
-            missing.append("MS_CLIENT_ID")
-        if not MS_CLIENT_SECRET:
-            missing.append("MS_CLIENT_SECRET")
-        if _looks_like_secret_id(MS_CLIENT_SECRET):
-            missing.append("MS_CLIENT_SECRET(value looks like Secret ID, use Secret Value)")
+        missing = _sso_missing_reasons()
         msg = "Microsoft SSO is not fully configured"
         if missing:
             msg = f"{msg}: {', '.join(missing)}"

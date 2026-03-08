@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,16 +12,16 @@
     {% include "_module_nav.html" %}
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h4 class="mb-0 page-header-title">Expense Report Process</h4>
-      <a href="/reports" class="btn btn-sm btn-outline-secondary">취소</a>
+      <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
     </div>
     {% set wizard_step = 2 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="mb-0">Step 2. 리뷰</h6>
+        <h6 class="mb-0">Step 2. Review</h6>
         <div class="d-flex gap-2">
-          <button class="btn btn-sm btn-outline-primary" onclick="saveSelection()">선택 저장</button>
-          <button class="btn btn-sm btn-success" onclick="saveAllDirty()">변경 전체 저장</button>
+          <button class="btn btn-sm btn-outline-primary" onclick="saveSelection()">Save Selection</button>
+          <button class="btn btn-sm btn-success" onclick="saveAllDirty()">Save All Dirty</button>
         </div>
       </div>
       <div id="progressSummary" class="small text-muted mb-1"></div>
@@ -33,17 +33,17 @@
           <thead>
             <tr>
               <th><input type="checkbox" onchange="toggleAll(this)"></th>
-              <th>미리보기</th>
-              <th>파일</th>
-              <th>날짜</th>
-              <th>가맹점</th>
-              <th>금액</th>
-              <th>USD 금액</th>
-              <th>카테고리</th>
-              <th>메모</th>
-              <th>상태</th>
-              <th>라이프사이클</th>
-              <th>확인</th>
+              <th>Preview</th>
+              <th>File</th>
+              <th>Date</th>
+              <th>Merchant</th>
+              <th>Amount</th>
+              <th>USD Amount</th>
+              <th>Category</th>
+              <th>Memo</th>
+              <th>Status</th>
+              <th>Lifecycle</th>
+              <th>Required</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
@@ -53,20 +53,20 @@
       <div class="border-top pt-2 mt-2">
         <div class="row g-2 align-items-end">
           <div class="col-lg-3 col-md-6" id="fxPolicyWrap" style="display:none;">
-            <label class="form-label small mb-1">환율 적용 방식</label>
+            <label class="form-label small mb-1">FX Policy</label>
             <select id="fxRateMode" class="form-select form-select-sm" onchange="onRateModeChange()">
-              <option value="company_average">회사 기준 환율</option>
-              <option value="date_based">날짜별 환율</option>
+              <option value="company_average">Company Average</option>
+              <option value="date_based">By Receipt Date</option>
             </select>
           </div>
           <div class="col-lg-3 col-md-6" id="defaultFxWrap">
-            <label class="form-label small mb-1">기준 환율 (to USD)</label>
+            <label class="form-label small mb-1">Default FX (to USD)</label>
             <input id="defaultFx" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1" oninput="saveFxState(); updateUsdAmounts();">
           </div>
           <div class="col-lg-6 col-md-12" id="dateFxWrap">
-            <label class="form-label small mb-1">날짜별 환율</label>
+            <label class="form-label small mb-1">Date-based FX Rates</label>
             <div class="d-flex align-items-center gap-2 mb-1">
-              <button id="fetchByDateBtn" class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRatesByDate()">날짜별 환율 조회</button>
+              <button id="fetchByDateBtn" class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRatesByDate()">Fetch by Date</button>
               <span class="small text-muted" id="fxUpdatedAt"></span>
             </div>
             <div id="fxEditor" class="small"></div>
@@ -74,8 +74,8 @@
         </div>
       </div>
       <div class="d-flex justify-content-between mt-2">
-        <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">이전</a>
-        <button class="btn btn-sm btn-primary" onclick="goNext()">다음: 생성</button>
+        <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
+        <button class="btn btn-sm btn-primary" onclick="goNext()">Next: Generate</button>
       </div>
       <div id="msg" class="small text-muted mt-2"></div>
     </div>
@@ -99,11 +99,7 @@
       if (!s) return "";
       if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
       const mdY = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (mdY) {
-        const mm = String(mdY[1]).padStart(2, "0");
-        const dd = String(mdY[2]).padStart(2, "0");
-        return `${mdY[3]}-${mm}-${dd}`;
-      }
+      if (mdY) return `${mdY[3]}-${String(mdY[1]).padStart(2,"0")}-${String(mdY[2]).padStart(2,"0")}`;
       return "";
     }
     function currencySymbol(code){
@@ -115,25 +111,6 @@
       const n = Number(v || 0);
       return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0";
     }
-    function statusKo(v){
-      const k = String(v || "").toLowerCase();
-      const m = { processed: "처리완료", needs_review: "검토필요", duplicate: "중복", ocr_processing: "OCR 진행중", uploaded: "업로드됨" };
-      return m[k] || (v || "-");
-    }
-    function lifecycleKo(v){
-      const k = String(v || "").toUpperCase();
-      const m = {
-        UPLOADED: "업로드됨",
-        OCR_PROCESSING: "OCR 진행중",
-        OCR_FAILED: "OCR 실패",
-        LOW_CONFIDENCE: "신뢰도 낮음",
-        IMAGE_UNREADABLE: "이미지 불량",
-        NEEDS_REVIEW: "검토필요",
-        READY_FOR_REPORT: "리포트 준비완료",
-        ASSIGNED_TO_REPORT: "리포트 할당됨",
-      };
-      return m[k] || (v || "-");
-    }
     function getSavedSelection(){
       const v = wizardGet(KEY, []);
       return Array.isArray(v) ? v : [];
@@ -144,11 +121,7 @@
 
     function getFxState(){
       const base = wizardGet(FX_KEY, {}) || {};
-      return {
-        rate_mode: String(base.rate_mode || "date_based").toLowerCase(),
-        default_rate: Number(base.default_rate || 1),
-        rates: base.rates || {},
-      };
+      return { rate_mode: String(base.rate_mode || "date_based").toLowerCase(), default_rate: Number(base.default_rate || 1), rates: base.rates || {} };
     }
     function saveFxState(){
       const fx = getFxState();
@@ -170,9 +143,7 @@
       const c = String(currency || "USD").toUpperCase();
       if (c === "USD") return 1;
       const fx = getFxState();
-      if (fx.rate_mode === "company_average") {
-        return Number(fx.default_rate || cfg?.accounting?.company_average_fx || 1);
-      }
+      if (fx.rate_mode === "company_average") return Number(fx.default_rate || cfg?.accounting?.company_average_fx || 1);
       const d = String(dateIso || "").trim();
       const byDate = (fx.rates || {})[d] || {};
       const specific = Number(byDate[c] || 0);
@@ -190,9 +161,9 @@
       else if (sel.value === "__CUSTOM__") categoryVal = String(custom?.value || "").trim();
       else categoryVal = String(sel.value || "").trim();
       const missing = [];
-      if (!dateVal) missing.push("날짜");
-      if (!(amountVal > 0)) missing.push("금액");
-      if (!categoryVal) missing.push("카테고리");
+      if (!dateVal) missing.push("date");
+      if (!(amountVal > 0)) missing.push("amount");
+      if (!categoryVal) missing.push("category");
       return missing;
     }
 
@@ -202,19 +173,16 @@
       tr.classList.remove("table-warning");
       if (missing.length) {
         tr.classList.add("table-warning");
-        if (badge) badge.innerHTML = `<span class="badge text-bg-warning">필수 확인</span>`;
+        if (badge) badge.innerHTML = `<span class="badge text-bg-warning">Required</span>`;
       } else if (badge) {
         badge.innerHTML = `<span class="text-success small">ok</span>`;
       }
       return missing.length;
     }
-
     function renderRequiredSummary(){
       let missingRows = 0;
-      document.querySelectorAll("#rows tr[data-id]").forEach((tr) => {
-        if (updateRequiredState(tr) > 0) missingRows += 1;
-      });
-      document.getElementById("requiredSummary").textContent = missingRows ? `필수값 누락 ${missingRows}건 (날짜/금액/카테고리)` : "";
+      document.querySelectorAll("#rows tr[data-id]").forEach((tr) => { if (updateRequiredState(tr) > 0) missingRows += 1; });
+      document.getElementById("requiredSummary").textContent = missingRows ? `Missing required values in ${missingRows} row(s): date/amount/category` : "";
     }
 
     function markDirty(tr){
@@ -231,7 +199,7 @@
     }
     function renderDirtySummary(){
       const cnt = getDirtySet().size;
-      document.getElementById("dirtySummary").textContent = cnt ? `저장 필요: ${cnt}` : "";
+      document.getElementById("dirtySummary").textContent = cnt ? `Unsaved edits: ${cnt}` : "";
     }
 
     function renderProgressSummary(){
@@ -244,32 +212,21 @@
         if (lc === "READY_FOR_REPORT") out.ready += 1;
         if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
       }
-      document.getElementById("progressSummary").textContent = `전체 ${out.total} · 업로드 ${out.uploaded} · 검토필요 ${out.needs_review} · 준비완료 ${out.ready} · 할당됨 ${out.assigned}`;
+      document.getElementById("progressSummary").textContent = `Total ${out.total} · Uploaded ${out.uploaded} · Needs Review ${out.needs_review} · Ready ${out.ready} · Assigned ${out.assigned}`;
     }
 
     async function loadConfig(){
-      try {
-        const r = await fetch("/api/config");
-        const d = await r.json();
-        if (r.ok) cfg = d || {};
-      } catch(_) {}
+      try { const r = await fetch("/api/config"); const d = await r.json(); if (r.ok) cfg = d || {}; } catch(_) {}
       categoryChoices = (cfg?.expense_types || []).filter(x => x && x.enabled && x.id).map(x => String(x.id || "").toUpperCase());
       if (!categoryChoices.length) categoryChoices = ["MISCELLANEOUS"];
       const fx = getFxState();
       const policy = String(cfg?.accounting?.fx_policy || "date_based").toLowerCase();
       if (!fx.rate_mode || policy !== "user_select") fx.rate_mode = policy;
-      if (fx.rate_mode === "company_average") {
-        fx.default_rate = Number(cfg?.accounting?.company_average_fx || fx.default_rate || 1);
-      }
+      if (fx.rate_mode === "company_average") fx.default_rate = Number(cfg?.accounting?.company_average_fx || fx.default_rate || 1);
       wizardSet(FX_KEY, fx);
       document.getElementById("fxRateMode").value = fx.rate_mode;
       document.getElementById("defaultFx").value = fx.default_rate;
-
-      if (policy === "user_select") {
-        document.getElementById("fxPolicyWrap").style.display = "";
-      } else {
-        document.getElementById("fxPolicyWrap").style.display = "none";
-      }
+      document.getElementById("fxPolicyWrap").style.display = policy === "user_select" ? "" : "none";
       syncFxVisibility();
     }
 
@@ -277,56 +234,18 @@
       const current = String(row.category || "MISCELLANEOUS").toUpperCase();
       const useCustom = !categoryChoices.includes(current);
       const opts = categoryChoices.map((c) => `<option value="${esc(c)}" ${c === current ? "selected" : ""}>${esc(c)}</option>`).join("");
-      return `
-        <div class="d-flex gap-1">
-          <select class="form-select form-select-sm f-category-select" onchange="onCategoryChange(this)">
-            ${opts}
-            <option value="__CUSTOM__" ${useCustom ? "selected" : ""}>직접입력...</option>
-          </select>
-          <input class="form-control form-control-sm f-category-custom" placeholder="카테고리 입력" value="${useCustom ? esc(current) : ""}" style="${useCustom ? "" : "display:none;"}" oninput="markDirty(this.closest('tr'))">
-        </div>
-      `;
+      return `<div class="d-flex gap-1"><select class="form-select form-select-sm f-category-select" onchange="onCategoryChange(this)">${opts}<option value="__CUSTOM__" ${useCustom ? "selected" : ""}>Custom...</option></select><input class="form-control form-control-sm f-category-custom" placeholder="CUSTOM CATEGORY" value="${useCustom ? esc(current) : ""}" style="${useCustom ? "" : "display:none;"}" oninput="markDirty(this.closest('tr'))"></div>`;
     }
-    function onCategoryChange(sel){
-      const tr = sel.closest("tr");
-      const custom = tr.querySelector(".f-category-custom");
-      if (sel.value === "__CUSTOM__") custom.style.display = "";
-      else { custom.style.display = "none"; custom.value = ""; }
-      markDirty(tr);
-    }
+    function onCategoryChange(sel){ const tr = sel.closest("tr"); const custom = tr.querySelector(".f-category-custom"); if (sel.value === "__CUSTOM__") custom.style.display = ""; else { custom.style.display = "none"; custom.value = ""; } markDirty(tr); }
 
     function buildAmountCell(row){
       const cur = String(row.currency || "USD").toUpperCase();
       const amount = Number(row.amount || 0);
-      return `
-        <div class="input-group input-group-sm">
-          <span class="input-group-text f-currency-symbol" style="min-width:38px;">${esc(currencySymbol(cur))}</span>
-          <input class="form-control form-control-sm f-amount text-end" type="number" min="0" step="0.01" value="${amount}" oninput="markDirty(this.closest('tr'))">
-          <select class="form-select form-select-sm f-currency" style="max-width:92px;" onchange="syncCurrencySymbol(this); markDirty(this.closest('tr'));">
-            ${["USD","KRW","EUR","JPY","CNY","GBP"].map((c)=>`<option value="${c}" ${c===cur?"selected":""}>${c}</option>`).join("")}
-          </select>
-        </div>
-      `;
+      return `<div class="input-group input-group-sm"><span class="input-group-text f-currency-symbol" style="min-width:38px;">${esc(currencySymbol(cur))}</span><input class="form-control form-control-sm f-amount text-end" type="number" min="0" step="0.01" value="${amount}" oninput="markDirty(this.closest('tr'))"><select class="form-select form-select-sm f-currency" style="max-width:92px;" onchange="syncCurrencySymbol(this); markDirty(this.closest('tr'));">${["USD","KRW","EUR","JPY","CNY","GBP"].map((c)=>`<option value="${c}" ${c===cur?"selected":""}>${c}</option>`).join("")}</select></div>`;
     }
-    function syncCurrencySymbol(sel){
-      const tr = sel.closest("tr");
-      const sym = tr.querySelector(".f-currency-symbol");
-      if (sym) sym.textContent = currencySymbol(sel.value);
-      updateUsdAmountForRow(tr);
-    }
-    function updateUsdAmountForRow(tr){
-      if (!tr) return;
-      const amount = Number(tr.querySelector(".f-amount")?.value || 0);
-      const currency = String(tr.querySelector(".f-currency")?.value || "USD").toUpperCase();
-      const dateIso = normalizeDateInput(tr.querySelector(".f-date")?.value || "");
-      const rate = getFxRate(dateIso, currency);
-      const usd = amount * rate;
-      const el = tr.querySelector(".f-usd");
-      if (el) el.textContent = `$ ${formatMoney(usd)}`;
-    }
-    function updateUsdAmounts(){
-      document.querySelectorAll("#rows tr[data-id]").forEach((tr)=>updateUsdAmountForRow(tr));
-    }
+    function syncCurrencySymbol(sel){ const tr = sel.closest("tr"); const sym = tr.querySelector(".f-currency-symbol"); if (sym) sym.textContent = currencySymbol(sel.value); updateUsdAmountForRow(tr); }
+    function updateUsdAmountForRow(tr){ if (!tr) return; const amount = Number(tr.querySelector(".f-amount")?.value || 0); const currency = String(tr.querySelector(".f-currency")?.value || "USD").toUpperCase(); const dateIso = normalizeDateInput(tr.querySelector(".f-date")?.value || ""); const rate = getFxRate(dateIso, currency); const usd = amount * rate; const el = tr.querySelector(".f-usd"); if (el) el.textContent = `$ ${formatMoney(usd)}`; }
+    function updateUsdAmounts(){ document.querySelectorAll("#rows tr[data-id]").forEach((tr)=>updateUsdAmountForRow(tr)); }
 
     function renderRows(){
       let selected = new Set(getSavedSelection().map(Number));
@@ -334,185 +253,48 @@
       if (autoSelectAll) selected = new Set(rowsAll.map((x)=>Number(x.id)));
       const dirtySet = getDirtySet();
       const body = document.getElementById("rows");
-      body.innerHTML = rowsAll.map((x)=>`
-        <tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}">
-          <td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td>
-          <td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td>
-          <td>${esc(x.orig_filename || "")}</td>
-          <td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td>
-          <td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td>
-          <td>${buildAmountCell(x)}</td>
-          <td class="text-end f-usd">$ 0</td>
-          <td>${buildCategoryCell(x)}</td>
-          <td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td>
-          <td>${esc(statusKo(x.status || "-"))}</td>
-          <td>${esc(lifecycleKo(x.lifecycle_state || "-"))}</td>
-          <td class="f-required"></td>
-        </tr>
-      `).join("") || `<tr><td colspan="12" class="text-muted small">영수증이 없습니다.</td></tr>`;
+      body.innerHTML = rowsAll.map((x)=>`<tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}"><td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td><td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td><td>${esc(x.orig_filename || "")}</td><td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td><td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td><td>${buildAmountCell(x)}</td><td class="text-end f-usd">$ 0</td><td>${buildCategoryCell(x)}</td><td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td><td>${esc(x.status || "-")}</td><td>${esc(x.lifecycle_state || "-")}</td><td class="f-required"></td></tr>`).join("") || `<tr><td colspan="12" class="text-muted small">No receipts.</td></tr>`;
       if (autoSelectAll) wizardSet(KEY, [...selected]);
-      renderDirtySummary();
-      updateUsdAmounts();
-      renderRequiredSummary();
+      renderDirtySummary(); updateUsdAmounts(); renderRequiredSummary();
     }
 
-    async function loadRows(){
-      const r = await fetch("/api/inbox/receipts?report_status=unassigned&limit=300");
-      const d = await r.json();
-      if(!r.ok) return alert(d.error||"조회 실패");
-      rowsAll = d.receipts || [];
-      renderProgressSummary();
-      renderRows();
-    }
+    async function loadRows(){ const r = await fetch("/api/inbox/receipts?report_status=unassigned&limit=300"); const d = await r.json(); if(!r.ok) return alert(d.error||"Failed"); rowsAll = d.receipts || []; renderProgressSummary(); renderRows(); }
 
     async function saveRowByTr(tr){
-      const id = Number(tr.dataset.id || 0);
-      if (!id) return;
-      const body = {
-        date: normalizeDateInput(tr.querySelector(".f-date").value.trim()),
-        merchant: tr.querySelector(".f-merchant").value.trim(),
-        amount: Number(tr.querySelector(".f-amount").value || 0),
-        currency: tr.querySelector(".f-currency").value.trim().toUpperCase(),
-        category: (() => {
-          const sel = tr.querySelector(".f-category-select");
-          const custom = tr.querySelector(".f-category-custom");
-          if (!sel) return "MISCELLANEOUS";
-          if (sel.value === "__CUSTOM__") return String(custom?.value || "MISCELLANEOUS").trim().toUpperCase() || "MISCELLANEOUS";
-          return String(sel.value || "MISCELLANEOUS").trim().toUpperCase();
-        })(),
-        memo: tr.querySelector(".f-memo").value.trim(),
-        status: "processed"
-      };
+      const id = Number(tr.dataset.id || 0); if (!id) return;
+      const body = { date: normalizeDateInput(tr.querySelector(".f-date").value.trim()), merchant: tr.querySelector(".f-merchant").value.trim(), amount: Number(tr.querySelector(".f-amount").value || 0), currency: tr.querySelector(".f-currency").value.trim().toUpperCase(), category: (() => { const sel = tr.querySelector(".f-category-select"); const custom = tr.querySelector(".f-category-custom"); if (!sel) return "MISCELLANEOUS"; if (sel.value === "__CUSTOM__") return String(custom?.value || "MISCELLANEOUS").trim().toUpperCase() || "MISCELLANEOUS"; return String(sel.value || "MISCELLANEOUS").trim().toUpperCase(); })(), memo: tr.querySelector(".f-memo").value.trim(), status: "processed" };
       const r = await fetch(`/api/inbox/receipts/${id}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
-      const d = await r.json();
-      if(!r.ok) throw new Error(d.error || "저장 실패");
-      tr.dataset.dirty = "0";
-      tr.classList.remove("table-active");
-      const set = getDirtySet();
-      set.delete(id);
-      wizardSet(DIRTY_KEY, [...set]);
+      const d = await r.json(); if(!r.ok) throw new Error(d.error || "Save failed");
+      tr.dataset.dirty = "0"; tr.classList.remove("table-active"); const set = getDirtySet(); set.delete(id); wizardSet(DIRTY_KEY, [...set]);
     }
 
-    async function saveAllDirty(){
-      const dirtyRows = [...document.querySelectorAll("#rows tr[data-dirty='1']")];
-      if (!dirtyRows.length) {
-        document.getElementById("msg").textContent = "저장할 변경이 없습니다.";
-        return;
-      }
-      for (const tr of dirtyRows) await saveRowByTr(tr);
-      document.getElementById("msg").textContent = `저장 완료: ${dirtyRows.length}건`;
-      await loadRows();
-    }
+    async function saveAllDirty(){ const dirtyRows = [...document.querySelectorAll("#rows tr[data-dirty='1']")]; if (!dirtyRows.length) { document.getElementById("msg").textContent = "No dirty rows."; return; } for (const tr of dirtyRows) await saveRowByTr(tr); document.getElementById("msg").textContent = `Saved ${dirtyRows.length} row(s).`; await loadRows(); }
 
-    function toggleAll(cb){
-      document.querySelectorAll(".sel").forEach(x=>x.checked=cb.checked);
-      saveSelection();
-    }
-    function saveSelection(){
-      const ids = [...document.querySelectorAll(".sel:checked")].map(x=>Number(x.value));
-      wizardSet(KEY, ids);
-      renderFxEditor();
-      saveFxState();
-      updateUsdAmounts();
-      document.getElementById("msg").textContent = "선택 항목 저장됨";
-    }
-    function getEffectiveRowsForFx(){
-      const ids = new Set(getSavedSelection().map(Number));
-      const selected = rowsAll.filter((r) => ids.has(Number(r.id)));
-      return selected.length ? selected : rowsAll;
-    }
+    function toggleAll(cb){ document.querySelectorAll(".sel").forEach(x=>x.checked=cb.checked); saveSelection(); }
+    function saveSelection(){ const ids = [...document.querySelectorAll(".sel:checked")].map(x=>Number(x.value)); wizardSet(KEY, ids); renderFxEditor(); saveFxState(); updateUsdAmounts(); document.getElementById("msg").textContent = "Selection saved."; }
+    function getEffectiveRowsForFx(){ const ids = new Set(getSavedSelection().map(Number)); const selected = rowsAll.filter((r) => ids.has(Number(r.id))); return selected.length ? selected : rowsAll; }
 
-    function syncFxVisibility(){
-      const mode = String(document.getElementById("fxRateMode")?.value || "date_based");
-      const dateWrap = document.getElementById("dateFxWrap");
-      const fetchBtn = document.getElementById("fetchByDateBtn");
-      if (mode === "date_based") {
-        dateWrap.style.display = "";
-        fetchBtn.style.display = "";
-      } else {
-        dateWrap.style.display = "none";
-      }
-    }
-    function onRateModeChange(){
-      syncFxVisibility();
-      saveFxState();
-      updateUsdAmounts();
-    }
+    function syncFxVisibility(){ const mode = String(document.getElementById("fxRateMode")?.value || "date_based"); const dateWrap = document.getElementById("dateFxWrap"); if (mode === "date_based") dateWrap.style.display = ""; else dateWrap.style.display = "none"; }
+    function onRateModeChange(){ syncFxVisibility(); saveFxState(); updateUsdAmounts(); }
 
     function renderFxEditor(){
       const fxMode = String(document.getElementById("fxRateMode")?.value || "date_based");
-      if (fxMode !== "date_based") {
-        document.getElementById("fxEditor").innerHTML = "";
-        return;
-      }
+      if (fxMode !== "date_based") { document.getElementById("fxEditor").innerHTML = ""; return; }
       const rows = getEffectiveRowsForFx();
-      const pairs = [];
-      const seen = new Set();
-      for (const r of rows){
-        const d = normalizeDateInput(r.date || "");
-        const c = String(r.currency || "").trim().toUpperCase();
-        if (!d || !c || c === "USD") continue;
-        const k = `${d}|${c}`;
-        if (seen.has(k)) continue;
-        seen.add(k);
-        pairs.push({date:d, currency:c});
-      }
+      const pairs = []; const seen = new Set();
+      for (const r of rows){ const d = normalizeDateInput(r.date || ""); const c = String(r.currency || "").trim().toUpperCase(); if (!d || !c || c === "USD") continue; const k = `${d}|${c}`; if (seen.has(k)) continue; seen.add(k); pairs.push({date:d, currency:c}); }
       pairs.sort((a,b)=> a.date < b.date ? -1 : 1);
       const wrap = document.getElementById("fxEditor");
-      if (!pairs.length){
-        wrap.innerHTML = `<span class="text-muted">선택/전체 항목 중 날짜+외화 데이터가 없습니다.</span>`;
-        return;
-      }
-      wrap.innerHTML = pairs.map((p,i)=>`
-        <div class="d-flex align-items-center gap-2 mb-1">
-          <span class="badge text-bg-light border">${esc(p.date)}</span>
-          <span class="badge text-bg-light border">${esc(p.currency)} -> USD</span>
-          <input id="fx-${i}" data-date="${esc(p.date)}" data-currency="${esc(p.currency)}" class="form-control form-control-sm" style="max-width:140px;" type="number" step="0.0001" min="0" value="" oninput="saveFxState(); updateUsdAmounts();">
-        </div>
-      `).join("");
-      const fx = getFxState();
-      const rates = fx.rates || {};
-      document.querySelectorAll("#fxEditor input[data-date][data-currency]").forEach((el) => {
-        const d = String(el.dataset.date || "").trim();
-        const c = String(el.dataset.currency || "").trim().toUpperCase();
-        if (rates[d] && rates[d][c]) el.value = String(rates[d][c]);
-      });
+      if (!pairs.length){ wrap.innerHTML = `<span class="text-muted">No dated non-USD receipts (selected/all).</span>`; return; }
+      wrap.innerHTML = pairs.map((p,i)=>`<div class="d-flex align-items-center gap-2 mb-1"><span class="badge text-bg-light border">${esc(p.date)}</span><span class="badge text-bg-light border">${esc(p.currency)} -> USD</span><input id="fx-${i}" data-date="${esc(p.date)}" data-currency="${esc(p.currency)}" class="form-control form-control-sm" style="max-width:140px;" type="number" step="0.0001" min="0" value="" oninput="saveFxState(); updateUsdAmounts();"></div>`).join("");
+      const fx = getFxState(); const rates = fx.rates || {};
+      document.querySelectorAll("#fxEditor input[data-date][data-currency]").forEach((el) => { const d = String(el.dataset.date || "").trim(); const c = String(el.dataset.currency || "").trim().toUpperCase(); if (rates[d] && rates[d][c]) el.value = String(rates[d][c]); });
     }
 
-    async function fetchRatesByDate(){
-      const inputs = [...document.querySelectorAll("#fxEditor input[data-date][data-currency]")];
-      if (!inputs.length) return alert("조회할 날짜별 외화 데이터가 없습니다.");
-      for (const el of inputs){
-        const d = String(el.dataset.date || "");
-        const c = String(el.dataset.currency || "");
-        try{
-          const r = await fetch(`https://api.frankfurter.app/${encodeURIComponent(d)}?from=USD&to=${encodeURIComponent(c)}`);
-          const data = await r.json();
-          const usdToCur = Number(data?.rates?.[c] || 0);
-          if (usdToCur > 0) el.value = String((1 / usdToCur).toFixed(6));
-        }catch(_){ }
-      }
-      saveFxState();
-      updateUsdAmounts();
-      document.getElementById("fxUpdatedAt").textContent = `갱신: ${new Date().toLocaleString()}`;
-    }
+    async function fetchRatesByDate(){ const inputs = [...document.querySelectorAll("#fxEditor input[data-date][data-currency]")]; if (!inputs.length) return alert("No dated non-USD receipts available."); for (const el of inputs){ const d = String(el.dataset.date || ""); const c = String(el.dataset.currency || ""); try{ const r = await fetch(`https://api.frankfurter.app/${encodeURIComponent(d)}?from=USD&to=${encodeURIComponent(c)}`); const data = await r.json(); const usdToCur = Number(data?.rates?.[c] || 0); if (usdToCur > 0) el.value = String((1 / usdToCur).toFixed(6)); }catch(_){ } } saveFxState(); updateUsdAmounts(); document.getElementById("fxUpdatedAt").textContent = `Updated: ${new Date().toLocaleString()}`; }
+    function goNext(){ if (getDirtySet().size) { document.getElementById("msg").textContent = "Save all dirty rows first."; return; } saveSelection(); window.location.href = "/reports/wizard/generate"; }
 
-    function goNext(){
-      if (getDirtySet().size) {
-        document.getElementById("msg").textContent = "변경 사항을 먼저 저장해 주세요.";
-        return;
-      }
-      saveSelection();
-      window.location.href = "/reports/wizard/generate";
-    }
-
-    (async()=>{
-      await loadConfig();
-      await loadRows();
-      renderFxEditor();
-      saveFxState();
-      updateUsdAmounts();
-    })();
+    (async()=>{ await loadConfig(); await loadRows(); renderFxEditor(); saveFxState(); updateUsdAmounts(); })();
   </script>
 </body>
 </html>
