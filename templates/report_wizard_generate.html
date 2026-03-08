@@ -57,7 +57,8 @@
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
   <script>
-    const SETTINGS_KEY = "report_wizard_settings_v1";
+    const SETTINGS_KEY = "report_wizard_settings_v2";
+    const LEGACY_SETTINGS_KEY = "report_wizard_settings_v1";
     const IDS_KEY = "report_wizard_selected_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
     let wizardTtlMs = 7 * 24 * 60 * 60 * 1000;
@@ -127,7 +128,7 @@
       }catch(_){}
     }
     function loadPreset(){
-      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      const s = wizardGet(SETTINGS_KEY, wizardGet(LEGACY_SETTINGS_KEY, {})) || {};
       document.getElementById("title").value = s.reportTitle || "";
       if ((s.reportType || "") === "international") document.getElementById("mode").value = "international";
       const ids = getSelectedIds();
@@ -228,10 +229,12 @@
       if (dirty.length) return alert(`Unsaved edited rows detected (${dirty.length}). Go back to Step 4 and save.`);
       const ids = getSelectedIds();
       if(!ids.length) return alert("No selected receipts. Go back to Step 4.");
-      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      const s = wizardGet(SETTINGS_KEY, wizardGet(LEGACY_SETTINGS_KEY, {})) || {};
       const body = {
         mode: document.getElementById("mode").value,
         title: document.getElementById("title").value.trim(),
+        currency: (s.currency || "USD").trim().toUpperCase(),
+        period_mode: (s.periodMode || "auto").trim().toLowerCase(),
         receipt_ids: ids,
         employee_name: s.employeeName || "",
         department: s.department || "",
@@ -240,7 +243,7 @@
         project: s.project || "",
         period_from: s.periodFrom || "",
         period_to: s.periodTo || "",
-        trip_purpose: s.tripPurpose || "",
+        trip_purpose: (s.expenseContext || "general") === "travel" ? (s.tripPurpose || "") : "",
         notes: s.notes || ""
       };
       const r = await fetch("/api/inbox/reports/generate", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});

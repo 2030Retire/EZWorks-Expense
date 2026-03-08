@@ -17,21 +17,50 @@
     {% set wizard_step = 2 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
-      <h6 class="mb-3">Step 2. Upload Receipts</h6>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Step 2. Upload + OCR</h6>
+        <button class="btn btn-sm btn-outline-primary" onclick="runOcrForPending()">Run OCR for Pending</button>
+      </div>
       <div id="progressSummary" class="small text-muted mb-2"></div>
+
       <input id="files" type="file" multiple class="form-control mb-2" accept=".jpg,.jpeg,.png,.webp,.heic">
-      <button class="btn btn-primary btn-sm" onclick="uploadReceipts()">Upload</button>
-      <div id="msg" class="small mt-2 text-muted"></div>
+      <div class="d-flex gap-2 mb-2">
+        <button class="btn btn-primary btn-sm" onclick="uploadReceipts()">Upload</button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="refreshRows()">Refresh</button>
+      </div>
+      <div id="msg" class="small mt-1 text-muted"></div>
+
+      <div class="table-responsive mt-3">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>File</th>
+              <th>Date</th>
+              <th>Merchant</th>
+              <th>Amount</th>
+              <th>Currency</th>
+              <th>Status</th>
+              <th>Lifecycle</th>
+              <th style="min-width:220px;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
       <div class="d-flex justify-content-between mt-3">
         <a href="/reports/wizard/settings" class="btn btn-sm btn-outline-secondary">Back</a>
-        <a href="/reports/wizard/ocr" class="btn btn-sm btn-primary">Next: OCR</a>
+        <a href="/reports/wizard/review" class="btn btn-sm btn-primary">Next: Review</a>
       </div>
     </div>
   </div>
   <script>
-    function summarizeLifecycle(rows){
+    let rows = [];
+    function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+    function summarizeLifecycle(items){
       const out = { total: 0, uploaded: 0, ocr: 0, needs_review: 0, ready: 0, assigned: 0 };
-      for (const x of (rows || [])) {
+      for (const x of (items || [])) {
         out.total += 1;
         const lc = String(x.lifecycle_state || "").toUpperCase();
         if (lc === "UPLOADED") out.uploaded += 1;
@@ -42,15 +71,44 @@
       }
       return out;
     }
-    async function loadProgressSummary(){
-      try{
-        const r = await fetch("/api/inbox/receipts?limit=500");
-        const d = await r.json();
-        if (!r.ok) return;
-        const s = summarizeLifecycle(d.receipts || []);
-        const el = document.getElementById("progressSummary");
-        if (el) el.textContent = `Total ${s.total} · Uploaded ${s.uploaded} · OCR ${s.ocr} · Needs Review ${s.needs_review} · Ready ${s.ready} · Assigned ${s.assigned}`;
-      }catch(_){}
+    function renderRows(){
+      const body = document.getElementById("rows");
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="9" class="small text-muted">No unassigned receipts yet.</td></tr>`;
+        return;
+      }
+      body.innerHTML = rows.map((x, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${esc(x.orig_filename || "")}</td>
+          <td>${esc(x.date || "-")}</td>
+          <td>${esc(x.merchant || "-")}</td>
+          <td>${Number(x.amount || 0).toLocaleString()}</td>
+          <td>${esc(x.currency || "-")}</td>
+          <td>${esc(x.status || "-")}</td>
+          <td>${esc(x.lifecycle_state || "-")}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="runOcr(${Number(x.id)})">OCR</button>
+            <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteReceipt(${Number(x.id)})">Delete</button>
+          </td>
+        </tr>
+      `).join("");
+    }
+    function renderSummary(){
+      const s = summarizeLifecycle(rows);
+      const el = document.getElementById("progressSummary");
+      if (el) el.textContent = `Total ${s.total} · Uploaded ${s.uploaded} · OCR ${s.ocr} · Needs Review ${s.needs_review} · Ready ${s.ready} · Assigned ${s.assigned}`;
+    }
+    async function refreshRows(){
+      const r = await fetch("/api/inbox/receipts?report_status=unassigned&limit=500");
+      const d = await r.json();
+      if (!r.ok) {
+        document.getElementById("msg").innerHTML = `<span class="text-danger">${esc(d.error || "Failed to load receipts")}</span>`;
+        return;
+      }
+      rows = d.receipts || [];
+      renderSummary();
+      renderRows();
     }
     async function uploadReceipts() {
       const inp = document.getElementById("files");
@@ -62,12 +120,33 @@
       if (!r.ok) return alert(d.error || "Upload failed");
       document.getElementById("msg").textContent = `Uploaded ${d.count} files`;
       inp.value = "";
-      await loadProgressSummary();
+      await refreshRows();
     }
-    loadProgressSummary();
+    async function runOcr(id){
+      const r = await fetch(`/api/inbox/ocr/${id}`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) return alert(d.error || "OCR failed");
+      await refreshRows();
+    }
+    async function runOcrForPending(){
+      const targets = rows.filter(x => {
+        const lc = String(x.lifecycle_state || "").toUpperCase();
+        return lc === "UPLOADED" || lc === "NEEDS_REVIEW" || lc === "LOW_CONFIDENCE" || lc === "OCR_FAILED" || lc === "IMAGE_UNREADABLE";
+      }).map(x => Number(x.id));
+      if (!targets.length) return alert("No pending receipts for OCR.");
+      for (const id of targets) {
+        await runOcr(id);
+      }
+      await refreshRows();
+    }
+    async function deleteReceipt(id){
+      if (!confirm("Delete this uploaded receipt?")) return;
+      const r = await fetch(`/api/inbox/receipts/${id}`, { method: "DELETE" });
+      const d = await r.json();
+      if (!r.ok) return alert(d.error || "Delete failed");
+      await refreshRows();
+    }
+    refreshRows();
   </script>
 </body>
 </html>
-
-
-

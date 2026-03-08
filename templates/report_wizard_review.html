@@ -126,7 +126,7 @@
       }
     }
     function resetWizardStateToStep1(){
-      [KEY, RISK_CONFIRM_KEY, DIRTY_KEY, "report_wizard_settings_v1"].forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
+      [KEY, RISK_CONFIRM_KEY, DIRTY_KEY, "report_wizard_settings_v1", "report_wizard_settings_v2"].forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
       window.location.href = "/reports/wizard/settings";
     }
     function isRisky(x){

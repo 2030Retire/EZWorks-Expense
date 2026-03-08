@@ -42,6 +42,7 @@ from receipt_inbox_db import (
     init_receipt_db,
     create_receipt,
     get_receipt,
+    delete_receipt,
     list_receipts,
     list_receipts_for_report,
     find_duplicate_receipt,
@@ -1642,6 +1643,33 @@ def inbox_update_receipt(receipt_id: int):
     return jsonify({"status": "ok", "receipt": item})
 
 
+@app.route("/api/inbox/receipts/<int:receipt_id>", methods=["DELETE"])
+def inbox_delete_receipt(receipt_id: int):
+    host = _get_request_host()
+    if not _can_view_own_receipts(host):
+        return jsonify({"error": "Permission denied. Missing receipt delete permission."}), 403
+    row = get_receipt(str(RECEIPT_DB_PATH), host, receipt_id)
+    if not row:
+        return jsonify({"error": "Receipt not found."}), 404
+    if not _can_access_receipt_row(host, row):
+        return jsonify({"error": "Cannot delete receipt uploaded by another user."}), 403
+    if row.get("report_status") == "assigned":
+        return jsonify({"error": "Assigned receipts cannot be deleted. Unassign first."}), 400
+
+    image_path = Path(row.get("file_path") or "")
+    deleted = delete_receipt(str(RECEIPT_DB_PATH), host, receipt_id)
+    if not deleted:
+        return jsonify({"error": "Receipt not found."}), 404
+
+    try:
+        if image_path.exists() and image_path.is_file():
+            image_path.unlink()
+    except Exception:
+        pass
+
+    return jsonify({"status": "ok", "deleted_id": int(receipt_id)})
+
+
 @app.route("/api/inbox/receipts/<int:receipt_id>/audit", methods=["GET"])
 def inbox_receipt_audit_logs(receipt_id: int):
     host = _get_request_host()
@@ -1963,13 +1991,14 @@ def inbox_generate_report():
             return jsonify({"error": "You can submit reports only for your own receipts."}), 403
 
     account_map = _get_effective_account_map(host)
+    default_currency = str(body.get("currency") or "USD").strip().upper() or "USD"
     receipts = [
         {
             "filename": r.get("orig_filename"),
             "date": r.get("date"),
             "merchant": r.get("merchant"),
             "amount": int(r.get("amount") or 0),
-            "currency": r.get("currency") or "USD",
+            "currency": (r.get("currency") or default_currency),
             "category": r.get("category") or "MISCELLANEOUS",
             "memo": r.get("memo") or "",
             "account_code": account_map.get((r.get("category") or "").upper(), ""),
@@ -1998,9 +2027,25 @@ def inbox_generate_report():
         "manager": body.get("manager", ""),
         "project": body.get("project", ""),
     }
-    trip_title = body.get("trip_title", "")
+    trip_title = str(body.get("trip_title") or body.get("title") or "").strip()
     submission_date = parse_date(body.get("submission_date"))
     settlement_month = body.get("settlement_month")
+    period_mode = str(body.get("period_mode") or "manual").strip().lower()
+    if period_mode not in {"manual", "auto"}:
+        period_mode = "manual"
+    period_from = str(body.get("period_from") or "").strip()
+    period_to = str(body.get("period_to") or "").strip()
+    if period_mode == "auto":
+        valid_dates = sorted(
+            {
+                str(r.get("date") or "").strip()
+                for r in rows
+                if parse_date(r.get("date"))
+            }
+        )
+        if valid_dates:
+            period_from = valid_dates[0]
+            period_to = valid_dates[-1]
 
     active_types = [
         {"id": str(t["id"]), "label": str(t.get("label") or t["id"])}
@@ -2015,6 +2060,9 @@ def inbox_generate_report():
     output_file = output_path / output_filename
 
     try:
+        date_range = None
+        if parse_date(period_from) and parse_date(period_to):
+            date_range = (parse_date(period_from), parse_date(period_to))
         fill_expense_report(
             template_path=str(template_path),
             receipts=receipts,
@@ -2024,7 +2072,7 @@ def inbox_generate_report():
             trip_title=trip_title,
             exchange_rate=exchange_rate,
             exchange_rates=exchange_rates,
-            date_range=None,
+            date_range=date_range,
             submission_date=submission_date,
             settlement_month=int(settlement_month) if settlement_month else None,
             active_types=active_types,
@@ -2043,7 +2091,7 @@ def inbox_generate_report():
         mode=mode,
         receipt_count=len(rows),
         total_amount=float(total_amount),
-        currency=str(body.get("currency") or (rows[0].get("currency") or "USD")),
+        currency=default_currency,
         output_session_id=session_id,
         output_filename=output_filename,
         employee_name=str(body.get("employee_name") or ""),
@@ -2051,8 +2099,8 @@ def inbox_generate_report():
         employee_id=str(body.get("employee_id") or ""),
         manager=str(body.get("manager") or ""),
         project=str(body.get("project") or ""),
-        period_from=str(body.get("period_from") or ""),
-        period_to=str(body.get("period_to") or ""),
+        period_from=period_from,
+        period_to=period_to,
         trip_purpose=str(body.get("trip_purpose") or ""),
         notes=str(body.get("notes") or ""),
     )

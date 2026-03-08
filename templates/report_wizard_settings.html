@@ -24,32 +24,72 @@
         <div class="col-md-4"><label class="form-label small">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
         <div class="col-md-4"><label class="form-label small">Manager</label><input id="manager" class="form-control form-control-sm"></div>
         <div class="col-md-4"><label class="form-label small">Project</label><input id="project" class="form-control form-control-sm"></div>
-        <div class="col-md-6"><label class="form-label small">Report Title</label><input id="reportTitle" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small">Report Type</label><select id="reportType" class="form-select form-select-sm"><option value="domestic">Domestic</option><option value="international">International</option></select></div>
-        <div class="col-md-3"><label class="form-label small">Currency</label><input id="currency" class="form-control form-control-sm" value="USD"></div>
+
+        <div class="col-md-6"><label class="form-label small">Report Title</label><input id="reportTitle" class="form-control form-control-sm" placeholder="March expense report"></div>
+        <div class="col-md-3">
+          <label class="form-label small">Template</label>
+          <select id="reportType" class="form-select form-select-sm"></select>
+          <div class="form-text">Admin sets tenant templates. You can choose one per report.</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Base Currency</label>
+          <select id="currency" class="form-select form-select-sm">
+            <option value="USD">USD</option>
+            <option value="KRW">KRW</option>
+            <option value="EUR">EUR</option>
+            <option value="JPY">JPY</option>
+            <option value="CNY">CNY</option>
+            <option value="GBP">GBP</option>
+            <option value="SGD">SGD</option>
+            <option value="AUD">AUD</option>
+            <option value="CAD">CAD</option>
+            <option value="THB">THB</option>
+            <option value="VND">VND</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label small">Expense Context</label>
+          <select id="expenseContext" class="form-select form-select-sm">
+            <option value="general">General Expense</option>
+            <option value="travel">Business Trip</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Period Input</label>
+          <select id="periodMode" class="form-select form-select-sm">
+            <option value="auto">Auto from receipts</option>
+            <option value="manual">Manual input</option>
+          </select>
+        </div>
         <div class="col-md-6"><label class="form-label small">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
         <div class="col-md-6"><label class="form-label small">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
-        <div class="col-md-12"><label class="form-label small">Trip Purpose</label><input id="tripPurpose" class="form-control form-control-sm"></div>
+
+        <div id="tripPurposeRow" class="col-md-12" style="display:none;"><label class="form-label small">Trip Purpose</label><input id="tripPurpose" class="form-control form-control-sm"></div>
         <div class="col-md-12"><label class="form-label small">Notes</label><textarea id="notes" rows="3" class="form-control form-control-sm"></textarea></div>
       </div>
+
       <div class="d-flex justify-content-end mt-3">
-        <button class="btn btn-primary btn-sm" onclick="saveAndNext()">Next: Upload</button>
+        <button class="btn btn-primary btn-sm" onclick="saveAndNext()">Next: Upload + OCR</button>
       </div>
       <div id="expiredNotice" class="alert alert-warning py-2 px-3 mt-2 small" style="display:none;"></div>
       <div id="saveStateMsg" class="small text-muted mt-2"></div>
     </div>
   </div>
   <script>
-    const KEY = "report_wizard_settings_v1";
+    const KEY = "report_wizard_settings_v2";
+    const LEGACY_KEY = "report_wizard_settings_v1";
     const SELECT_KEY = "report_wizard_selected_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
     const RISK_CONFIRM_KEY = "report_wizard_risk_confirmed_ids_v1";
+    const FIELD_IDS = ["employeeName","department","employeeId","manager","project","reportTitle","reportType","currency","expenseContext","periodMode","periodFrom","periodTo","tripPurpose","notes"];
     let wizardTtlMs = 7 * 24 * 60 * 60 * 1000;
     let wizardExpired = false;
     const expiredKeys = new Set();
     const isKo = String(navigator.language || "").toLowerCase().startsWith("ko");
+
     function keyLabel(key){
-      if (key === KEY) return "settings";
+      if (key === KEY || key === LEGACY_KEY) return "settings";
       return key;
     }
     function wizardGet(key, fallback){
@@ -67,16 +107,15 @@
           }
           return parsed.value;
         }
-        return parsed; // legacy raw JSON compatibility
+        return parsed;
       }catch(_){
         return fallback;
       }
     }
     function wizardSet(key, value){
-      try{
-        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value }));
-      }catch(_){}
+      try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){}
     }
+    function esc(v){return String(v||"").replace(/[&<>\"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[s]));}
     function renderExpiredNotice(){
       const el = document.getElementById("expiredNotice");
       if (!el) return;
@@ -94,10 +133,37 @@
       }
     }
     function resetWizardStateToStep1(){
-      [KEY, SELECT_KEY, DIRTY_KEY, RISK_CONFIRM_KEY].forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
+      [KEY, LEGACY_KEY, SELECT_KEY, DIRTY_KEY, RISK_CONFIRM_KEY].forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
       window.location.href = "/reports/wizard/settings";
     }
-    function esc(v){return String(v||"").replace(/[&<>\"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[s]));}
+
+    function applyTemplateRules(){
+      const type = String(document.getElementById("reportType").value || "domestic").toLowerCase();
+      const currency = document.getElementById("currency");
+      if (type === "domestic") {
+        currency.value = "USD";
+        currency.disabled = true;
+      } else {
+        currency.disabled = false;
+      }
+    }
+    function applyContextRules(){
+      const context = String(document.getElementById("expenseContext").value || "general");
+      const row = document.getElementById("tripPurposeRow");
+      if (row) row.style.display = context === "travel" ? "" : "none";
+      if (context !== "travel") document.getElementById("tripPurpose").value = "";
+    }
+    function applyPeriodModeRules(){
+      const mode = String(document.getElementById("periodMode").value || "auto");
+      const manual = mode === "manual";
+      document.getElementById("periodFrom").disabled = !manual;
+      document.getElementById("periodTo").disabled = !manual;
+      if (!manual) {
+        document.getElementById("periodFrom").value = "";
+        document.getElementById("periodTo").value = "";
+      }
+    }
+
     async function loadWizardConfig(){
       try{
         const r = await fetch("/api/config");
@@ -105,11 +171,28 @@
         if(!r.ok) return;
         const hours = Number(d?.wizard?.cache_ttl_hours || 168);
         if (Number.isFinite(hours)) wizardTtlMs = Math.max(1, Math.min(24 * 30, Math.round(hours))) * 60 * 60 * 1000;
-      }catch(_){}
+
+        const typeSel = document.getElementById("reportType");
+        const modeCfg = d?.modes || {};
+        const options = [];
+        if (modeCfg?.domestic?.enabled !== false) options.push({ value: "domestic", label: modeCfg?.domestic?.label || "Domestic" });
+        if (modeCfg?.international?.enabled !== false) options.push({ value: "international", label: modeCfg?.international?.label || "International" });
+        if (!options.length) options.push({ value: "domestic", label: "Domestic" });
+        typeSel.innerHTML = options.map(x => `<option value="${esc(x.value)}">${esc(x.label)}</option>`).join("");
+
+        const cfgDefaultType = String(d?.wizard?.default_report_type || options[0].value).toLowerCase();
+        if ([...typeSel.options].some(o => o.value === cfgDefaultType)) {
+          typeSel.value = cfgDefaultType;
+        }
+        const cfgDefaultCurrency = String(d?.wizard?.default_currency || "USD").toUpperCase();
+        const cur = document.getElementById("currency");
+        if ([...cur.options].some(o => o.value === cfgDefaultCurrency)) cur.value = cfgDefaultCurrency;
+      }catch(_){ }
     }
+
     function saveSettings(showMsg = false){
       const s = {};
-      for(const id of ["employeeName","department","employeeId","manager","project","reportTitle","reportType","currency","periodFrom","periodTo","tripPurpose","notes"]){
+      for(const id of FIELD_IDS){
         s[id] = (document.getElementById(id).value || "").trim();
       }
       wizardSet(KEY, s);
@@ -120,30 +203,37 @@
     }
     function loadSettings(){
       try{
-        const s = wizardGet(KEY, {});
-        for(const id of ["employeeName","department","employeeId","manager","project","reportTitle","reportType","currency","periodFrom","periodTo","tripPurpose","notes"]){
+        const s = wizardGet(KEY, wizardGet(LEGACY_KEY, {}));
+        for(const id of FIELD_IDS){
           if(document.getElementById(id) && s[id] !== undefined) document.getElementById(id).value = s[id];
         }
-      }catch(_){}
+      }catch(_){ }
+      applyTemplateRules();
+      applyContextRules();
+      applyPeriodModeRules();
     }
     function saveAndNext(){
       saveSettings(true);
       window.location.href = "/reports/wizard/upload";
     }
+
     (async()=>{
       await loadWizardConfig();
       loadSettings();
       renderExpiredNotice();
     })();
-    ["employeeName","department","employeeId","manager","project","reportTitle","reportType","currency","periodFrom","periodTo","tripPurpose","notes"].forEach((id)=>{
+
+    FIELD_IDS.forEach((id)=>{
       const el = document.getElementById(id);
       if (!el) return;
-      el.addEventListener("change", () => saveSettings(true));
+      el.addEventListener("change", () => {
+        if (id === "reportType") applyTemplateRules();
+        if (id === "expenseContext") applyContextRules();
+        if (id === "periodMode") applyPeriodModeRules();
+        saveSettings(true);
+      });
       el.addEventListener("blur", () => saveSettings(false));
     });
   </script>
 </body>
 </html>
-
-
-

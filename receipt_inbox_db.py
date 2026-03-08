@@ -237,6 +237,26 @@ def get_receipt(db_path: str, host: str, receipt_id: int):
     return _row_to_receipt(row)
 
 
+def delete_receipt(db_path: str, host: str, receipt_id: int):
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM receipts WHERE id = ? AND host = ?",
+            (receipt_id, host),
+        ).fetchone()
+        if not row:
+            return None
+        conn.execute(
+            "DELETE FROM receipt_audit_logs WHERE receipt_id = ? AND host = ?",
+            (receipt_id, host),
+        )
+        conn.execute(
+            "DELETE FROM receipts WHERE id = ? AND host = ?",
+            (receipt_id, host),
+        )
+        conn.commit()
+    return _row_to_receipt(row)
+
+
 def list_receipts(
     db_path: str,
     host: str,
