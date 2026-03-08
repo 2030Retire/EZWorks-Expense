@@ -1,0 +1,173 @@
+{
+  "generated_at": "2026-03-08T22:21:42",
+  "template_path": "C:\\Users\\John\\OneDrive - LIT\\LIT\\시스템개발\\GPT\\expense-processor\\docs\\ux\\uat_evidence\\2026-03-08\\manual_uat_template.md",
+  "evidence_dir": "C:\\Users\\John\\OneDrive - LIT\\LIT\\시스템개발\\GPT\\expense-processor\\docs\\ux\\uat_evidence\\2026-03-08",
+  "gate": "CONDITIONAL NO-GO",
+  "gate_reason": "Manual UAT rows are still pending.",
+  "matrix_counts": {
+    "PASS": 0,
+    "FAIL": 0,
+    "PENDING": 7
+  },
+  "case_counts": {
+    "PASS": 0,
+    "FAIL": 0,
+    "PENDING": 8
+  },
+  "missing_evidence_case_ids": [],
+  "matrix_rows": [
+    {
+      "host": "localhost:5000",
+      "user": "(manual)",
+      "role": "General",
+      "expected_scope": "Own data only",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": ""
+    },
+    {
+      "host": "localhost:5000",
+      "user": "(manual)",
+      "role": "Accounting",
+      "expected_scope": "Tenant-wide by permission",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": ""
+    },
+    {
+      "host": "localhost:5000",
+      "user": "(manual)",
+      "role": "Tenant Admin",
+      "expected_scope": "Admin module (current host)",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": ""
+    },
+    {
+      "host": "lek-partners.local:5000",
+      "user": "user@lekpartners.com",
+      "role": "General",
+      "expected_scope": "Own data only",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": ""
+    },
+    {
+      "host": "lek-partners.local:5000",
+      "user": "admin@lekpartners.com",
+      "role": "Accounting",
+      "expected_scope": "Tenant-wide by permission",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": ""
+    },
+    {
+      "host": "lek-partners.local:5000",
+      "user": "it@lekpartners.com",
+      "role": "Tenant Admin",
+      "expected_scope": "Admin module (current host)",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": ""
+    },
+    {
+      "host": "(operator host)",
+      "user": "operator account",
+      "role": "Operator",
+      "expected_scope": "Platform + cross-tenant",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": ""
+    }
+  ],
+  "case_rows": [
+    {
+      "id": "C-01",
+      "scenario": "Anonymous redirect",
+      "steps": "Open /dashboard, /inbox/review, /reports, /admin without login",
+      "expected": "Redirect to /login",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": "",
+      "evidence_files": [],
+      "evidence_file_count": 0
+    },
+    {
+      "id": "C-02",
+      "scenario": "Host isolation",
+      "steps": "Change company name/logo on lek-partners.local host",
+      "expected": "localhost host config/logo unchanged",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": "",
+      "evidence_files": [],
+      "evidence_file_count": 0
+    },
+    {
+      "id": "C-03",
+      "scenario": "Cross-tenant admin guard",
+      "steps": "Tenant admin tries host switch to another tenant",
+      "expected": "Forbidden/guarded",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": "",
+      "evidence_files": [],
+      "evidence_file_count": 0
+    },
+    {
+      "id": "C-04",
+      "scenario": "Receipt ownership scope",
+      "steps": "General user A/B compare Inbox list/detail/image/audit",
+      "expected": "Only own receipts visible",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": "",
+      "evidence_files": [],
+      "evidence_file_count": 0
+    },
+    {
+      "id": "C-05",
+      "scenario": "Admin monitor drill-down",
+      "steps": "Click KPI/user/receipt links from Admin monitor",
+      "expected": "Correct filter applied and Back to Admin Monitor works",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": "",
+      "evidence_files": [],
+      "evidence_file_count": 0
+    },
+    {
+      "id": "C-06",
+      "scenario": "Wizard step separation",
+      "steps": "Check top nav and wizard pages",
+      "expected": "Top nav only Dashboard/Inbox/Reports/Admin, steps only in wizard progress",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": "",
+      "evidence_files": [],
+      "evidence_file_count": 0
+    },
+    {
+      "id": "C-07",
+      "scenario": "Unsaved edit guard",
+      "steps": "Edit Step4 row and move Step5 without save",
+      "expected": "Warning shown and generate blocked",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": "",
+      "evidence_files": [],
+      "evidence_file_count": 0
+    },
+    {
+      "id": "C-08",
+      "scenario": "Accounting permission boundary",
+      "steps": "Login as non-accounting user and open /inbox/settings",
+      "expected": "No accounting edit access",
+      "actual": "",
+      "status": "PENDING",
+      "evidence_text": "",
+      "evidence_files": [],
+      "evidence_file_count": 0
+    }
+  ]
+}

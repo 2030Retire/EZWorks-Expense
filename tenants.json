@@ -1,0 +1,26 @@
+[
+  {
+    "host": "lekpartners.local",
+    "name": "LEK Partners",
+    "redirect_url": "http://lekpartners.local:5000",
+    "active": true
+  },
+  {
+    "host": "localhost",
+    "name": "localhost",
+    "redirect_url": "",
+    "active": true
+  },
+  {
+    "host": "lek.localhost",
+    "name": "LEK Partners",
+    "redirect_url": "http://lek.localhost:5000",
+    "active": true
+  },
+  {
+    "host": "lek-partners.local",
+    "name": "LEK Partners",
+    "redirect_url": "http://lek-partners.local:5000",
+    "active": true
+  }
+]

@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Report Automation</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary:#2563eb; --primary-light:#dbeafe; --success:#16a34a;
+      --warning:#ca8a04; --danger:#dc2626;
+      --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb;
+      --gray-600:#4b5563; --gray-900:#111827;
+    }
+    body { background:var(--gray-50); font-family:'Segoe UI',system-ui,sans-serif; color:var(--gray-900); }
+    .navbar { background:var(--primary)!important; }
+    .navbar-brand { font-weight:700; font-size:1.1rem; display:flex; align-items:center; gap:.5rem; }
+    .brand-logo { width:22px; height:22px; border-radius:5px; background:rgba(255,255,255,.1); padding:2px; }
+    .lang-btn { cursor:pointer; padding:.2rem .55rem; border-radius:6px; font-size:.8rem; font-weight:700; border:1.5px solid rgba(255,255,255,.5); color:white; background:transparent; transition:all .15s; }
+    .lang-btn.active { background:white; color:var(--primary); border-color:white; }
+    .lang-btn:not(.active):hover { background:rgba(255,255,255,.15); }
+
+    .step-card { background:white; border-radius:12px; border:1px solid var(--gray-200); padding:1.5rem; margin-bottom:1.25rem; }
+    .step-card.active { border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+    .step-card.done { border-color:var(--success); background:#f0fdf4; }
+    .step-card.disabled { opacity:.5; pointer-events:none; }
+    .step-number { width:32px; height:32px; border-radius:50%; background:var(--primary); color:white; font-weight:700; font-size:.9rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .step-card.done .step-number { background:var(--success); }
+
+    .drop-zone { border:2px dashed var(--gray-200); border-radius:10px; padding:2rem; text-align:center; cursor:pointer; transition:all .2s; background:var(--gray-50); }
+    .drop-zone:hover,.drop-zone.dragover { border-color:var(--primary); background:var(--primary-light); }
+    .drop-zone i { font-size:2.5rem; color:var(--gray-600); }
+    .file-chip { display:inline-flex; align-items:center; gap:.3rem; background:var(--primary-light); color:var(--primary); border-radius:20px; padding:.2rem .65rem; font-size:.8rem; margin:.15rem; }
+
+    .progress-item { display:flex; align-items:center; gap:.75rem; padding:.5rem 0; border-bottom:1px solid var(--gray-100); }
+    .progress-item:last-child { border-bottom:none; }
+
+    .receipt-table { font-size:.875rem; }
+    .receipt-table th { background:var(--gray-100); font-weight:600; white-space:nowrap; }
+    .receipt-table td input,.receipt-table td select { border:1px solid transparent; border-radius:6px; padding:.25rem .4rem; width:100%; background:transparent; font-size:.85rem; }
+    .receipt-table td input:focus,.receipt-table td select:focus { border-color:var(--primary); outline:none; background:white; }
+    .receipt-table tr.has-error td { background:#fff1f2; }
+    .receipt-table tr.low-confidence td { background:#fffbeb; }
+    .receipt-thumb { width:36px; height:36px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid var(--gray-200); transition:transform .15s; }
+    .receipt-thumb:hover { transform:scale(1.1); border-color:var(--primary); }
+
+    .stat-badge { display:inline-block; padding:.3rem .8rem; border-radius:20px; font-size:.8rem; font-weight:600; }
+    .stat-badge.total { background:var(--primary-light); color:var(--primary); }
+    .stat-badge.success { background:#dcfce7; color:var(--success); }
+    .stat-badge.error { background:#fee2e2; color:var(--danger); }
+    .stat-badge.warning { background:#fef9c3; color:var(--warning); }
+
+    .btn-primary-lg { background:var(--primary); color:white; border:none; border-radius:10px; padding:.75rem 2rem; font-weight:600; font-size:1rem; cursor:pointer; transition:all .2s; }
+    .btn-primary-lg:hover { background:#1d4ed8; transform:translateY(-1px); }
+    .btn-primary-lg:disabled { background:var(--gray-200); color:var(--gray-600); transform:none; cursor:not-allowed; }
+
+    .download-card { background:linear-gradient(135deg,#1d4ed8,#2563eb); color:white; border-radius:12px; padding:2rem; text-align:center; }
+    .download-card a { display:inline-flex; align-items:center; gap:.5rem; background:white; color:var(--primary); text-decoration:none; border-radius:10px; padding:.75rem 2rem; font-weight:700; margin-top:1rem; transition:all .2s; }
+    .download-card a:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(0,0,0,.2); }
+
+    #log-panel { background:#1e293b; color:#94a3b8; border-radius:8px; padding:1rem; font-family:monospace; font-size:.8rem; max-height:200px; overflow-y:auto; display:none; }
+    #log-panel .log-ok { color:#4ade80; } #log-panel .log-err { color:#f87171; } #log-panel .log-info { color:#60a5fa; }
+
+    /* Settings sub-sections */
+    .settings-box { background:var(--gray-50); border:1px solid var(--gray-200); border-radius:10px; padding:1rem 1.25rem; }
+    .settings-box + .settings-box { margin-top:.75rem; }
+    .section-label { font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--gray-600); margin-bottom:.6rem; }
+
+    /* Currency toggle */
+    .currency-toggle .form-check-input { width:2.4em; height:1.2em; margin-top:.15em; }
+    .rate-mode-card { border:1.5px solid var(--gray-200); border-radius:8px; padding:.6rem 1rem; cursor:pointer; transition:all .15s; }
+    .rate-mode-card.selected { border-color:var(--primary); background:var(--primary-light); }
+
+    /* Per-date rate table */
+    #perDateRateTable { font-size:.85rem; }
+    #perDateRateTable th { background:var(--gray-100); }
+    #perDateRateTable td input { width:90px; border:1px solid var(--gray-200); border-radius:5px; padding:.2rem .4rem; text-align:right; }
+    #perDateRateTable td input:focus { border-color:var(--primary); outline:none; }
+    #perDateRateTable .usd-cell { color:var(--success); font-weight:600; font-size:.8rem; }
+
+    /* Advanced options */
+    #advancedOptions { display:none; }
+    .adv-toggle { cursor:pointer; color:var(--primary); font-size:.85rem; user-select:none; }
+    .adv-toggle:hover { text-decoration:underline; }
+
+    /* No-template warning */
+    .no-template-alert { background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:.75rem 1rem; color:#9a3412; }
+
+    /* Confidence badge */
+    .cb { display:inline-block; padding:.1rem .4rem; border-radius:4px; font-size:.72rem; font-weight:600; }
+    .cb-high { background:#dcfce7; color:#15803d; }
+    .cb-medium { background:#fef9c3; color:#854d0e; }
+    .cb-low { background:#fee2e2; color:#991b1b; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark">
+  <div class="container">
+    <span class="navbar-brand">
+      <img class="brand-logo" src="/static/logos/ezworks_mark.svg" alt="EZWorks">
+      <span data-i18n="appTitle">Expense Report Automation</span>
+    </span>
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-white-50 small">Powered by EZWorks</span>
+      <span id="userBadge" class="text-white-50 small ms-3"></span>
+      <a href="/inbox" class="text-white-50 small" style="text-decoration:none;"><i class="fa-regular fa-folder-open me-1"></i>Inbox</a>
+      <a id="adminNavLink" href="/admin" class="text-white-50 small" style="text-decoration:none;display:none;"><i class="fa-solid fa-gear me-1"></i><span data-i18n="adminLink">Admin</span></a>
+      <a href="/logout" class="text-white-50 small" style="text-decoration:none;"><i class="fa-solid fa-right-from-bracket me-1"></i>Logout</a>
+      <div class="ms-2 d-flex gap-1">
+        <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
+        <button class="lang-btn" id="btnKO" onclick="setLang('ko')">한국어</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width:1060px;">
+
+  <!-- Company header (shown if configured) -->
+  <div id="companyHeader" class="d-flex align-items-center gap-3 mb-3 p-3 bg-white rounded-3 border" style="display:none!important;">
+    <img id="companyLogoImg" src="" alt="logo" style="max-height:48px;max-width:120px;object-fit:contain;">
+    <div>
+      <div id="companyNameEl" class="fw-bold" style="font-size:1.05rem;"></div>
+      <div id="companyAddrEl" class="text-muted small"></div>
+    </div>
+  </div>
+
+  <!-- Template warning (shown if no template) -->
+  <div id="noTemplateAlert" class="no-template-alert mb-3" style="display:none">
+    <i class="fa-solid fa-triangle-exclamation me-2"></i>
+    <span data-i18n="noTemplateMsg">No expense template configured. Please go to <a href="/admin">Admin</a> to generate or upload a template.</span>
+  </div>
+
+  <!-- ── MODE SELECTOR ── -->
+  <div class="mb-3" id="modeSelectorWrap">
+    <div class="d-flex gap-2">
+      <button id="btnModeDomestic" class="btn btn-primary flex-fill py-3" onclick="setMode('domestic')"
+              style="border-radius:12px;font-size:1rem;">
+        <i class="fa-solid fa-flag-usa d-block mb-1" style="font-size:1.4rem;"></i>
+        <span class="fw-bold" data-i18n="modeDomesticLabel">Domestic</span>
+        <div class="small opacity-75" data-i18n="modeDomesticSub">US travel · USD only</div>
+      </button>
+      <button id="btnModeIntl" class="btn btn-outline-secondary flex-fill py-3" onclick="setMode('international')"
+              style="border-radius:12px;font-size:1rem;">
+        <i class="fa-solid fa-earth-americas d-block mb-1" style="font-size:1.4rem;"></i>
+        <span class="fw-bold" data-i18n="modeIntlLabel">International</span>
+        <div class="small opacity-75" data-i18n="modeIntlSub">Overseas · Multi-currency</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── STEP 1: Settings ── -->
+  <div class="step-card active" id="step1">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <div class="step-number">1</div>
+      <h5 class="mb-0" data-i18n="step1Title">Settings</h5>
+      <span id="modeTag" class="badge bg-primary ms-2" style="font-size:.75rem;"></span>
+    </div>
+
+    <!-- Names + Employee Fields (dynamic from config) -->
+    <div id="employeeFieldsSection" class="row g-3 mb-3">
+      <div class="col-md-6" id="fld_wrap_employee_name">
+        <label class="form-label fw-semibold" data-i18n="employeeLabel">Employee Name</label>
+        <input type="text" id="employeeName" class="form-control" placeholder="John Doe">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-semibold" data-i18n="tripLabel">Trip Title / Purpose</label>
+        <input type="text" id="tripTitle" class="form-control" placeholder="Q4 Sales Conference">
+      </div>
+      <div class="col-md-6" id="fld_wrap_department" style="display:none">
+        <label class="form-label fw-semibold">Department</label>
+        <input type="text" id="deptField" class="form-control" placeholder="Sales">
+      </div>
+      <div class="col-md-6" id="fld_wrap_employee_id" style="display:none">
+        <label class="form-label fw-semibold">Employee ID</label>
+        <input type="text" id="empIdField" class="form-control" placeholder="EMP-001">
+      </div>
+      <div class="col-md-6" id="fld_wrap_manager" style="display:none">
+        <label class="form-label fw-semibold">Manager / Supervisor</label>
+        <input type="text" id="managerField" class="form-control" placeholder="Jane Smith">
+      </div>
+      <div class="col-md-6" id="fld_wrap_project" style="display:none">
+        <label class="form-label fw-semibold">Project / Cost Center</label>
+        <input type="text" id="projectField" class="form-control" placeholder="PRJ-2025">
+      </div>
+    </div>
+
+    <!-- Expense Period -->
+    <div class="settings-box mb-2">
+      <div class="section-label"><i class="fa-regular fa-calendar me-1"></i><span data-i18n="periodLabel">Expense Period</span></div>
+      <div class="d-flex align-items-center gap-3 mb-2 flex-wrap">
+        <div class="form-check mb-0">
+          <input type="checkbox" id="periodAutoMode" class="form-check-input" checked onchange="togglePeriodMode()">
+          <label for="periodAutoMode" class="form-check-label small fw-semibold" data-i18n="periodAutoLabel">Auto-detect from receipts</label>
+        </div>
+        <span class="text-muted small" id="periodModeHint" data-i18n="periodAutoHint">Dates will be set automatically after OCR completes.</span>
+      </div>
+      <div class="row g-2 align-items-center" id="periodInputs" style="opacity:.45;pointer-events:none;">
+        <div class="col-auto">
+          <label class="form-label small mb-1" data-i18n="fromLabel">From</label>
+          <input type="date" id="periodFrom" class="form-control form-control-sm" style="width:150px">
+        </div>
+        <div class="col-auto pt-3 text-muted">→</div>
+        <div class="col-auto">
+          <label class="form-label small mb-1" data-i18n="toLabel">To</label>
+          <input type="date" id="periodTo" class="form-control form-control-sm" style="width:150px">
+        </div>
+        <div class="col">
+          <div class="form-text mt-3" data-i18n="periodNote">Receipts outside this range will be excluded. Leave blank to include all.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Currency Settings -->
+    <div class="settings-box mb-2" id="currencySettingsBox">
+      <div class="section-label"><i class="fa-solid fa-money-bill-transfer me-1"></i><span data-i18n="currencyLabel">Currency Settings</span> <span class="badge bg-primary ms-1" style="font-size:.7rem;">Base: USD</span></div>
+      <div class="currency-toggle form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="hasForeign" onchange="toggleForeignCurrency()">
+        <label class="form-check-label fw-semibold" for="hasForeign" data-i18n="hasForeignLabel">Receipts include foreign currency amounts</label>
+      </div>
+
+      <div id="foreignOptions" style="display:none">
+        <div class="row g-3 align-items-start">
+          <!-- Currency selector -->
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold" data-i18n="foreignCurrencyLabel">Foreign Currency</label>
+            <select id="foreignCurrency" class="form-select form-select-sm" onchange="updateRateLabel()">
+              <option value="KRW">🇰🇷 KRW – Korean Won</option>
+              <option value="JPY">🇯🇵 JPY – Japanese Yen</option>
+              <option value="EUR">🇪🇺 EUR – Euro</option>
+              <option value="GBP">🇬🇧 GBP – British Pound</option>
+              <option value="CNY">🇨🇳 CNY – Chinese Yuan</option>
+              <option value="CAD">🇨🇦 CAD – Canadian Dollar</option>
+              <option value="AUD">🇦🇺 AUD – Australian Dollar</option>
+              <option value="MXN">🇲🇽 MXN – Mexican Peso</option>
+            </select>
+          </div>
+
+          <!-- Rate mode -->
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold" data-i18n="rateModeLabel">Exchange Rate Method</label>
+            <div class="d-flex gap-2">
+              <div class="rate-mode-card selected flex-fill text-center" id="modeAvg" onclick="selectRateMode('average')">
+                <i class="fa-solid fa-equals mb-1 d-block text-primary"></i>
+                <div class="small fw-semibold" data-i18n="modeAvgLabel">Average Rate</div>
+              </div>
+              <div class="rate-mode-card flex-fill text-center" id="modePerDate" onclick="selectRateMode('per-date')">
+                <i class="fa-solid fa-calendar-days mb-1 d-block text-primary"></i>
+                <div class="small fw-semibold" data-i18n="modePerDateLabel">Per-Date Rate</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Average rate input -->
+          <div class="col-md-5" id="avgRateSection">
+            <label class="form-label small fw-semibold"><span data-i18n="avgRateLabel">Average Rate</span></label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">1 USD =</span>
+              <input type="number" id="exchangeRate" class="form-control" value="1418" min="0.001" step="0.01" oninput="updateRatePreview()">
+              <span class="input-group-text" id="rateCurrencyLabel">KRW</span>
+            </div>
+            <div class="form-text" id="ratePreview">≈ $1 = 1418 KRW</div>
+          </div>
+        </div>
+
+        <!-- Per-date note (shown when per-date mode selected) -->
+        <div id="perDateNote" class="mt-2 small text-muted" style="display:none">
+          <i class="fa-solid fa-circle-info me-1 text-primary"></i>
+          <span data-i18n="perDateNoteText">Per-date rates will be editable in Step 4 after OCR. Enter an average rate above as the default fallback.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced Options (collapsed) -->
+    <div class="settings-box">
+      <div class="adv-toggle d-flex align-items-center gap-2" onclick="toggleAdvanced()">
+        <i class="fa-solid fa-chevron-right" id="advChevron" style="transition:transform .2s; font-size:.75rem;"></i>
+        <span data-i18n="advancedLabel">Advanced Options</span>
+        <span class="text-muted small" data-i18n="advancedSub">(submission date, settlement month)</span>
+      </div>
+      <div id="advancedOptions" class="mt-3">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold" data-i18n="submissionDateLabel">Submission Date</label>
+            <input type="date" id="submissionDate" class="form-control form-control-sm">
+            <div class="form-text" data-i18n="submissionDateNote">Default: today</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold" data-i18n="settlementMonthLabel">Settlement Month</label>
+            <select id="settlementMonth" class="form-select form-select-sm">
+              <option value="prev" data-i18n="monthPrev">Previous Month</option>
+              <option value="current" selected data-i18n="monthCurrent">Current Month (default)</option>
+              <option value="next" data-i18n="monthNext">Next Month</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2: Upload Receipts ── -->
+  <div class="step-card" id="step2">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <div class="step-number">2</div>
+      <h5 class="mb-0" data-i18n="step2Title">Upload Receipts</h5>
+    </div>
+    <label class="form-label fw-semibold"><span data-i18n="receiptLabel">Receipt Images</span> <span class="text-danger">*</span></label>
+    <div class="drop-zone" id="receiptDropZone" onclick="document.getElementById('receiptInput').click()">
+      <i class="fa-solid fa-images d-block mb-2"></i>
+      <div class="fw-semibold" data-i18n="dropMain">Click or drag & drop receipt images here</div>
+      <div class="text-muted small mt-1" data-i18n="dropSub">JPG, PNG, HEIC, WEBP · Multiple files supported</div>
+    </div>
+    <input type="file" id="receiptInput" multiple accept=".jpg,.jpeg,.png,.heic,.webp" style="display:none" onchange="handleReceiptFiles(this.files)">
+    <div id="receiptChips" class="mt-2"></div>
+    <div class="mt-3">
+      <button class="btn-primary-lg" id="uploadBtn" onclick="uploadFiles()" disabled>
+        <i class="fa-solid fa-cloud-arrow-up me-2"></i><span data-i18n="uploadBtn">Start Upload</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── STEP 3: OCR ── -->
+  <div class="step-card disabled" id="step3">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <div class="step-number">3</div>
+      <h5 class="mb-0"><span data-i18n="step3Title">OCR Processing</span> <span class="text-muted small fw-normal" data-i18n="step3Sub">(Claude AI)</span></h5>
+    </div>
+    <div id="ocrProgress" class="mb-3" style="display:none">
+      <div class="d-flex justify-content-between mb-1">
+        <span class="small text-muted" id="ocrStatusText" data-i18n="processing">Processing...</span>
+        <span class="small fw-semibold" id="ocrCounter">0 / 0</span>
+      </div>
+      <div class="progress" style="height:8px"><div class="progress-bar bg-primary" id="ocrProgressBar" style="width:0%"></div></div>
+    </div>
+    <div id="ocrItems" style="max-height:250px;overflow-y:auto;"></div>
+    <button class="btn-primary-lg mt-3" id="ocrBtn" onclick="startOCR()" disabled>
+      <i class="fa-solid fa-wand-magic-sparkles me-2"></i><span data-i18n="ocrBtn">Start OCR</span>
+    </button>
+  </div>
+
+  <!-- ── STEP 4: Review ── -->
+  <div class="step-card disabled" id="step4">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <div class="step-number">4</div>
+      <h5 class="mb-0" data-i18n="step4Title">Review & Edit</h5>
+      <div class="ms-auto" id="reviewStats"></div>
+    </div>
+    <div class="text-muted small mb-3" data-i18n="step4Desc">Review and correct OCR results before generating the report. Red = error, Yellow = low confidence.</div>
+
+    <!-- Per-date exchange rate editor (shown only when per-date mode) -->
+    <div id="perDateRateSection" style="display:none" class="mb-3">
+      <div class="settings-box">
+        <div class="section-label"><i class="fa-solid fa-calendar-days me-1"></i><span data-i18n="perDateRateTitle">Per-Date Exchange Rates</span></div>
+        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+          <span class="text-muted small" data-i18n="perDateRateDesc">Edit rates per date. Pre-filled with your average rate.</span>
+          <button class="btn btn-sm btn-outline-primary ms-auto" id="fetchRatesBtn" onclick="fetchFrankfurterRates()">
+            <i class="fa-solid fa-globe me-1"></i><span data-i18n="fetchRatesBtn">Fetch from Web (Free)</span>
+          </button>
+        </div>
+        <div id="fetchRatesStatus" class="small mb-2" style="display:none"></div>
+        <table class="table table-sm mb-0" id="perDateRateTable">
+          <thead><tr>
+            <th data-i18n="thDate">Date</th>
+            <th data-i18n="thRateInput">Rate (1 USD = ? <span id="rateTableCurrency">KRW</span>)</th>
+            <th data-i18n="thEquiv">Equivalent</th>
+          </tr></thead>
+          <tbody id="perDateRateBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="table receipt-table table-sm">
+        <thead><tr>
+          <th style="width:36px">#</th>
+          <th style="width:44px" data-i18n="thPhoto">Photo</th>
+          <th style="width:85px" data-i18n="thFile">File</th>
+          <th style="width:108px" data-i18n="thDate2">Date</th>
+          <th style="min-width:140px" data-i18n="thMerchant">Merchant</th>
+          <th style="width:100px" data-i18n="thAmount">Amount</th>
+          <th style="width:60px" data-i18n="thCurrency">Curr.</th>
+          <th style="width:80px" data-i18n="thUSD">≈ USD</th>
+          <th style="width:140px" data-i18n="thCategory">Category</th>
+          <th style="min-width:120px" data-i18n="thMemo">Memo</th>
+        </tr></thead>
+        <tbody id="receiptTableBody"></tbody>
+      </table>
+    </div>
+    <div class="d-flex align-items-center gap-3 mt-3 flex-wrap">
+      <button class="btn-primary-lg" id="generateBtn" onclick="generateReport()" disabled>
+        <i class="fa-solid fa-table-cells me-2"></i><span data-i18n="generateBtn">Generate Report</span>
+      </button>
+      <div id="totalDisplay" class="stat-badge total" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ── STEP 5: Download ── -->
+  <div id="downloadSection" style="display:none">
+    <div class="download-card">
+      <i class="fa-solid fa-circle-check fa-3x mb-2" style="opacity:.9"></i>
+      <h4 class="fw-bold mb-1" data-i18n="downloadTitle">Expense Report Complete!</h4>
+      <p class="mb-0 opacity-75" id="downloadSummary"></p>
+      <a id="downloadLink" href="#"><i class="fa-solid fa-file-excel"></i><span data-i18n="downloadBtn">Download Excel File</span></a>
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <button class="btn btn-sm btn-outline-secondary" onclick="toggleLog()">
+      <i class="fa-solid fa-terminal me-1"></i><span data-i18n="logBtn">Processing Log</span>
+    </button>
+    <div id="log-panel" class="mt-2"></div>
+  </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title" id="imageModalTitle">Receipt</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center p-2">
+        <img id="imageModalImg" src="" alt="Receipt" style="width:100%;max-height:75vh;object-fit:contain;border-radius:8px;">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// i18n
+// ═══════════════════════════════════════════
+const i18n = {
+  en: {
+    appTitle:"Expense Report Automation", adminLink:"Admin",
+    noTemplateMsg:'No expense template configured. Please go to <a href="/admin">Admin</a> to upload the default template.',
+    step1Title:"Settings",
+    employeeLabel:"Employee Name", tripLabel:"Trip Title",
+    periodLabel:"Expense Period", fromLabel:"From", toLabel:"To",
+    periodNote:"Receipts outside this range will be excluded. Leave blank to include all.",
+    periodAutoLabel:"Auto-detect from receipts",
+    periodAutoHint:"Dates will be set automatically after OCR completes.",
+    periodManualHint:"Set the date range manually.",
+    currencyLabel:"Currency Settings",
+    hasForeignLabel:"Receipts include foreign currency amounts",
+    foreignCurrencyLabel:"Foreign Currency",
+    rateModeLabel:"Exchange Rate Method",
+    modeAvgLabel:"Average Rate", modePerDateLabel:"Per-Date Rate",
+    avgRateLabel:"Average Rate",
+    perDateNoteText:"Per-date rates will be editable in Step 4 after OCR. Enter an average rate above as the default fallback.",
+    advancedLabel:"Advanced Options", advancedSub:"(submission date, settlement month)",
+    submissionDateLabel:"Submission Date", submissionDateNote:"Default: today",
+    settlementMonthLabel:"Settlement Month",
+    monthPrev:"Previous Month", monthCurrent:"Current Month (default)", monthNext:"Next Month",
+    step2Title:"Upload Receipts", receiptLabel:"Receipt Images",
+    dropMain:"Click or drag & drop receipt images here",
+    dropSub:"JPG, PNG, HEIC, WEBP · Multiple files supported",
+    uploadBtn:"Start Upload",
+    step3Title:"OCR Processing", step3Sub:"(Claude AI)",
+    processing:"Processing...", ocrBtn:"Start OCR",
+    step4Title:"Review & Edit",
+    step4Desc:"Review and correct OCR results before generating the report. Red = error, Yellow = low confidence.",
+    perDateRateTitle:"Per-Date Exchange Rates",
+    perDateRateDesc:"Edit rates per date. Pre-filled with your average rate.",
+    fetchRatesBtn:"Fetch from Web (Free)",
+    fetchRatesOk:"rates loaded from Frankfurter API",
+    fetchRatesFail:"Failed to fetch rates: ",
+    thDate:"Date", thRateInput:"Rate", thEquiv:"Equiv. USD",
+    thDate2:"Date", thPhoto:"Photo", thFile:"File", thMerchant:"Merchant",
+    thAmount:"Amount", thCurrency:"Curr.", thUSD:"≈ USD", thCategory:"Category", thMemo:"Memo",
+    generateBtn:"Generate Report",
+    downloadTitle:"Expense Report Complete!", downloadBtn:"Download Excel File",
+    logBtn:"Processing Log",
+    filesSelected:"files selected",
+    waiting:"Waiting", done:"Done!", noPreview:"No image", viewReceipt:"View receipt",
+    totalLabel:"Total",
+    statOk:"All OK", statErrors:"errors", statWarnings:"review needed",
+    modeDomesticLabel:"Domestic", modeDomesticSub:"US travel · USD only",
+    modeIntlLabel:"International", modeIntlSub:"Overseas · Multi-currency",
+    uploadError:"Upload failed: ", reportError:"Report generation failed: ",
+    uploadFail:"Upload failed",
+  },
+  ko: {
+    appTitle:"경비보고서 자동화", adminLink:"관리자",
+    noTemplateMsg:'기본 템플릿이 설정되지 않았습니다. <a href="/admin">관리자 페이지</a>에서 템플릿을 업로드해주세요.',
+    step1Title:"기본 설정",
+    employeeLabel:"직원 이름", tripLabel:"출장 제목",
+    periodLabel:"경비 기간", fromLabel:"시작일", toLabel:"종료일",
+    periodNote:"기간 밖의 영수증은 제외됩니다. 비워두면 모두 포함합니다.",
+    periodAutoLabel:"영수증에서 자동 감지",
+    periodAutoHint:"OCR 완료 후 날짜가 자동으로 설정됩니다.",
+    periodManualHint:"날짜 범위를 직접 입력하세요.",
+    currencyLabel:"통화 설정",
+    hasForeignLabel:"외화 영수증 포함",
+    foreignCurrencyLabel:"외화 종류",
+    rateModeLabel:"환율 적용 방식",
+    modeAvgLabel:"평균 환율", modePerDateLabel:"날짜별 환율",
+    avgRateLabel:"평균 환율",
+    perDateNoteText:"날짜별 환율은 OCR 완료 후 4단계에서 수정할 수 있습니다. 위 평균 환율은 기본값으로 사용됩니다.",
+    advancedLabel:"추가 설정", advancedSub:"(제출일, 정산월)",
+    submissionDateLabel:"제출일", submissionDateNote:"기본값: 오늘",
+    settlementMonthLabel:"정산월",
+    monthPrev:"전월", monthCurrent:"당월 (기본)", monthNext:"익월",
+    step2Title:"영수증 업로드", receiptLabel:"영수증 이미지",
+    dropMain:"클릭하거나 영수증을 여기에 드래그하세요",
+    dropSub:"JPG, PNG, HEIC, WEBP · 여러 파일 동시 선택 가능",
+    uploadBtn:"업로드 시작",
+    step3Title:"OCR 처리", step3Sub:"(Claude AI)",
+    processing:"처리 중...", ocrBtn:"OCR 시작",
+    step4Title:"데이터 검토 및 수정",
+    step4Desc:"OCR 결과를 확인하고 필요시 수정하세요. 빨간색=오류, 노란색=불확실.",
+    perDateRateTitle:"날짜별 환율",
+    perDateRateDesc:"날짜별로 환율을 수정하세요. 평균 환율로 미리 채워집니다.",
+    fetchRatesBtn:"웹에서 환율 가져오기 (무료)",
+    fetchRatesOk:"개 환율 Frankfurter API에서 가져옴",
+    fetchRatesFail:"환율 가져오기 실패: ",
+    thDate:"날짜", thRateInput:"환율", thEquiv:"USD 환산",
+    thDate2:"날짜", thPhoto:"사진", thFile:"파일명", thMerchant:"상호명",
+    thAmount:"금액", thCurrency:"통화", thUSD:"≈ USD", thCategory:"카테고리", thMemo:"메모",
+    generateBtn:"보고서 생성",
+    downloadTitle:"경비보고서 완성!", downloadBtn:"Excel 파일 다운로드",
+    logBtn:"처리 로그",
+    filesSelected:"개 파일 선택됨",
+    waiting:"대기 중", done:"완료!", noPreview:"이미지 없음", viewReceipt:"영수증 보기",
+    totalLabel:"합계",
+    modeDomesticLabel:"국내 출장", modeDomesticSub:"미국 내 · USD 전용",
+    modeIntlLabel:"해외 출장", modeIntlSub:"해외 · 다중 통화",
+    statOk:"모두 정상", statErrors:"건 오류", statWarnings:"건 확인 필요",
+    uploadError:"업로드 실패: ", reportError:"보고서 생성 실패: ",
+    uploadFail:"업로드 실패",
+  }
+};
+let lang = "en";
+function t(k){ return i18n[lang][k] || i18n.en[k] || k; }
+function setLang(l){
+  lang = l;
+  document.getElementById("btnEN").classList.toggle("active", l==="en");
+  document.getElementById("btnKO").classList.toggle("active", l==="ko");
+  document.documentElement.lang = l;
+  document.querySelectorAll("[data-i18n]").forEach(el => el.innerHTML = t(el.getAttribute("data-i18n")));
+}
+
+// ═══════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════
+const state = {
+  sessionId: null, receiptFiles: [], ocrResults: [], uploadedReceipts: [],
+  rateMode: "average",   // "average" | "per-date"
+  perDateRates: {},      // {date_str: rate}
+  mode: "domestic",      // "domestic" | "international"
+  cfg: null,             // config from /api/config
+};
+
+let CATEGORIES = ["LUNCH","DINNER","ENTERTAINMENT","LODGING","AIRFARE","CAR_RENTAL","TAXI","MILEAGE","PARKING","PHONE","MISCELLANEOUS"];
+const CURRENCIES = ["USD","KRW","EUR","JPY","GBP","CNY","CAD","AUD","MXN","INR","BRL","MXN"];
+
+// ═══════════════════════════════════════════
+// Mode selector
+// ═══════════════════════════════════════════
+function setMode(mode) {
+  state.mode = mode;
+  const isDom = mode === "domestic";
+  const btnD  = document.getElementById("btnModeDomestic");
+  const btnI  = document.getElementById("btnModeIntl");
+  btnD.className = isDom ? "btn btn-primary flex-fill py-3" : "btn btn-outline-secondary flex-fill py-3";
+  btnI.className = isDom ? "btn btn-outline-secondary flex-fill py-3" : "btn btn-success flex-fill py-3";
+  btnD.style.borderRadius = btnI.style.borderRadius = "12px";
+  btnD.style.fontSize     = btnI.style.fontSize     = "1rem";
+
+  const modeTag = document.getElementById("modeTag");
+  modeTag.textContent = isDom ? "🏠 Domestic" : "🌍 International";
+  modeTag.className   = isDom ? "badge bg-primary ms-2" : "badge bg-success ms-2";
+
+  // International 모드 → 외화 옵션 자동 활성화
+  const hasForeign = document.getElementById("hasForeign");
+  if (!isDom) {
+    hasForeign.checked = true;
+    document.getElementById("foreignOptions").style.display = "";
+    document.getElementById("currencySettingsBox").style.display = "";
+  } else {
+    document.getElementById("currencySettingsBox").style.display = "";
+  }
+
+  // 템플릿 존재 여부 다시 확인
+  checkTemplateForMode(mode);
+}
+
+function checkTemplateForMode(mode) {
+  fetch("/api/status").then(r=>r.json()).then(d=>{
+    const exists = mode === "international"
+      ? (d.template_intl || false)
+      : (d.template_domestic || false);
+    document.getElementById("noTemplateAlert").style.display = exists ? "none" : "";
+  }).catch(()=>{});
+}
+
+// ═══════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", async () => {
+  // Auth state
+  try {
+    const meRes = await fetch("/auth/me");
+    const me = await meRes.json();
+    if (me?.authenticated) {
+      const name = me.user?.name || me.user?.email || "";
+      document.getElementById("userBadge").textContent = name ? `Signed in: ${name}` : "Signed in";
+      if (me.user?.is_admin) {
+        document.getElementById("adminNavLink").style.display = "";
+      }
+    }
+  } catch(_) {}
+
+  // Set today as default submission date
+  document.getElementById("submissionDate").value = new Date().toISOString().split("T")[0];
+
+  // Load config
+  try {
+    const r = await fetch("/api/config");
+    if (r.ok) {
+      state.cfg = await r.json();
+      applyConfig(state.cfg);
+    }
+  } catch(e) {}
+
+  // Default mode check
+  checkTemplateForMode(state.mode);
+  setMode("domestic");
+});
+
+function applyConfig(cfg) {
+  // Company header
+  const cname = cfg.company?.name;
+  const caddr = cfg.company?.address;
+  const logo  = cfg.logo_url;
+  if (cname || logo) {
+    const hdr = document.getElementById("companyHeader");
+    hdr.style.display = "flex";
+    if (logo) { document.getElementById("companyLogoImg").src = logo; }
+    else { document.getElementById("companyLogoImg").style.display = "none"; }
+    if (cname) document.getElementById("companyNameEl").textContent = cname;
+    if (caddr) document.getElementById("companyAddrEl").textContent = caddr;
+  }
+
+  // Employee fields visibility
+  const fields = cfg.fields || {};
+  ["employee_name","department","employee_id","manager","project"].forEach(fid => {
+    const wrap = document.getElementById(`fld_wrap_${fid}`);
+    if (wrap) wrap.style.display = fields[fid]?.enabled ? "" : "none";
+  });
+
+  // Expense types
+  if (cfg.expense_types?.length) {
+    CATEGORIES = cfg.expense_types.filter(t=>t.enabled).map(t=>t.id);
+  }
+
+  // Mode availability
+  const modes = cfg.modes || {};
+  const btnD = document.getElementById("btnModeDomestic");
+  const btnI = document.getElementById("btnModeIntl");
+  if (modes.domestic?.enabled === false) { btnD.disabled = true; btnD.style.opacity = ".4"; }
+  if (modes.international?.enabled === false) { btnI.disabled = true; btnI.style.opacity = ".4"; }
+}
+
+// ═══════════════════════════════════════════
+// Settings UI
+// ═══════════════════════════════════════════
+function toggleForeignCurrency() {
+  const on = document.getElementById("hasForeign").checked;
+  document.getElementById("foreignOptions").style.display = on ? "" : "none";
+}
+
+function selectRateMode(mode) {
+  state.rateMode = mode;
+  document.getElementById("modeAvg").classList.toggle("selected", mode==="average");
+  document.getElementById("modePerDate").classList.toggle("selected", mode==="per-date");
+  document.getElementById("perDateNote").style.display = mode==="per-date" ? "" : "none";
+}
+
+function updateRateLabel() {
+  const cur = document.getElementById("foreignCurrency").value;
+  document.getElementById("rateCurrencyLabel").textContent = cur;
+  document.getElementById("rateTableCurrency").textContent = cur;
+  updateRatePreview();
+}
+
+function updateRatePreview() {
+  const rate = parseFloat(document.getElementById("exchangeRate").value) || 0;
+  const cur = document.getElementById("foreignCurrency")?.value || "KRW";
+  document.getElementById("ratePreview").textContent = rate > 0 ? `1 USD ≈ ${rate.toLocaleString()} ${cur}` : "";
+}
+
+function toggleAdvanced() {
+  const el = document.getElementById("advancedOptions");
+  const chevron = document.getElementById("advChevron");
+  const open = el.style.display !== "none";
+  el.style.display = open ? "none" : "";
+  chevron.style.transform = open ? "" : "rotate(90deg)";
+}
+
+function togglePeriodMode() {
+  const auto = document.getElementById("periodAutoMode").checked;
+  const inputs = document.getElementById("periodInputs");
+  const hint = document.getElementById("periodModeHint");
+  inputs.style.opacity = auto ? ".45" : "1";
+  inputs.style.pointerEvents = auto ? "none" : "";
+  hint.setAttribute("data-i18n", auto ? "periodAutoHint" : "periodManualHint");
+  hint.textContent = t(auto ? "periodAutoHint" : "periodManualHint");
+}
+
+// ═══════════════════════════════════════════
+// File handling
+// ═══════════════════════════════════════════
+function handleReceiptFiles(files) {
+  state.receiptFiles = Array.from(files);
+  renderChips();
+  document.getElementById("uploadBtn").disabled = state.receiptFiles.length === 0;
+}
+
+function renderChips() {
+  const chips = document.getElementById("receiptChips");
+  if (!state.receiptFiles.length) { chips.innerHTML=""; return; }
+  chips.innerHTML = `<div class="small text-muted mb-1">${state.receiptFiles.length} ${t("filesSelected")}</div>`
+    + state.receiptFiles.slice(0,20).map(f=>`<span class="file-chip"><i class="fa-solid fa-image"></i>${f.name}</span>`).join("")
+    + (state.receiptFiles.length>20 ? `<span class="file-chip">+${state.receiptFiles.length-20} more</span>` : "");
+}
+
+["receiptDropZone"].forEach(id => {
+  const z = document.getElementById(id);
+  z.addEventListener("dragover", e=>{ e.preventDefault(); z.classList.add("dragover"); });
+  z.addEventListener("dragleave", ()=>z.classList.remove("dragover"));
+  z.addEventListener("drop", e=>{ e.preventDefault(); z.classList.remove("dragover"); handleReceiptFiles(e.dataTransfer.files); });
+});
+
+// ═══════════════════════════════════════════
+// Utilities
+// ═══════════════════════════════════════════
+function log(msg, type="info") {
+  const p = document.getElementById("log-panel");
+  const ts = new Date().toLocaleTimeString();
+  p.innerHTML += `<div class="log-${type==="ok"?"ok":type==="err"?"err":"info"}">[${ts}] ${msg}</div>`;
+  p.scrollTop = p.scrollHeight;
+}
+function toggleLog() {
+  const p = document.getElementById("log-panel");
+  p.style.display = p.style.display==="none" ? "block" : "none";
+}
+function showImageModal(sid, fname) {
+  document.getElementById("imageModalImg").src = `/api/image/${sid}/${encodeURIComponent(fname)}`;
+  document.getElementById("imageModalTitle").textContent = fname;
+  new bootstrap.Modal(document.getElementById("imageModal")).show();
+}
+function getAvgRate() { return parseFloat(document.getElementById("exchangeRate")?.value) || 1418; }
+function getForeignCurrency() { return document.getElementById("foreignCurrency")?.value || "KRW"; }
+
+// ═══════════════════════════════════════════
+// Upload
+// ═══════════════════════════════════════════
+async function uploadFiles() {
+  const btn = document.getElementById("uploadBtn");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i>${t("processing")}`;
+
+  try {
+    const fd = new FormData();
+    state.receiptFiles.forEach(f => fd.append("receipts", f));
+    log(`Uploading ${state.receiptFiles.length} receipts...`);
+    const res = await fetch("/api/upload-receipts", {method:"POST", body:fd});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    state.sessionId = data.session_id;
+    state.uploadedReceipts = data.files;
+    log(`Upload complete: ${data.count} files (session: ${state.sessionId})`, "ok");
+
+    document.getElementById("step2").classList.add("done");
+    const s3 = document.getElementById("step3");
+    s3.classList.remove("disabled"); s3.classList.add("active");
+    document.getElementById("ocrBtn").disabled = false;
+    document.getElementById("ocrProgress").style.display = "";
+    renderOCRItems();
+  } catch(err) {
+    log(`${t("uploadFail")}: ${err.message}`, "err");
+    alert(t("uploadError") + err.message);
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up me-2"></i>${t("uploadBtn")}`;
+  }
+}
+
+function renderOCRItems() {
+  document.getElementById("ocrItems").innerHTML = state.uploadedReceipts.map(n =>
+    `<div class="progress-item" id="ocr_${n}">
+      <div style="width:20px;text-align:center"><i class="fa-regular fa-circle text-muted" id="icon_${n}"></i></div>
+      <div class="flex-grow-1 small">${n}</div>
+      <div class="small text-muted" id="result_${n}">${t("waiting")}</div>
+    </div>`).join("");
+}
+
+// ═══════════════════════════════════════════
+// OCR
+// ═══════════════════════════════════════════
+async function startOCR() {
+  document.getElementById("ocrBtn").disabled = true;
+  document.getElementById("ocrBtn").innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i>${t("processing")}`;
+
+  const total = state.uploadedReceipts.length;
+  let done=0, errors=0, lowConf=0;
+  state.ocrResults = [];
+
+  for (const fn of state.uploadedReceipts) {
+    const iconEl = document.getElementById(`icon_${fn}`);
+    const resEl  = document.getElementById(`result_${fn}`);
+    iconEl.className = "fa-solid fa-spinner fa-spin text-primary";
+    resEl.textContent = t("processing");
+    try {
+      const res = await fetch(`/api/ocr/${state.sessionId}/${encodeURIComponent(fn)}`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      state.ocrResults.push(data);
+      const conf = data.confidence || "high";
+      if (conf==="low") lowConf++;
+      iconEl.className = conf==="low" ? "fa-solid fa-circle-exclamation text-warning" : "fa-solid fa-check-circle text-success";
+      resEl.innerHTML = `<span class="${conf==="low"?"text-warning":"text-success"}">${data.merchant||"?"} · ${(data.amount||0).toLocaleString()} ${data.currency||"KRW"}</span>`;
+      log(`✓ ${fn}: ${data.merchant} ${(data.amount||0).toLocaleString()} ${data.currency||"KRW"} [${data.category}] conf:${conf}`, "ok");
+    } catch(err) {
+      errors++;
+      state.ocrResults.push({filename:fn, date:null, merchant:"", amount:0, currency:getForeignCurrency(), category:"MISCELLANEOUS", memo:"", confidence:"low", error:err.message});
+      iconEl.className = "fa-solid fa-circle-exclamation text-danger";
+      resEl.innerHTML = `<span class="text-danger">Error: ${err.message.slice(0,40)}</span>`;
+      log(`✗ ${fn}: ${err.message}`, "err");
+    }
+    done++;
+    document.getElementById("ocrProgressBar").style.width = Math.round(done/total*100)+"%";
+    document.getElementById("ocrCounter").textContent = `${done} / ${total}`;
+    document.getElementById("ocrStatusText").textContent = done<total ? t("processing") : t("done");
+  }
+
+  document.getElementById("step3").classList.add("done");
+  const s4 = document.getElementById("step4");
+  s4.classList.remove("disabled"); s4.classList.add("active");
+
+  // Auto-set expense period from OCR min/max dates
+  if (document.getElementById("periodAutoMode").checked) {
+    const dates = state.ocrResults.map(r => r.date).filter(Boolean).sort();
+    if (dates.length > 0) {
+      document.getElementById("periodFrom").value = dates[0];
+      document.getElementById("periodTo").value = dates[dates.length - 1];
+      log(`Auto-set period: ${dates[0]} → ${dates[dates.length - 1]}`, "info");
+    }
+  }
+
+  // per-date 모드이면 항상 섹션 표시 (OCR 실패해도)
+  if (state.rateMode === "per-date" && document.getElementById("hasForeign").checked) {
+    buildPerDateRateTable();
+    document.getElementById("perDateRateSection").style.display = "";
+  }
+
+  renderReviewTable();
+  log(`OCR complete: ${done-errors} succeeded, ${errors} errors, ${lowConf} low confidence`, errors>0?"err":"ok");
+}
+
+// ═══════════════════════════════════════════
+// Per-date rate table
+// ═══════════════════════════════════════════
+function buildPerDateRateTable() {
+  const avgRate = getAvgRate();
+  const cur = getForeignCurrency();
+  document.getElementById("rateTableCurrency").textContent = cur;
+
+  // Collect unique dates from OCR
+  const dates = [...new Set(
+    state.ocrResults.map(r => r.date).filter(Boolean)
+  )].sort();
+
+  // Pre-fill with avg rate
+  dates.forEach(d => { state.perDateRates[d] = avgRate; });
+
+  const tbody = document.getElementById("perDateRateBody");
+  tbody.innerHTML = dates.map(d => `
+    <tr>
+      <td>${d}</td>
+      <td><input type="number" class="per-date-rate" data-date="${d}" value="${avgRate}" min="0.001" step="0.01"
+          oninput="onPerDateRateChange(this)"></td>
+      <td class="usd-cell" id="equiv_${d}">${calcEquiv(avgRate)}</td>
+    </tr>`).join("");
+}
+
+function calcEquiv(rate) {
+  return rate > 0 ? `1 ${getForeignCurrency()} ≈ $${(1/rate).toFixed(5)}` : "—";
+}
+
+function onPerDateRateChange(inp) {
+  const d = inp.dataset.date;
+  const v = parseFloat(inp.value) || getAvgRate();
+  state.perDateRates[d] = v;
+  const equiv = document.getElementById(`equiv_${d}`);
+  if (equiv) equiv.textContent = calcEquiv(v);
+  // Refresh USD column cells for this date
+  document.querySelectorAll(`tr[data-date="${d}"]`).forEach(tr => {
+    const idx = parseInt(tr.dataset.index);
+    if (!isNaN(idx)) {
+      const usdEl = document.getElementById(`usd_${idx}`);
+      if (usdEl) usdEl.textContent = formatUSD(state.ocrResults[idx]);
+    }
+  });
+  refreshTotal();
+}
+
+// ─── USD calc helper ───
+function getEffectiveRate(dateStr) {
+  if (state.rateMode === "per-date" && dateStr && state.perDateRates[dateStr]) {
+    return state.perDateRates[dateStr];
+  }
+  return getAvgRate();
+}
+
+function formatUSD(r) {
+  const amount = parseInt(r.amount) || 0;
+  if (!amount) return "—";
+  const cur = r.currency || getForeignCurrency();
+  if (cur === "USD") return `$${amount.toFixed(2)}`;
+  const rate = getEffectiveRate(r.date);
+  if (!rate) return "—";
+  return `$${(amount / rate).toFixed(2)}`;
+}
+
+// ─── Frankfurter API exchange rate fetch ───
+async function fetchFrankfurterRates() {
+  const fromDate = document.getElementById("periodFrom").value;
+  const toDate   = document.getElementById("periodTo").value;
+  const cur = getForeignCurrency();
+
+  if (!fromDate || !toDate) {
+    alert("Please set the expense period dates first, then fetch rates.");
+    return;
+  }
+  if (cur === "USD") {
+    alert("Base currency is already USD — no conversion needed.");
+    return;
+  }
+
+  const btn = document.getElementById("fetchRatesBtn");
+  const statusEl = document.getElementById("fetchRatesStatus");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i>Fetching...`;
+  statusEl.style.display = "none";
+
+  try {
+    // Frankfurter API: rates FROM USD TO foreign currency, range of dates
+    const url = `https://api.frankfurter.app/${fromDate}..${toDate}?from=USD&to=${cur}`;
+    log(`Fetching rates: ${url}`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    // data.rates = { "2025-10-13": { "KRW": 1375.91 }, ... }
+
+    let updated = 0;
+    for (const [date, rates] of Object.entries(data.rates || {})) {
+      if (rates[cur]) {
+        const rate = parseFloat(rates[cur]);
+        state.perDateRates[date] = rate;
+        const inp = document.querySelector(`.per-date-rate[data-date="${date}"]`);
+        if (inp) {
+          inp.value = rate;
+          // Update equiv cell
+          const equiv = document.getElementById(`equiv_${date}`);
+          if (equiv) equiv.textContent = calcEquiv(rate);
+        }
+        updated++;
+      }
+    }
+
+    // Refresh USD column
+    if (state.ocrResults.length > 0) {
+      state.ocrResults.forEach((r, i) => {
+        const usdEl = document.getElementById(`usd_${i}`);
+        if (usdEl) usdEl.textContent = formatUSD(r);
+      });
+    }
+    refreshTotal();
+
+    // Note: weekends/holidays won't have rates from Frankfurter — those dates
+    // keep their existing (average) rate. Show how many were loaded.
+    statusEl.style.display = "";
+    statusEl.innerHTML = `<span class="text-success"><i class="fa-solid fa-check me-1"></i>${updated} ${t("fetchRatesOk")}</span>
+      <span class="text-muted ms-2 small">(weekends/holidays use fallback rate)</span>`;
+    log(`Frankfurter API: ${updated} rates loaded for ${cur}`, "ok");
+  } catch(err) {
+    statusEl.style.display = "";
+    statusEl.innerHTML = `<span class="text-danger"><i class="fa-solid fa-circle-xmark me-1"></i>${t("fetchRatesFail")} ${err.message}</span>`;
+    log(`Frankfurter rate fetch failed: ${err.message}`, "err");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-globe me-1"></i><span data-i18n="fetchRatesBtn">${t("fetchRatesBtn")}</span>`;
+  }
+}
+
+// ═══════════════════════════════════════════
+// Review Table
+// ═══════════════════════════════════════════
+function renderReviewTable() {
+  const tbody = document.getElementById("receiptTableBody");
+  tbody.innerHTML = "";
+  let totalForeign=0, errorCount=0, lowCount=0;
+  const foreignCur = getForeignCurrency();
+  const hasForeign = document.getElementById("hasForeign").checked;
+
+  state.ocrResults.forEach((r, i) => {
+    const hasError = !!r.error || !r.date || !r.amount;
+    const isLow = !r.error && (r.confidence==="low"||r.confidence==="medium");
+    if (r.error) errorCount++;
+    if (r.confidence==="low"||r.confidence==="medium") lowCount++;
+    totalForeign += (r.amount || 0);
+
+    // 카테고리 옵션: config에서 가져온 CATEGORIES 사용 (id + label)
+    const cfgTypes = state.cfg?.expense_types?.filter(t=>t.enabled) || CATEGORIES.map(id=>({id,label:id}));
+    const catOpts  = cfgTypes.map(ct=>`<option value="${ct.id}" ${r.category===ct.id?"selected":""}>${ct.label||ct.id}</option>`).join("");
+    const defaultCur = state.mode === "domestic" ? "USD" : (r.currency||"USD");
+    const curOpts = CURRENCIES.map(c=>`<option value="${c}" ${defaultCur===c?"selected":""}>${c}</option>`).join("");
+
+    const thumb = (hasError||isLow)
+      ? `<td><img src="/api/image/${state.sessionId}/${encodeURIComponent(r.filename)}" class="receipt-thumb"
+            title="${t('viewReceipt')}" onclick="showImageModal('${state.sessionId}','${r.filename.replace(/'/g,"\\'")}')"
+            onerror="this.parentElement.innerHTML='<span class=\\'text-muted small\\'>—</span>'"></td>`
+      : `<td><button class="btn btn-sm btn-link p-0" title="${t('viewReceipt')}" onclick="showImageModal('${state.sessionId}','${r.filename.replace(/'/g,"\\'")}')"><i class="fa-regular fa-image text-muted"></i></button></td>`;
+
+    const usdStr = formatUSD(r);
+
+    const tr = document.createElement("tr");
+    tr.className = hasError ? "has-error" : isLow ? "low-confidence" : "";
+    tr.dataset.index = i;
+    if (r.date) tr.dataset.date = r.date;
+    tr.innerHTML = `
+      <td class="text-muted">${i+1}</td>
+      ${thumb}
+      <td class="text-muted" style="font-size:.78rem;white-space:nowrap;overflow:hidden;max-width:80px;">${r.filename}</td>
+      <td><input type="date" value="${r.date||""}" onchange="updateResult(${i},'date',this.value)"></td>
+      <td><input type="text" value="${(r.merchant||"").replace(/"/g,'&quot;')}" onchange="updateResult(${i},'merchant',this.value)"></td>
+      <td><input type="number" value="${r.amount||0}" onchange="updateResult(${i},'amount',parseInt(this.value)||0)" style="text-align:right"></td>
+      <td><select onchange="updateResult(${i},'currency',this.value)">${curOpts}</select></td>
+      <td class="text-success text-end small fw-semibold" id="usd_${i}" style="white-space:nowrap;">${usdStr}</td>
+      <td><select onchange="updateResult(${i},'category',this.value)">${catOpts}</select></td>
+      <td><input type="text" value="${(r.memo||"").replace(/"/g,'&quot;')}" onchange="updateResult(${i},'memo',this.value)"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("reviewStats").innerHTML = `
+    <span class="stat-badge total">${t("totalLabel")} ${state.ocrResults.length}</span>
+    ${errorCount>0?`<span class="stat-badge error ms-1">${errorCount} ${t("statErrors")}</span>`:""}
+    ${lowCount>0?`<span class="stat-badge warning ms-1">${lowCount} ${t("statWarnings")}</span>`:""}
+    ${errorCount===0&&lowCount===0?`<span class="stat-badge success ms-1">${t("statOk")}</span>`:""}
+  `;
+  refreshTotal();
+  document.getElementById("generateBtn").disabled = false;
+}
+
+function refreshTotal() {
+  const total = state.ocrResults.reduce((s,r)=>s+(parseInt(r.amount)||0),0);
+  const el = document.getElementById("totalDisplay");
+  el.style.display = "";
+  const hasForeign = document.getElementById("hasForeign").checked;
+  const cur = hasForeign ? getForeignCurrency() : "USD";
+  if (hasForeign && cur !== "USD") {
+    // Compute total in USD
+    const totalUSD = state.ocrResults.reduce((s,r) => {
+      const amount = parseInt(r.amount) || 0;
+      const rCur = r.currency || cur;
+      if (rCur === "USD") return s + amount;
+      const rate = getEffectiveRate(r.date);
+      return s + (rate ? amount / rate : 0);
+    }, 0);
+    el.textContent = `${t("totalLabel")}: ${total.toLocaleString()} ${cur}  ≈  $${totalUSD.toFixed(2)} USD`;
+  } else {
+    el.textContent = `${t("totalLabel")}: ${total.toLocaleString()} ${cur}`;
+  }
+}
+
+function updateResult(index, field, value) {
+  state.ocrResults[index][field] = value;
+  if (field === "date") {
+    const tr = document.querySelector(`tr[data-index="${index}"]`);
+    if (tr) tr.dataset.date = value;
+    // per-date 모드면 새 날짜를 환율 테이블에 추가
+    if (state.rateMode === "per-date" && document.getElementById("hasForeign").checked && value) {
+      addPerDateRateRow(value);
+    }
+  }
+  if (field === "amount" || field === "currency" || field === "date") {
+    const usdEl = document.getElementById(`usd_${index}`);
+    if (usdEl) usdEl.textContent = formatUSD(state.ocrResults[index]);
+    refreshTotal();
+  }
+  const r = state.ocrResults[index];
+  const tr = document.querySelector(`tr[data-index="${index}"]`);
+  if (tr && r.date && r.amount) tr.classList.remove("has-error");
+}
+
+function addPerDateRateRow(dateStr) {
+  // 이미 있으면 스킵
+  if (document.querySelector(`.per-date-rate[data-date="${dateStr}"]`)) return;
+  const avgRate = state.perDateRates[dateStr] || getAvgRate();
+  state.perDateRates[dateStr] = avgRate;
+  const tbody = document.getElementById("perDateRateBody");
+  if (!tbody) return;
+  // 날짜 순 삽입
+  const newRow = document.createElement("tr");
+  newRow.innerHTML = `
+    <td>${dateStr}</td>
+    <td><input type="number" class="per-date-rate" data-date="${dateStr}" value="${avgRate}" min="0.001" step="0.01"
+        oninput="onPerDateRateChange(this)"></td>
+    <td class="usd-cell" id="equiv_${dateStr}">${calcEquiv(avgRate)}</td>`;
+  // 날짜 순서로 정렬 삽입
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  const insertBefore = rows.find(r => {
+    const d = r.querySelector(".per-date-rate")?.dataset?.date;
+    return d && d > dateStr;
+  });
+  if (insertBefore) tbody.insertBefore(newRow, insertBefore);
+  else tbody.appendChild(newRow);
+  // 섹션 보이기
+  document.getElementById("perDateRateSection").style.display = "";
+}
+
+// ═══════════════════════════════════════════
+// Generate Report
+// ═══════════════════════════════════════════
+async function generateReport() {
+  const btn = document.getElementById("generateBtn");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i>Generating...`;
+
+  const avgRate = getAvgRate();
+  const hasForeign = document.getElementById("hasForeign").checked;
+
+  // Build exchange_rates payload
+  let exchangeRatePayload = hasForeign ? avgRate : 1;
+  let exchangeRatesPayload = null;
+  if (hasForeign && state.rateMode === "per-date" && Object.keys(state.perDateRates).length > 0) {
+    exchangeRatesPayload = {...state.perDateRates};
+  }
+
+  // Date range
+  const fromVal = document.getElementById("periodFrom").value;
+  const toVal   = document.getElementById("periodTo").value;
+  const dateRange = fromVal && toVal ? [fromVal, toVal] : null;
+
+  // Submission date / settlement month
+  const submissionDate = document.getElementById("submissionDate").value || null;
+  const smSel = document.getElementById("settlementMonth").value;
+  const now = new Date();
+  const smMap = {prev: now.getMonth(), current: now.getMonth()+1, next: now.getMonth()+2};
+  const settlementMonth = smMap[smSel] || now.getMonth()+1;
+
+  try {
+    const res = await fetch(`/api/generate/${state.sessionId}`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        mode:             state.mode,
+        receipts:         state.ocrResults,
+        employee_name:    document.getElementById("employeeName").value,
+        department:       document.getElementById("deptField")?.value || "",
+        employee_id:      document.getElementById("empIdField")?.value || "",
+        manager:          document.getElementById("managerField")?.value || "",
+        project:          document.getElementById("projectField")?.value || "",
+        trip_title:       document.getElementById("tripTitle").value,
+        exchange_rate:    exchangeRatePayload,
+        exchange_rates:   exchangeRatesPayload,
+        date_range:       dateRange,
+        submission_date:  submissionDate,
+        settlement_month: settlementMonth,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    document.getElementById("step4").classList.add("done");
+    const dl = document.getElementById("downloadSection");
+    dl.style.display = "";
+    const totalForeign = state.ocrResults.reduce((s,r)=>s+(parseInt(r.amount)||0),0);
+    const cur = hasForeign ? getForeignCurrency() : "KRW";
+    const usdEquiv = hasForeign ? `≈ USD ${(totalForeign/avgRate).toFixed(2)}` : "";
+    document.getElementById("downloadSummary").textContent =
+      `${state.ocrResults.length} receipts · ${totalForeign.toLocaleString()} ${cur} ${usdEquiv} · Rate: ${avgRate.toLocaleString()} ${cur}/USD`;
+    document.getElementById("downloadLink").href = data.download_url;
+    dl.scrollIntoView({behavior:"smooth"});
+    log(`Report generated: ${data.filename}`, "ok");
+  } catch(err) {
+    log(`${t("reportError")} ${err.message}`, "err");
+    alert(t("reportError") + err.message);
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-table-cells me-2"></i>${t("generateBtn")}`;
+  }
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

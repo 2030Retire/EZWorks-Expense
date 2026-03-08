@@ -1,0 +1,151 @@
+{
+  "company": {
+    "name": "KIOTI",
+    "address": "6300 KIOTI Dr",
+    "phone": "",
+    "logo_filename": "company_logo_localhost.png"
+  },
+  "fields": {
+    "employee_name": {
+      "enabled": true,
+      "label": "Employee Name"
+    },
+    "department": {
+      "enabled": true,
+      "label": "Department"
+    },
+    "employee_id": {
+      "enabled": false,
+      "label": "Employee ID"
+    },
+    "manager": {
+      "enabled": false,
+      "label": "Manager / Supervisor"
+    },
+    "project": {
+      "enabled": false,
+      "label": "Project / Cost Center"
+    },
+    "period": {
+      "enabled": true,
+      "label": "Expense Period"
+    }
+  },
+  "expense_types": [
+    {
+      "id": "BREAKFAST",
+      "label": "Breakfast",
+      "enabled": true
+    },
+    {
+      "id": "LUNCH",
+      "label": "Lunch",
+      "enabled": true
+    },
+    {
+      "id": "DINNER",
+      "label": "Dinner",
+      "enabled": true
+    },
+    {
+      "id": "ENTERTAINMENT",
+      "label": "Entertainment",
+      "enabled": true
+    },
+    {
+      "id": "LODGING",
+      "label": "Lodging / Hotel",
+      "enabled": true
+    },
+    {
+      "id": "AIRFARE",
+      "label": "Airfare",
+      "enabled": true
+    },
+    {
+      "id": "CAR_RENTAL",
+      "label": "Car Rental",
+      "enabled": true
+    },
+    {
+      "id": "TAXI",
+      "label": "Taxi / Rideshare",
+      "enabled": true
+    },
+    {
+      "id": "MILEAGE",
+      "label": "Mileage",
+      "enabled": true
+    },
+    {
+      "id": "PARKING",
+      "label": "Parking / Tolls",
+      "enabled": true
+    },
+    {
+      "id": "FUEL",
+      "label": "Fuel",
+      "enabled": false
+    },
+    {
+      "id": "PHONE",
+      "label": "Phone / Internet",
+      "enabled": true
+    },
+    {
+      "id": "OFFICE",
+      "label": "Office Supplies",
+      "enabled": false
+    },
+    {
+      "id": "TIPS",
+      "label": "Tips / Gratuity",
+      "enabled": false
+    },
+    {
+      "id": "MISCELLANEOUS",
+      "label": "Miscellaneous",
+      "enabled": true
+    }
+  ],
+  "modes": {
+    "domestic": {
+      "enabled": true,
+      "label": "Domestic (USD)"
+    },
+    "international": {
+      "enabled": true,
+      "label": "International"
+    }
+  },
+  "login_page": {
+    "interval_sec": 8,
+    "slides": [
+      {
+        "filename": "b576c3601a7e.png",
+        "caption": ""
+      },
+      {
+        "filename": "08275a01a1b0.png",
+        "caption": ""
+      },
+      {
+        "filename": "aeeeed4766d0.png",
+        "caption": ""
+      }
+    ]
+  },
+  "wizard": {
+    "risk_priority": [
+      "OCR_FAILED",
+      "IMAGE_UNREADABLE",
+      "LOW_CONFIDENCE",
+      "NEEDS_REVIEW"
+    ],
+    "cache_ttl_hours": 168
+  },
+  "auth": {
+    "allowed_email_domains": [],
+    "admin_emails": []
+  }
+}

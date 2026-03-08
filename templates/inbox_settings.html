@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inbox Settings</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="container py-4">
+    {% include "_module_nav.html" %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0 page-header-title">Settings</h4>
+      <a href="/admin" class="btn btn-sm btn-outline-primary">Open Full Admin</a>
+    </div>
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Category -> Account Mapping</h6>
+        <button id="saveMapBtn" class="btn btn-outline-secondary btn-sm" onclick="saveMappings()">Save</button>
+      </div>
+      <div id="mapNotice" class="small text-muted mb-2"></div>
+      <table class="table table-sm">
+        <thead><tr><th>Category</th><th>Account Code</th><th>Default</th></tr></thead>
+        <tbody id="mapRows"></tbody>
+      </table>
+    </div>
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Vendor Mapping</h6>
+        <button id="saveVendorBtn" class="btn btn-outline-secondary btn-sm" onclick="saveVendors()">Save</button>
+      </div>
+      <div class="small text-muted mb-2">Vendor명 기준 자동 카테고리/계정코드 보정</div>
+      <table class="table table-sm">
+        <thead><tr><th>Vendor</th><th>Category</th><th>Account Code</th></tr></thead>
+        <tbody id="vendorRows"></tbody>
+      </table>
+      <button class="btn btn-outline-primary btn-sm" onclick="addVendorRow()">Add Vendor Rule</button>
+    </div>
+  </div>
+  <script>
+    let canManage = false;
+    function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+
+    async function loadMappings(){
+      const r = await fetch('/api/inbox/category-mappings');
+      const d = await r.json();
+      if(!r.ok) return alert(d.error||'Failed');
+      canManage = !!d.can_manage;
+      document.getElementById("saveMapBtn").disabled = !canManage;
+      document.getElementById("saveVendorBtn").disabled = !canManage;
+      document.getElementById("mapNotice").textContent = canManage ? "Editable" : "Tenant admin/accounting permission required";
+      document.getElementById("mapRows").innerHTML = (d.mappings||[]).map(m=>`
+        <tr>
+          <td>${esc(m.category_id)}</td>
+          <td><input class="form-control form-control-sm map-code" data-cat="${esc(m.category_id)}" data-label="${esc(m.category_label)}" value="${esc(m.account_code||'')}" ${canManage?'':'disabled'}></td>
+          <td>${esc(m.default_account_code||'')}</td>
+        </tr>
+      `).join("");
+    }
+    async function saveMappings(){
+      if(!canManage) return;
+      const mappings = [...document.querySelectorAll('.map-code')].map(x=>({category_id:x.dataset.cat,category_label:x.dataset.label,account_code:x.value.trim()}));
+      const r = await fetch('/api/inbox/category-mappings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mappings})});
+      const d = await r.json();
+      if(!r.ok) return alert(d.error||'Failed');
+      loadMappings();
+    }
+    function addVendorRow(){
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td><input class="form-control form-control-sm vendor-name"></td><td><input class="form-control form-control-sm vendor-category"></td><td><input class="form-control form-control-sm vendor-account"></td>`;
+      document.getElementById('vendorRows').appendChild(tr);
+    }
+    async function loadVendors(){
+      const r=await fetch('/api/inbox/vendor-mappings');
+      const d=await r.json();
+      if(!r.ok) return alert(d.error||'Failed');
+      const rows=d.mappings||[];
+      document.getElementById('vendorRows').innerHTML=rows.map(v=>`<tr><td><input class="form-control form-control-sm vendor-name" value="${esc(v.vendor_name)}" ${canManage?'':'disabled'}></td><td><input class="form-control form-control-sm vendor-category" value="${esc(v.suggested_category||'')}" ${canManage?'':'disabled'}></td><td><input class="form-control form-control-sm vendor-account" value="${esc(v.account_code||'')}" ${canManage?'':'disabled'}></td></tr>`).join('');
+    }
+    async function saveVendors(){
+      if(!canManage) return;
+      const mappings=[...document.querySelectorAll('#vendorRows tr')].map(tr=>({vendor_name:tr.querySelector('.vendor-name').value.trim(),suggested_category:tr.querySelector('.vendor-category').value.trim(),account_code:tr.querySelector('.vendor-account').value.trim()})).filter(x=>x.vendor_name);
+      const r=await fetch('/api/inbox/vendor-mappings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mappings})});
+      const d=await r.json();
+      if(!r.ok) return alert(d.error||'Failed');
+      loadVendors();
+    }
+    (async()=>{await loadMappings(); await loadVendors();})();
+  </script>
+</body>
+</html>
+
+
+

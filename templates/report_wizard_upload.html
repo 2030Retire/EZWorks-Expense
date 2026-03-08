@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Wizard - Upload</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="container py-4">
+    {% include "_module_nav.html" %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
+      <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
+    </div>
+    {% set wizard_step = 2 %}{% include "_wizard_progress.html" %}
+
+    <div class="card p-3">
+      <h6 class="mb-3">Step 2. Upload Receipts</h6>
+      <div id="progressSummary" class="small text-muted mb-2"></div>
+      <input id="files" type="file" multiple class="form-control mb-2" accept=".jpg,.jpeg,.png,.webp,.heic">
+      <button class="btn btn-primary btn-sm" onclick="uploadReceipts()">Upload</button>
+      <div id="msg" class="small mt-2 text-muted"></div>
+      <div class="d-flex justify-content-between mt-3">
+        <a href="/reports/wizard/settings" class="btn btn-sm btn-outline-secondary">Back</a>
+        <a href="/reports/wizard/ocr" class="btn btn-sm btn-primary">Next: OCR</a>
+      </div>
+    </div>
+  </div>
+  <script>
+    function summarizeLifecycle(rows){
+      const out = { total: 0, uploaded: 0, ocr: 0, needs_review: 0, ready: 0, assigned: 0 };
+      for (const x of (rows || [])) {
+        out.total += 1;
+        const lc = String(x.lifecycle_state || "").toUpperCase();
+        if (lc === "UPLOADED") out.uploaded += 1;
+        if (lc === "OCR_PROCESSING") out.ocr += 1;
+        if (lc === "NEEDS_REVIEW" || lc === "LOW_CONFIDENCE" || lc === "OCR_FAILED" || lc === "IMAGE_UNREADABLE") out.needs_review += 1;
+        if (lc === "READY_FOR_REPORT") out.ready += 1;
+        if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
+      }
+      return out;
+    }
+    async function loadProgressSummary(){
+      try{
+        const r = await fetch("/api/inbox/receipts?limit=500");
+        const d = await r.json();
+        if (!r.ok) return;
+        const s = summarizeLifecycle(d.receipts || []);
+        const el = document.getElementById("progressSummary");
+        if (el) el.textContent = `Total ${s.total} · Uploaded ${s.uploaded} · OCR ${s.ocr} · Needs Review ${s.needs_review} · Ready ${s.ready} · Assigned ${s.assigned}`;
+      }catch(_){}
+    }
+    async function uploadReceipts() {
+      const inp = document.getElementById("files");
+      if (!inp.files.length) return alert("Select files.");
+      const fd = new FormData();
+      for (const f of inp.files) fd.append("receipts", f);
+      const r = await fetch("/api/inbox/upload", { method:"POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) return alert(d.error || "Upload failed");
+      document.getElementById("msg").textContent = `Uploaded ${d.count} files`;
+      inp.value = "";
+      await loadProgressSummary();
+    }
+    loadProgressSummary();
+  </script>
+</body>
+</html>
+
+
+

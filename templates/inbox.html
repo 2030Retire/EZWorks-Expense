@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Receipt Inbox - EZWorks Expense</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <style>
+    body { background:#f8fafc; }
+    .navbar { background:#0f172a !important; }
+    .card { border:1px solid #e2e8f0; border-radius:12px; }
+    .table td,.table th { vertical-align:middle; font-size:.9rem; }
+    .thumb { width:40px; height:40px; border-radius:6px; object-fit:cover; border:1px solid #cbd5e1; }
+    .status-pill { padding:.2rem .55rem; border-radius:999px; font-size:.78rem; font-weight:600; }
+    .processed { background:#dcfce7; color:#166534; }
+    .needs_review { background:#fef9c3; color:#854d0e; }
+    .duplicate { background:#fee2e2; color:#991b1b; }
+    .assigned { background:#dbeafe; color:#1d4ed8; }
+    .unassigned { background:#e2e8f0; color:#334155; }
+  </style>
+</head>
+<body class="app-shell">
+  <nav class="navbar navbar-dark">
+    <div class="container">
+      <span class="navbar-brand fw-semibold">Receipt Inbox</span>
+      <div class="d-flex align-items-center gap-3">
+        <a class="text-white-50 text-decoration-none small" href="/">Legacy Workflow</a>
+        <a id="adminNavLink" class="text-white-50 text-decoration-none small" href="/admin" style="display:none;">Admin</a>
+        <a class="text-white-50 text-decoration-none small" href="/logout">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container py-4">
+    <div class="row g-3 mb-2">
+      <div class="col-lg-5">
+        <div class="card p-3">
+          <h6 class="mb-3">1. Upload</h6>
+          <input id="files" type="file" multiple accept=".jpg,.jpeg,.png,.heic,.webp" class="form-control mb-2">
+          <button class="btn btn-primary w-100" onclick="uploadReceipts()"><i class="fa-solid fa-upload me-2"></i>Upload to Inbox</button>
+          <div class="small text-muted mt-2">Host-scoped storage. Files stay in current tenant inbox.</div>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="card p-3">
+          <h6 class="mb-3">2. Filters</h6>
+          <div class="row g-2">
+            <div class="col-md-3">
+              <select id="statusFilter" class="form-select form-select-sm" onchange="loadReceipts()">
+                <option value="">All status</option>
+                <option value="processed">processed</option>
+                <option value="needs_review">needs_review</option>
+                <option value="duplicate">duplicate</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <select id="reportFilter" class="form-select form-select-sm" onchange="loadReceipts()">
+                <option value="">All report status</option>
+                <option value="unassigned">unassigned</option>
+                <option value="assigned">assigned</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <input id="qFilter" type="text" class="form-control form-control-sm" placeholder="Search merchant/memo/file">
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-outline-secondary btn-sm w-100" onclick="loadReceipts()">Search</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">3. Inbox</h6>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" onclick="ocrSelected()">OCR Selected</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="ocrAllNeedsReview()">OCR needs_review</button>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th style="width:30px"><input type="checkbox" onchange="toggleAll(this)"></th>
+              <th>Image</th>
+              <th>File</th>
+              <th>Date</th>
+              <th>Merchant</th>
+              <th>Amount</th>
+              <th>Category</th>
+              <th>Account</th>
+              <th>Status</th>
+              <th>Report</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <h6 class="mb-3">4. Generate Report</h6>
+      <div class="row g-2">
+        <div class="col-md-3">
+          <select id="mode" class="form-select form-select-sm">
+            <option value="domestic">domestic</option>
+            <option value="international">international</option>
+          </select>
+        </div>
+        <div class="col-md-7">
+          <input id="title" class="form-control form-control-sm" placeholder="Report title (optional)">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-success btn-sm w-100" onclick="generateReport()">Generate</button>
+        </div>
+      </div>
+      <div class="row g-2 mt-2">
+        <div class="col-md-2"><input id="fDateFrom" type="date" class="form-control form-control-sm" placeholder="Date from"></div>
+        <div class="col-md-2"><input id="fDateTo" type="date" class="form-control form-control-sm" placeholder="Date to"></div>
+        <div class="col-md-2"><input id="fCategory" class="form-control form-control-sm" placeholder="Category"></div>
+        <div class="col-md-2"><input id="fMerchant" class="form-control form-control-sm" placeholder="Vendor"></div>
+        <div class="col-md-1"><input id="fMinAmount" class="form-control form-control-sm" placeholder="Min"></div>
+        <div class="col-md-1"><input id="fMaxAmount" class="form-control form-control-sm" placeholder="Max"></div>
+        <div class="col-md-2"><button class="btn btn-outline-success btn-sm w-100" onclick="generateByFilter()">Generate by Filter</button></div>
+      </div>
+      <div id="generated" class="small mt-2"></div>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Category -> Account Mapping</h6>
+        <button class="btn btn-outline-secondary btn-sm" onclick="saveMappings()">Save Mapping</button>
+      </div>
+      <div id="mappingNotice" class="small text-muted mb-2"></div>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr><th>Category</th><th>Label</th><th>Account Code</th></tr>
+          </thead>
+          <tbody id="mapRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">5. Report History</h6>
+        <button class="btn btn-outline-secondary btn-sm" onclick="loadReports()">Refresh</button>
+      </div>
+      <div id="reports" class="small text-muted"></div>
+    </div>
+  </div>
+
+  <script>
+    let receipts = [];
+    let canManageMappings = false;
+
+    function esc(v){ return String(v || "").replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+    function badge(value, css){ return `<span class="status-pill ${css}">${esc(value)}</span>`; }
+
+    async function checkAuth() {
+      const r = await fetch("/auth/me");
+      const d = await r.json();
+      if (d?.authenticated && d?.user?.is_admin) {
+        document.getElementById("adminNavLink").style.display = "";
+      }
+      try {
+        const p = await fetch("/api/inbox/permissions");
+        const pd = await p.json();
+        canManageMappings = !!pd.can_manage_mappings;
+      } catch(_) {}
+    }
+
+    async function uploadReceipts() {
+      const inp = document.getElementById("files");
+      if (!inp.files.length) return alert("Select files first.");
+      const fd = new FormData();
+      for (const f of inp.files) fd.append("receipts", f);
+      const r = await fetch("/api/inbox/upload", { method:"POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) return alert(d.error || "Upload failed");
+      inp.value = "";
+      await loadReceipts();
+    }
+
+    function getSelectedIds() {
+      return [...document.querySelectorAll(".sel:checked")].map(x => Number(x.value));
+    }
+
+    async function loadReceipts() {
+      const s = encodeURIComponent(document.getElementById("statusFilter").value || "");
+      const rs = encodeURIComponent(document.getElementById("reportFilter").value || "");
+      const q = encodeURIComponent(document.getElementById("qFilter").value || "");
+      const r = await fetch(`/api/inbox/receipts?status=${s}&report_status=${rs}&q=${q}&limit=300`);
+      const d = await r.json();
+      receipts = d.receipts || [];
+      const tbody = document.getElementById("rows");
+      tbody.innerHTML = receipts.map(x => `
+        <tr>
+          <td><input type="checkbox" class="sel" value="${x.id}"></td>
+          <td><a href="/api/inbox/image/${x.id}" target="_blank"><img class="thumb" src="/api/inbox/image/${x.id}"></a></td>
+          <td>${esc(x.orig_filename)}</td>
+          <td>${esc(x.date || "-")}</td>
+          <td>${esc(x.merchant || "-")}</td>
+          <td>${Number(x.amount || 0).toLocaleString()} ${esc(x.currency || "")}</td>
+          <td>${esc(x.category || "-")}</td>
+          <td>${esc(x.account_code || "-")}</td>
+          <td>${badge(x.status, x.status)}</td>
+          <td>${badge(x.report_status, x.report_status)}</td>
+          <td>
+            <button class="btn btn-outline-secondary btn-sm" onclick="runOCR(${x.id})">OCR</button>
+            ${x.status === "duplicate" ? `<button class="btn btn-outline-warning btn-sm ms-1" onclick="ignoreDuplicate(${x.id})">Ignore Dup</button>` : ""}
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    async function runOCR(id) {
+      const r = await fetch(`/api/inbox/ocr/${id}`, { method:"POST" });
+      const d = await r.json();
+      if (!r.ok) return alert(d.error || "OCR failed");
+      await loadReceipts();
+    }
+
+    async function ocrSelected() {
+      const ids = getSelectedIds();
+      if (!ids.length) return alert("Select receipts first.");
+      for (const id of ids) await runOCR(id);
+    }
+
+    async function ocrAllNeedsReview() {
+      const ids = receipts.filter(x => x.status === "needs_review").map(x => x.id);
+      if (!ids.length) return alert("No needs_review receipts.");
+      for (const id of ids) await runOCR(id);
+    }
+
+    async function ignoreDuplicate(id) {
+      const r = await fetch(`/api/inbox/receipts/${id}/ignore-duplicate`, { method:"POST" });
+      const d = await r.json();
+      if (!r.ok) return alert(d.error || "Action failed");
+      await loadReceipts();
+    }
+
+    async function generateReport() {
+      const ids = getSelectedIds();
+      if (!ids.length) return alert("Select receipts for report.");
+      const body = {
+        receipt_ids: ids,
+        mode: document.getElementById("mode").value,
+        title: document.getElementById("title").value.trim(),
+      };
+      const r = await fetch("/api/inbox/reports/generate", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok) return alert(d.error || "Generate failed");
+      document.getElementById("generated").innerHTML =
+        `Generated: <a href="${d.download_url}">${esc(d.report.output_filename)}</a>`;
+      await loadReceipts();
+      await loadReports();
+    }
+
+    async function generateByFilter() {
+      const body = {
+        mode: document.getElementById("mode").value,
+        title: document.getElementById("title").value.trim(),
+        filters: {
+          date_from: document.getElementById("fDateFrom").value || null,
+          date_to: document.getElementById("fDateTo").value || null,
+          category: document.getElementById("fCategory").value.trim() || null,
+          merchant: document.getElementById("fMerchant").value.trim() || null,
+          min_amount: document.getElementById("fMinAmount").value || null,
+          max_amount: document.getElementById("fMaxAmount").value || null,
+          only_unassigned: true,
+          status: null
+        }
+      };
+      const r = await fetch("/api/inbox/reports/generate", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok) return alert(d.error || "Generate failed");
+      document.getElementById("generated").innerHTML =
+        `Generated: <a href="${d.download_url}">${esc(d.report.output_filename)}</a>`;
+      await loadReceipts();
+      await loadReports();
+    }
+
+    async function loadReports() {
+      const r = await fetch("/api/inbox/reports?limit=100");
+      const d = await r.json();
+      const items = (d.reports || []).map(x =>
+        `<div class="border rounded p-2 mb-2">
+          <div><strong>${esc(x.output_filename)}</strong></div>
+          <div class="text-muted">${esc(x.created_at)} · ${x.receipt_count} receipts · ${esc(x.mode)}</div>
+          <a href="/api/download/${x.output_session_id}/${x.output_filename}">Download</a>
+        </div>`
+      );
+      document.getElementById("reports").innerHTML = items.length ? items.join("") : "No reports yet.";
+    }
+
+    async function loadMappings() {
+      const r = await fetch("/api/inbox/category-mappings");
+      const d = await r.json();
+      const rows = d.mappings || [];
+      canManageMappings = !!d.can_manage;
+      const saveBtn = document.querySelector("button[onclick='saveMappings()']");
+      if (saveBtn) saveBtn.disabled = !canManageMappings;
+      document.getElementById("mapRows").innerHTML = rows.map(m => `
+        <tr>
+          <td>${esc(m.category_id)}</td>
+          <td>${esc(m.category_label)}</td>
+          <td>
+            <input class="form-control form-control-sm map-code" data-cat="${esc(m.category_id)}" data-label="${esc(m.category_label)}" value="${esc(m.account_code || "")}" ${canManageMappings ? "" : "disabled"}>
+            <div class="text-muted" style="font-size:.75rem;">Default: ${esc(m.default_account_code || "")} ${m.overridden ? "(Overridden)" : "(Default)"}</div>
+          </td>
+        </tr>
+      `).join("");
+      document.getElementById("mappingNotice").textContent = canManageMappings ? "Tenant-specific mapping is editable. Defaults are prefilled by system." : "Mapping edit requires tenant admin permission.";
+    }
+
+    async function saveMappings() {
+      if (!canManageMappings) return alert("Tenant admin only.");
+      const mappings = [...document.querySelectorAll(".map-code")].map(inp => ({
+        category_id: inp.dataset.cat,
+        account_code: inp.value.trim(),
+        category_label: inp.dataset.label || inp.dataset.cat
+      }));
+      const r = await fetch("/api/inbox/category-mappings", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ mappings }),
+      });
+      const d = await r.json();
+      if (!r.ok) return alert(d.error || "Save failed");
+      await loadMappings();
+      await loadReceipts();
+    }
+
+    function toggleAll(cb) {
+      document.querySelectorAll(".sel").forEach(x => x.checked = cb.checked);
+    }
+
+    document.getElementById("qFilter").addEventListener("keydown", e => {
+      if (e.key === "Enter") loadReceipts();
+    });
+
+    checkAuth();
+    loadReceipts();
+    loadReports();
+    loadMappings();
+  </script>
+</body>
+</html>
+
+

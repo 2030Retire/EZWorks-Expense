@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Platform — Tenant Management</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <style>
+    body { background:#f1f5f9; font-family:'Segoe UI',system-ui,sans-serif; }
+    .navbar { background:#0f2f57 !important; }
+    .card  { border-radius:12px; border:1px solid #e2e8f0; margin-bottom:1rem; }
+    .card-header { background:#f8fafc; border-bottom:1px solid #e2e8f0; font-weight:600; }
+  </style>
+</head>
+<body class="app-shell">
+<nav class="navbar navbar-dark">
+  <div class="container">
+    <span class="navbar-brand fw-bold"><i class="fa-solid fa-building me-2"></i>Platform Console</span>
+    <div class="d-flex gap-2">
+      <a href="/admin" class="btn btn-sm btn-outline-light"><i class="fa-solid fa-gear me-1"></i>Tenant Admin</a>
+      <a href="/" class="btn btn-sm btn-outline-light"><i class="fa-solid fa-arrow-left me-1"></i>Back to App</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4">
+  <div class="card">
+    <div class="card-header">Tenant Registry</div>
+    <div class="card-body">
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        <select id="tenantHostSelect" class="form-select form-select-sm" style="max-width:320px;" onchange="onTenantChanged()"></select>
+        <button class="btn btn-sm btn-outline-secondary" onclick="loadTenants()"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
+      </div>
+      <div class="d-flex gap-2 flex-wrap mb-2">
+        <input type="text" id="newTenantHost" class="form-control form-control-sm" placeholder="tenant host (e.g. lekpartners.com)" style="max-width:280px;">
+        <input type="text" id="newTenantName" class="form-control form-control-sm" placeholder="display name" style="max-width:220px;">
+        <input type="text" id="newTenantRedirect" class="form-control form-control-sm" placeholder="redirect url (optional)" style="max-width:320px;">
+        <button class="btn btn-sm btn-success" onclick="saveTenant()"><i class="fa-solid fa-plus me-1"></i>Add/Update</button>
+      </div>
+      <div id="tenantMsg" class="small"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Tenant Access Policy</div>
+    <div class="card-body">
+      <div class="small text-muted mb-2">Selected host: <span id="tenantScopeLabel"></span></div>
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        <input type="text" id="allowedDomains" class="form-control form-control-sm" placeholder="allowed login domains (comma-separated)" style="max-width:520px;">
+        <button class="btn btn-sm btn-outline-dark" onclick="savePolicy()"><i class="fa-solid fa-shield-halved me-1"></i>Save Policy</button>
+      </div>
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        <div class="form-check form-switch mt-1">
+          <input class="form-check-input" type="checkbox" id="localLoginEnabled">
+          <label class="form-check-label" for="localLoginEnabled">Enable local password login</label>
+        </div>
+        <input type="text" id="localLoginPassword" class="form-control form-control-sm" placeholder="new local login password (leave blank to keep current)" style="max-width:420px;">
+      </div>
+      <div id="policyMsg" class="small"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Tenant Admin Users</div>
+    <div class="card-body">
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        <input type="email" id="newAdminEmail" class="form-control form-control-sm" placeholder="admin@tenant.com" style="max-width:320px;">
+        <input type="text" id="newAdminName" class="form-control form-control-sm" placeholder="display name (optional)" style="max-width:220px;">
+        <button class="btn btn-sm btn-outline-primary" onclick="addAdmin()"><i class="fa-solid fa-user-shield me-1"></i>Add/Grant Admin</button>
+      </div>
+      <div id="usersMsg" class="small mb-2"></div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr><th>Email</th><th>Name</th><th>Org</th><th>Admin</th><th>Active</th><th>Updated</th></tr>
+          </thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let tenants = [];
+let targetHost = "";
+
+function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function selectedHost(){ return (document.getElementById("tenantHostSelect").value || targetHost || "").trim().toLowerCase(); }
+
+async function postJSON(url, body){
+  const r = await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const d = await r.json();
+  return {ok:r.ok,data:d,error:d.error||"Error"};
+}
+
+async function loadTenants() {
+  const r = await fetch("/admin/tenants");
+  const d = await r.json();
+  if (!r.ok) {
+    document.getElementById("tenantMsg").innerHTML = `<span class="text-danger">${esc(d.error||"Failed to load tenants")}</span>`;
+    return;
+  }
+  tenants = d.tenants || [];
+  const sel = document.getElementById("tenantHostSelect");
+  sel.innerHTML = tenants.map(t => `<option value="${esc(t.host)}">${esc(t.name||t.host)} (${esc(t.host)})</option>`).join("");
+  if (!sel.options.length && d.current_host) {
+    sel.innerHTML = `<option value="${esc(d.current_host)}">${esc(d.current_host)}</option>`;
+  }
+  if (!targetHost) targetHost = d.current_host || (tenants[0]?.host || "");
+  sel.value = tenants.find(t => t.host === targetHost)?.host || sel.options[0]?.value || "";
+  onTenantChanged();
+}
+
+async function saveTenant() {
+  const host = (document.getElementById("newTenantHost").value || "").trim().toLowerCase();
+  const name = (document.getElementById("newTenantName").value || "").trim();
+  const redirect_url = (document.getElementById("newTenantRedirect").value || "").trim();
+  if (!host) {
+    document.getElementById("tenantMsg").innerHTML = `<span class="text-danger">Tenant host is required.</span>`;
+    return;
+  }
+  const res = await postJSON("/admin/tenants", { host, name, redirect_url, active: true });
+  if (!res.ok) {
+    document.getElementById("tenantMsg").innerHTML = `<span class="text-danger">${esc(res.error)}</span>`;
+    return;
+  }
+  targetHost = host;
+  document.getElementById("newTenantHost").value = "";
+  document.getElementById("newTenantName").value = "";
+  document.getElementById("newTenantRedirect").value = "";
+  document.getElementById("tenantMsg").innerHTML = `<span class="text-success">Tenant saved.</span>`;
+  await loadTenants();
+}
+
+async function onTenantChanged() {
+  targetHost = selectedHost();
+  document.getElementById("tenantScopeLabel").textContent = targetHost;
+  await loadPolicy();
+  await loadUsers();
+}
+
+async function loadPolicy() {
+  const r = await fetch(`/admin/config?host=${encodeURIComponent(targetHost)}`);
+  const d = await r.json();
+  if (!r.ok) return;
+  const vals = d?.auth?.allowed_email_domains || [];
+  document.getElementById("allowedDomains").value = vals.join(", ");
+  document.getElementById("localLoginEnabled").checked = !!d?.auth?.local_login_enabled;
+  document.getElementById("localLoginPassword").value = "";
+}
+
+async function savePolicy() {
+  const vals = (document.getElementById("allowedDomains").value || "")
+    .split(",").map(x => x.trim().toLowerCase()).filter(Boolean);
+  const localLoginEnabled = document.getElementById("localLoginEnabled").checked;
+  const localLoginPassword = (document.getElementById("localLoginPassword").value || "").trim();
+  const authPayload = { allowed_email_domains: vals, local_login_enabled: localLoginEnabled };
+  if (localLoginPassword) authPayload.local_login_password = localLoginPassword;
+  const res = await postJSON(`/admin/config?host=${encodeURIComponent(targetHost)}`, {
+    target_host: targetHost,
+    auth: authPayload,
+  });
+  document.getElementById("policyMsg").innerHTML = res.ok
+    ? `<span class="text-success">Policy saved for ${esc(targetHost)}.</span>`
+    : `<span class="text-danger">${esc(res.error)}</span>`;
+  if (res.ok) document.getElementById("localLoginPassword").value = "";
+}
+
+async function loadUsers() {
+  const r = await fetch(`/admin/users?host=${encodeURIComponent(targetHost)}&scope=platform`);
+  const d = await r.json();
+  const body = document.getElementById("usersTableBody");
+  if (!r.ok) {
+    body.innerHTML = `<tr><td colspan="6" class="text-danger small">${esc(d.error||"Failed to load users")}</td></tr>`;
+    return;
+  }
+  const users = d.users || [];
+  if (!users.length) {
+    body.innerHTML = `<tr><td colspan="6" class="text-muted small">No users yet.</td></tr>`;
+    return;
+  }
+  body.innerHTML = users.map(u => `
+    <tr>
+      <td>${esc(u.email)}</td>
+      <td>${esc(u.name)}</td>
+      <td>${esc(u.org_name)}</td>
+      <td><input type="checkbox" ${u.is_admin ? "checked":""} onchange="setUserFlag(${u.id},'is_admin',this.checked)"></td>
+      <td><input type="checkbox" ${u.is_active ? "checked":""} onchange="setUserFlag(${u.id},'is_active',this.checked)"></td>
+      <td class="small text-muted">${esc(u.updated_at||"")}</td>
+    </tr>`).join("");
+}
+
+async function setUserFlag(userId, key, value) {
+  const payload = { target_host: targetHost };
+  payload[key] = value;
+  const r = await fetch(`/admin/users/${userId}?host=${encodeURIComponent(targetHost)}&scope=platform`, {
+    method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload),
+  });
+  const d = await r.json();
+  document.getElementById("usersMsg").innerHTML = r.ok
+    ? `<span class="text-success">Updated.</span>`
+    : `<span class="text-danger">${esc(d.error||"Update failed")}</span>`;
+  await loadUsers();
+}
+
+async function addAdmin() {
+  const email = (document.getElementById("newAdminEmail").value || "").trim().toLowerCase();
+  const name = (document.getElementById("newAdminName").value || "").trim();
+  if (!email) {
+    document.getElementById("usersMsg").innerHTML = `<span class="text-danger">Email is required.</span>`;
+    return;
+  }
+  const res = await postJSON(`/admin/users?host=${encodeURIComponent(targetHost)}&scope=platform`, {
+    target_host: targetHost, email, name, is_admin: true,
+  });
+  if (!res.ok) {
+    document.getElementById("usersMsg").innerHTML = `<span class="text-danger">${esc(res.error)}</span>`;
+    return;
+  }
+  document.getElementById("newAdminEmail").value = "";
+  document.getElementById("newAdminName").value = "";
+  document.getElementById("usersMsg").innerHTML = `<span class="text-success">Admin granted.</span>`;
+  await loadUsers();
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const r = await fetch("/admin/auth-status");
+  const d = await r.json();
+  if (!r.ok || !d.authenticated) { window.location.href = "/login?next=/platform"; return; }
+  if (!d.operator) { window.location.href = "/admin"; return; }
+  await loadTenants();
+});
+</script>
+</body>
+</html>
+
+

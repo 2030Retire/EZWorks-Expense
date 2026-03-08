@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Wizard - Settings</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="container py-4">
+    {% include "_module_nav.html" %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
+      <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
+    </div>
+    {% set wizard_step = 1 %}{% include "_wizard_progress.html" %}
+
+    <div class="card p-3">
+      <h6 class="mb-3">Step 1. Settings</h6>
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label small">Employee Name</label><input id="employeeName" class="form-control form-control-sm"></div>
+        <div class="col-md-6"><label class="form-label small">Department</label><input id="department" class="form-control form-control-sm"></div>
+        <div class="col-md-4"><label class="form-label small">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
+        <div class="col-md-4"><label class="form-label small">Manager</label><input id="manager" class="form-control form-control-sm"></div>
+        <div class="col-md-4"><label class="form-label small">Project</label><input id="project" class="form-control form-control-sm"></div>
+        <div class="col-md-6"><label class="form-label small">Report Title</label><input id="reportTitle" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">Report Type</label><select id="reportType" class="form-select form-select-sm"><option value="domestic">Domestic</option><option value="international">International</option></select></div>
+        <div class="col-md-3"><label class="form-label small">Currency</label><input id="currency" class="form-control form-control-sm" value="USD"></div>
+        <div class="col-md-6"><label class="form-label small">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
+        <div class="col-md-6"><label class="form-label small">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
+        <div class="col-md-12"><label class="form-label small">Trip Purpose</label><input id="tripPurpose" class="form-control form-control-sm"></div>
+        <div class="col-md-12"><label class="form-label small">Notes</label><textarea id="notes" rows="3" class="form-control form-control-sm"></textarea></div>
+      </div>
+      <div class="d-flex justify-content-end mt-3">
+        <button class="btn btn-primary btn-sm" onclick="saveAndNext()">Next: Upload</button>
+      </div>
+      <div id="expiredNotice" class="alert alert-warning py-2 px-3 mt-2 small" style="display:none;"></div>
+      <div id="saveStateMsg" class="small text-muted mt-2"></div>
+    </div>
+  </div>
+  <script>
+    const KEY = "report_wizard_settings_v1";
+    const SELECT_KEY = "report_wizard_selected_ids_v1";
+    const DIRTY_KEY = "report_wizard_dirty_ids_v1";
+    const RISK_CONFIRM_KEY = "report_wizard_risk_confirmed_ids_v1";
+    let wizardTtlMs = 7 * 24 * 60 * 60 * 1000;
+    let wizardExpired = false;
+    const expiredKeys = new Set();
+    const isKo = String(navigator.language || "").toLowerCase().startsWith("ko");
+    function keyLabel(key){
+      if (key === KEY) return "settings";
+      return key;
+    }
+    function wizardGet(key, fallback){
+      try{
+        const raw = localStorage.getItem(key);
+        if(!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value") && Object.prototype.hasOwnProperty.call(parsed, "ts")) {
+          const ts = Number(parsed.ts || 0);
+          if (ts > 0 && (Date.now() - ts) > wizardTtlMs) {
+            localStorage.removeItem(key);
+            wizardExpired = true;
+            expiredKeys.add(keyLabel(key));
+            return fallback;
+          }
+          return parsed.value;
+        }
+        return parsed; // legacy raw JSON compatibility
+      }catch(_){
+        return fallback;
+      }
+    }
+    function wizardSet(key, value){
+      try{
+        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value }));
+      }catch(_){}
+    }
+    function renderExpiredNotice(){
+      const el = document.getElementById("expiredNotice");
+      if (!el) return;
+      if (wizardExpired) {
+        el.style.display = "";
+        const keys = [...expiredKeys];
+        const msg = isKo
+          ? `이전 Wizard 임시 상태가 만료되어 초기화되었습니다. (${keys.join(", ") || "state"})`
+          : `Previous wizard draft expired and was reset. (${keys.join(", ") || "state"})`;
+        const btn = isKo ? "Step 1로 초기화" : "Reset to Step 1";
+        el.innerHTML = `${esc(msg)} <button class="btn btn-sm btn-outline-dark ms-2" onclick="resetWizardStateToStep1()">${esc(btn)}</button>`;
+      } else {
+        el.style.display = "none";
+        el.innerHTML = "";
+      }
+    }
+    function resetWizardStateToStep1(){
+      [KEY, SELECT_KEY, DIRTY_KEY, RISK_CONFIRM_KEY].forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
+      window.location.href = "/reports/wizard/settings";
+    }
+    function esc(v){return String(v||"").replace(/[&<>\"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[s]));}
+    async function loadWizardConfig(){
+      try{
+        const r = await fetch("/api/config");
+        const d = await r.json();
+        if(!r.ok) return;
+        const hours = Number(d?.wizard?.cache_ttl_hours || 168);
+        if (Number.isFinite(hours)) wizardTtlMs = Math.max(1, Math.min(24 * 30, Math.round(hours))) * 60 * 60 * 1000;
+      }catch(_){}
+    }
+    function saveSettings(showMsg = false){
+      const s = {};
+      for(const id of ["employeeName","department","employeeId","manager","project","reportTitle","reportType","currency","periodFrom","periodTo","tripPurpose","notes"]){
+        s[id] = (document.getElementById(id).value || "").trim();
+      }
+      wizardSet(KEY, s);
+      if (showMsg) {
+        const el = document.getElementById("saveStateMsg");
+        if (el) el.textContent = `Saved at ${new Date().toLocaleTimeString()}`;
+      }
+    }
+    function loadSettings(){
+      try{
+        const s = wizardGet(KEY, {});
+        for(const id of ["employeeName","department","employeeId","manager","project","reportTitle","reportType","currency","periodFrom","periodTo","tripPurpose","notes"]){
+          if(document.getElementById(id) && s[id] !== undefined) document.getElementById(id).value = s[id];
+        }
+      }catch(_){}
+    }
+    function saveAndNext(){
+      saveSettings(true);
+      window.location.href = "/reports/wizard/upload";
+    }
+    (async()=>{
+      await loadWizardConfig();
+      loadSettings();
+      renderExpiredNotice();
+    })();
+    ["employeeName","department","employeeId","manager","project","reportTitle","reportType","currency","periodFrom","periodTo","tripPurpose","notes"].forEach((id)=>{
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("change", () => saveSettings(true));
+      el.addEventListener("blur", () => saveSettings(false));
+    });
+  </script>
+</body>
+</html>
+
+
+

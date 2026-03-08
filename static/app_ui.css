@@ -1,0 +1,124 @@
+:root {
+  --ezw-bg-top: #eef3f9;
+  --ezw-bg-bottom: #f5f8fc;
+  --ezw-surface: #ffffff;
+  --ezw-border: #dbe6f3;
+  --ezw-border-strong: #bcd0ec;
+  --ezw-text: #1e293b;
+  --ezw-muted: #64748b;
+  --ezw-primary: #2563eb;
+  --ezw-primary-700: #1d4ed8;
+  --ezw-shadow: 0 6px 18px rgba(17, 24, 39, 0.05);
+}
+
+body.app-shell {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(59, 130, 246, 0.08), transparent 25%),
+    radial-gradient(circle at 92% 10%, rgba(37, 99, 235, 0.07), transparent 24%),
+    linear-gradient(180deg, var(--ezw-bg-top) 0%, var(--ezw-bg-bottom) 100%);
+  color: var(--ezw-text);
+  font-family: "Segoe UI", "Noto Sans KR", "Noto Sans", system-ui, -apple-system, sans-serif;
+}
+
+body.app-shell .container {
+  max-width: min(96vw, 1540px) !important;
+}
+
+body.app-shell .card {
+  background: var(--ezw-surface);
+  border: 1px solid var(--ezw-border);
+  border-radius: 14px;
+  box-shadow: var(--ezw-shadow);
+}
+
+body.app-shell .table > :not(caption) > * > * {
+  border-color: #e6edf7;
+}
+
+body.app-shell .table thead th {
+  background: #f8fbff;
+  color: #334155;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+body.app-shell .table tbody tr:hover {
+  background: #f8fbff;
+}
+
+body.app-shell .btn-primary {
+  background: var(--ezw-primary);
+  border-color: var(--ezw-primary);
+}
+
+body.app-shell .btn-primary:hover {
+  background: var(--ezw-primary-700);
+  border-color: var(--ezw-primary-700);
+}
+
+body.app-shell .btn,
+body.app-shell .form-control,
+body.app-shell .form-select {
+  min-height: 34px;
+}
+
+body.app-shell .btn-sm,
+body.app-shell .form-control-sm,
+body.app-shell .form-select-sm {
+  min-height: 32px;
+  border-radius: 8px;
+}
+
+body.app-shell .btn-outline-primary {
+  color: var(--ezw-primary-700);
+  border-color: #b9cdf8;
+}
+
+body.app-shell .btn-outline-secondary {
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+body.app-shell h4,
+body.app-shell h5,
+body.app-shell h6 {
+  color: #122033;
+  font-weight: 700;
+}
+
+body.app-shell .form-control,
+body.app-shell .form-select {
+  border-color: #cfdbe8;
+  border-radius: 8px;
+}
+
+body.app-shell .form-control:focus,
+body.app-shell .form-select:focus {
+  border-color: #7aa2f7;
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+}
+
+body.app-shell .small.text-muted {
+  color: var(--ezw-muted) !important;
+}
+
+body.app-shell .page-header-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+body.app-shell .page-header-subtitle {
+  color: var(--ezw-muted);
+  font-size: 0.92rem;
+}
+
+body.app-shell .ezw-wizard-card {
+  border-color: var(--ezw-border-strong);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
+}
+
+body.app-shell .card.p-3 {
+  padding: 1rem 1.05rem !important;
+}

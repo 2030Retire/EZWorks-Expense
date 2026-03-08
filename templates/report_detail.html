@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Detail</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="container py-4">
+    {% include "_module_nav.html" %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0 page-header-title">Report Detail</h4>
+      <a href="/reports" class="btn btn-sm btn-outline-secondary">Back to Reports</a>
+    </div>
+    <div class="card p-3 mb-3">
+      <div id="meta" class="small text-muted">Loading...</div>
+    </div>
+    <div class="card p-3">
+      <h6 class="mb-2">Referenced Receipts</h6>
+      <div class="small text-muted mb-2">Edits here update the original Inbox receipt data.</div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>#</th><th>Image</th><th>File</th><th>Date</th><th>Merchant</th><th>Amount</th><th>Currency</th><th>Category</th><th>Memo</th><th>Status</th><th>Save</th><th>Audit</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script>
+    function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+    function safeJsonParse(txt, fallback){ try { return JSON.parse(txt); } catch(_) { return fallback; } }
+    function renderAuditDiff(x){
+      const fields = safeJsonParse(x.changed_fields || "[]", []);
+      const before = safeJsonParse(x.before_json || "{}", {});
+      const after = safeJsonParse(x.after_json || "{}", {});
+      if(!Array.isArray(fields) || !fields.length) return esc(x.changed_fields || "[]");
+      return fields.map(f => `${esc(f)}: <span class="text-danger">${esc(before[f] ?? "")}</span> -> <span class="text-success">${esc(after[f] ?? "")}</span>`).join("<br>");
+    }
+    function reportIdFromPath(){
+      const chunks = window.location.pathname.split("/").filter(Boolean);
+      return Number(chunks[chunks.length-1] || 0);
+    }
+    async function loadDetail(){
+      const rid = reportIdFromPath();
+      if(!rid) return;
+      const r = await fetch(`/api/inbox/reports/${rid}`);
+      const d = await r.json();
+      if(!r.ok) return alert(d.error || "Failed");
+      const x = d.report || {};
+      document.getElementById("meta").innerHTML = `
+        <div><strong>${esc(x.title || x.output_filename || ("Report #" + rid))}</strong></div>
+        <div>Created: ${esc(x.created_at || "")}</div>
+        <div>Employee: ${esc(x.employee_name || "-")} / Department: ${esc(x.department || "-")}</div>
+        <div>Period: ${esc(x.period_from || "")}${x.period_from || x.period_to ? " ~ " : ""}${esc(x.period_to || "")}</div>
+        <div>Mode: ${esc(x.mode || "")} · Receipts: ${x.receipt_count || 0} · Total: ${Number(x.total_amount || 0).toLocaleString()} ${esc(x.currency || "")}</div>
+        <div class="mt-1">
+          <a href="/api/download/${esc(x.output_session_id)}/${esc(x.output_filename)}">Download report file</a>
+          <span class="mx-1">|</span>
+          <a href="/api/inbox/reports/${rid}/line-items.csv">Line Items (CSV)</a>
+          <span class="mx-1">|</span>
+          <a href="/api/inbox/reports/${rid}/line-items.xlsx">Line Items (XLSX)</a>
+        </div>
+      `;
+      const rows = d.receipts || [];
+      document.getElementById("rows").innerHTML = rows.length ? rows.map((r, i)=>`
+        <tr>
+          <td>${i+1}</td>
+          <td><a href="/api/inbox/image/${r.id}" target="_blank">view</a></td>
+          <td>${esc(r.orig_filename || "")}</td>
+          <td><input class="form-control form-control-sm f-date" value="${esc(r.date || "")}"></td>
+          <td><input class="form-control form-control-sm f-merchant" value="${esc(r.merchant || "")}"></td>
+          <td><input class="form-control form-control-sm f-amount" type="number" min="0" value="${Number(r.amount || 0)}"></td>
+          <td><input class="form-control form-control-sm f-currency" value="${esc(r.currency || "")}"></td>
+          <td><input class="form-control form-control-sm f-category" value="${esc(r.category || "")}"></td>
+          <td><input class="form-control form-control-sm f-memo" value="${esc(r.memo || "")}"></td>
+          <td>${esc(r.lifecycle_state || r.status || "")}</td>
+          <td><button class="btn btn-sm btn-outline-primary" onclick="saveRow(${r.id}, this)">Save</button></td>
+          <td><button class="btn btn-sm btn-outline-secondary" onclick="toggleAudit(${r.id})">View</button></td>
+        </tr>
+        <tr id="audit-${r.id}" style="display:none;"><td colspan="12" class="small text-muted">Loading...</td></tr>
+      `).join("") : `<tr><td colspan="12" class="text-muted small">No receipts.</td></tr>`;
+    }
+    async function saveRow(id, btn){
+      const tr = btn.closest("tr");
+      const body = {
+        date: (tr.querySelector(".f-date").value || "").trim(),
+        merchant: (tr.querySelector(".f-merchant").value || "").trim(),
+        amount: Number(tr.querySelector(".f-amount").value || 0),
+        currency: (tr.querySelector(".f-currency").value || "").trim().toUpperCase(),
+        category: (tr.querySelector(".f-category").value || "").trim().toUpperCase(),
+        memo: (tr.querySelector(".f-memo").value || "").trim(),
+      };
+      const r = await fetch(`/api/inbox/receipts/${id}`, {
+        method: "PATCH",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if(!r.ok) return alert(d.error || "Save failed");
+      await loadDetail();
+    }
+    async function toggleAudit(receiptId){
+      const row = document.getElementById(`audit-${receiptId}`);
+      if(!row) return;
+      if(row.style.display === "none"){
+        row.style.display = "";
+      } else {
+        row.style.display = "none";
+        return;
+      }
+      const res = await fetch(`/api/inbox/receipts/${receiptId}/audit?limit=20`);
+      const data = await res.json();
+      if(!res.ok){
+        row.innerHTML = `<td colspan="12" class="text-danger small">${esc(data.error || "Failed")}</td>`;
+        return;
+      }
+      const logs = data.logs || [];
+      row.innerHTML = `<td colspan="12" class="small">${
+        logs.length ? logs.map(x => `${esc(x.created_at)} · ${esc(x.actor_email)}<br>${renderAuditDiff(x)}`).join("<hr class='my-1'>") : "No audit logs."
+      }</td>`;
+    }
+    loadDetail();
+  </script>
+</body>
+</html>
+
+
+

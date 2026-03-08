@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+  <style>
+    .dash-title { font-weight:700; color:#122033; }
+    .dash-toolbar .btn { font-weight:600; }
+    .dash-kpi { border:1px solid #dbe6f3; border-radius:12px; box-shadow:0 4px 14px rgba(17,24,39,.04); }
+    .dash-kpi .label { font-size:.78rem; color:#64748b; text-transform:uppercase; letter-spacing:.02em; }
+    .dash-kpi .value { font-size:1.7rem; font-weight:700; color:#0f172a; line-height:1.1; }
+    .dash-card { border:1px solid #dbe6f3; border-radius:12px; box-shadow:0 4px 14px rgba(17,24,39,.04); }
+    .dash-card .card-title { font-weight:700; color:#1e293b; }
+  </style>
+</head>
+<body class="app-shell">
+  <div class="container py-4">
+    {% include "_module_nav.html" %}
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h4 class="mb-0 dash-title page-header-title">Dashboard</h4>
+      <div class="d-flex gap-2 dash-toolbar">
+        <select id="periodDays" class="form-select form-select-sm" style="width:140px;" onchange="loadDashboard()">
+          <option value="0">all period</option>
+          <option value="7">last 7 days</option>
+          <option value="30" selected>last 30 days</option>
+          <option value="90">last 90 days</option>
+        </select>
+        <a href="/reports/wizard/settings" class="btn btn-sm btn-primary">Create Report</a>
+        <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Upload Receipts</a>
+      </div>
+    </div>
+    <div id="periodSummary" class="small text-muted mb-3"></div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-3"><div class="card p-3 dash-kpi"><div class="label">Total Receipts</div><div id="kpiTotal" class="value">-</div></div></div>
+      <div class="col-md-3"><div class="card p-3 dash-kpi"><div class="label">Needs Review</div><div id="kpiReview" class="value">-</div></div></div>
+      <div class="col-md-3"><div class="card p-3 dash-kpi"><div class="label">Duplicates</div><div id="kpiDup" class="value">-</div></div></div>
+      <div class="col-md-3"><div class="card p-3 dash-kpi"><div class="label">Reports</div><div id="kpiReports" class="value">-</div></div></div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-7">
+        <div class="card p-3 dash-card">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0 card-title">Recent Receipts</h6>
+            <a href="/inbox" class="small">Open Inbox</a>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead><tr><th>File</th><th>Merchant</th><th>Amount</th><th>Status</th></tr></thead>
+              <tbody id="recentReceipts"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-5">
+        <div class="card p-3 dash-card">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0 card-title">Recent Reports</h6>
+            <a href="/reports" class="small">Open Reports</a>
+          </div>
+          <div id="recentReports"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+    function restoreDashboardFiltersFromUrl(){
+      const qs = new URLSearchParams(window.location.search || "");
+      const p = (qs.get("dperiod") || "").trim();
+      const sel = document.getElementById("periodDays");
+      if (sel && p && ["0","7","30","90"].includes(p)) sel.value = p;
+    }
+    function syncDashboardFiltersToUrl(){
+      const url = new URL(window.location.href);
+      const v = String(document.getElementById("periodDays")?.value || "0").trim();
+      if (v && v !== "0") url.searchParams.set("dperiod", v);
+      else url.searchParams.delete("dperiod");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+    function isWithinDays(isoText, days){
+      const d = Number(days || 0);
+      if (!d || d <= 0) return true;
+      const raw = String(isoText || "").trim();
+      if(!raw) return false;
+      const dt = new Date(raw);
+      if (Number.isNaN(dt.getTime())) return false;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - d);
+      return dt >= cutoff;
+    }
+    async function loadDashboard(){
+      syncDashboardFiltersToUrl();
+      const [r1, r2] = await Promise.all([
+        fetch("/api/inbox/receipts?limit=200"),
+        fetch("/api/inbox/reports?limit=50")
+      ]);
+      const d1 = await r1.json();
+      const d2 = await r2.json();
+      if(!r1.ok || !r2.ok){ return; }
+      const periodDays = Number(document.getElementById("periodDays").value || 0);
+      const receiptsAll = d1.receipts || [];
+      const reportsAll = d2.reports || [];
+      const receipts = receiptsAll.filter(x => isWithinDays(x.created_at || x.updated_at, periodDays));
+      const reports = reportsAll.filter(x => isWithinDays(x.created_at, periodDays));
+      document.getElementById("kpiTotal").textContent = receipts.length;
+      document.getElementById("kpiReview").textContent = receipts.filter(x=>x.status==="needs_review").length;
+      document.getElementById("kpiDup").textContent = receipts.filter(x=>x.status==="duplicate").length;
+      document.getElementById("kpiReports").textContent = reports.length;
+      document.getElementById("periodSummary").textContent = periodDays > 0 ? `Showing last ${periodDays} days` : "Showing all period";
+      document.getElementById("recentReceipts").innerHTML = receipts.slice(0,10).map(x=>`
+        <tr>
+          <td>${esc(x.orig_filename || "-")}</td>
+          <td>${esc(x.merchant || "-")}</td>
+          <td>${Number(x.amount||0).toLocaleString()} ${esc(x.currency||"")}</td>
+          <td>${esc(x.status || "-")}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="4" class="text-muted">No receipts</td></tr>`;
+      document.getElementById("recentReports").innerHTML = reports.slice(0,8).map(x=>`
+        <div class="border rounded p-2 mb-2">
+          <div class="fw-semibold">${esc(x.output_filename || "-")}</div>
+          <div class="small text-muted">${esc(x.created_at || "")} · ${x.receipt_count || 0} receipts</div>
+        </div>
+      `).join("") || `<div class="text-muted small">No reports</div>`;
+    }
+    restoreDashboardFiltersFromUrl();
+    loadDashboard();
+  </script>
+</body>
+</html>
+
+
+

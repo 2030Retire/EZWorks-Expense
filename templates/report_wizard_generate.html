@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Wizard - Generate</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="container py-4">
+    {% include "_module_nav.html" %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
+      <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
+    </div>
+    {% set wizard_step = 5 %}{% include "_wizard_progress.html" %}
+
+    <div class="card p-3">
+      <h6 class="mb-3">Step 5. Generate Report</h6>
+      <div class="small text-muted mb-2">Selected receipts: <span id="receiptCount">0</span></div>
+      <div id="reviewStateBadges" class="small mb-2"></div>
+      <div id="progressSummary" class="small text-muted mb-2"></div>
+      <div id="expiredNotice" class="alert alert-warning py-2 px-3 mb-2 small" style="display:none;"></div>
+      <div id="dirtyBanner" class="alert alert-warning py-2 px-3 small mb-2" style="display:none;">
+        Unsaved edits were detected from Step 4. Go back and save those rows before generating.
+        <a id="dirtyBackLink" class="ms-2" href="/reports/wizard/review">Go to Step 4</a>
+        <div id="dirtyList" class="mt-1 text-muted"></div>
+      </div>
+      <div class="row g-2">
+        <div class="col-md-4"><label class="form-label small">Mode</label><select id="mode" class="form-select form-select-sm"><option value="domestic">domestic</option><option value="international">international</option></select></div>
+        <div class="col-md-8"><label class="form-label small">Title</label><input id="title" class="form-control form-control-sm"></div>
+      </div>
+      <div class="d-flex justify-content-between mt-3">
+        <a id="backToReviewLink" href="/reports/wizard/review" class="btn btn-sm btn-outline-secondary">Back</a>
+        <button class="btn btn-sm btn-success" onclick="openPrecheck()">Generate Report</button>
+      </div>
+      <div id="msg" class="small mt-2"></div>
+    </div>
+  </div>
+  <div class="modal fade" id="precheckModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Final Validation Summary</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="precheckSummary" class="small text-muted"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Back</button>
+          <button class="btn btn-sm btn-success" id="confirmGenerateBtn" onclick="generateAfterConfirm()">Confirm Generate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const SETTINGS_KEY = "report_wizard_settings_v1";
+    const IDS_KEY = "report_wizard_selected_ids_v1";
+    const DIRTY_KEY = "report_wizard_dirty_ids_v1";
+    let wizardTtlMs = 7 * 24 * 60 * 60 * 1000;
+    let wizardExpired = false;
+    const expiredKeys = new Set();
+    const isKo = String(navigator.language || "").toLowerCase().startsWith("ko");
+    function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+    function keyLabel(key){
+      const map = {
+        [SETTINGS_KEY]: "settings",
+        [IDS_KEY]: "selection",
+        [DIRTY_KEY]: "dirty",
+      };
+      return map[key] || key;
+    }
+    function wizardGet(key, fallback){
+      try{
+        const raw = localStorage.getItem(key);
+        if(!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value") && Object.prototype.hasOwnProperty.call(parsed, "ts")) {
+          const ts = Number(parsed.ts || 0);
+          if (ts > 0 && (Date.now() - ts) > wizardTtlMs) {
+            localStorage.removeItem(key);
+            wizardExpired = true;
+            expiredKeys.add(keyLabel(key));
+            return fallback;
+          }
+          return parsed.value;
+        }
+        return parsed; // legacy raw JSON compatibility
+      }catch(_){
+        return fallback;
+      }
+    }
+    function getSelectedIds(){
+      const v = wizardGet(IDS_KEY, []);
+      return Array.isArray(v) ? v : [];
+    }
+    function renderExpiredNotice(){
+      const el = document.getElementById("expiredNotice");
+      if (!el) return;
+      if (wizardExpired) {
+        el.style.display = "";
+        const keys = [...expiredKeys];
+        const msg = isKo
+          ? `일부 Wizard 로컬 상태가 만료되어 초기화되었습니다. (${keys.join(", ") || "state"})`
+          : `Some wizard local state expired and was reset. (${keys.join(", ") || "state"})`;
+        const btn = isKo ? "Step 1로 초기화" : "Reset to Step 1";
+        el.innerHTML = `${esc(msg)} <button class="btn btn-sm btn-outline-dark ms-2" onclick="resetWizardStateToStep1()">${esc(btn)}</button>`;
+      } else {
+        el.style.display = "none";
+        el.innerHTML = "";
+      }
+    }
+    function resetWizardStateToStep1(){
+      [SETTINGS_KEY, IDS_KEY, DIRTY_KEY, "report_wizard_risk_confirmed_ids_v1"].forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
+      window.location.href = "/reports/wizard/settings";
+    }
+    async function loadWizardConfig(){
+      try{
+        const r = await fetch("/api/config");
+        const d = await r.json();
+        if(!r.ok) return;
+        const hours = Number(d?.wizard?.cache_ttl_hours || 168);
+        if (Number.isFinite(hours)) wizardTtlMs = Math.max(1, Math.min(24 * 30, Math.round(hours))) * 60 * 60 * 1000;
+      }catch(_){}
+    }
+    function loadPreset(){
+      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      document.getElementById("title").value = s.reportTitle || "";
+      if ((s.reportType || "") === "international") document.getElementById("mode").value = "international";
+      const ids = getSelectedIds();
+      document.getElementById("receiptCount").textContent = ids.length;
+    }
+    function renderReviewStateBadges(){
+      const el = document.getElementById("reviewStateBadges");
+      if (!el) return;
+      const qs = new URLSearchParams(window.location.search || "");
+      const wrisky = (qs.get("wrisky") || "").trim();
+      const wdirty = (qs.get("wdirty") || "").trim();
+      const wdirtyfirst = (qs.get("wdirtyfirst") || "").trim();
+      const backBase = new URL("/reports/wizard/review", window.location.origin);
+      const mk = (extra) => {
+        const u = new URL(backBase.toString());
+        Object.entries(extra || {}).forEach(([k,v]) => {
+          if (String(v || "").trim()) u.searchParams.set(k, String(v).trim());
+        });
+        return `${u.pathname}${u.search}`;
+      };
+      const parts = [];
+      if (wrisky === "1" || wrisky.toLowerCase() === "true") parts.push(`<a class="badge text-bg-warning me-1 text-decoration-none" href="${mk({wrisky:"1", wdirty:"", wdirtyfirst})}">Risky only</a>`);
+      if (wdirty === "1" || wdirty.toLowerCase() === "true") parts.push(`<a class="badge text-bg-danger me-1 text-decoration-none" href="${mk({wdirty:"1", wrisky:"", wdirtyfirst})}">Dirty only</a>`);
+      const dirtyFirstOn = !(wdirtyfirst === "0" || wdirtyfirst.toLowerCase() === "false");
+      parts.push(`<a class="badge text-bg-dark text-decoration-none" href="${mk({wrisky, wdirty, wdirtyfirst: dirtyFirstOn ? "0" : "1"})}">Dirty first: ${dirtyFirstOn ? "ON" : "OFF"}</a>`);
+      el.innerHTML = parts.join("");
+    }
+    function syncBackToReviewLink(){
+      const link = document.getElementById("backToReviewLink");
+      if (!link) return;
+      const qs = new URLSearchParams(window.location.search || "");
+      const out = new URL("/reports/wizard/review", window.location.origin);
+      const pass = ["wrisky","wdirty","wdirtyfirst"];
+      for (const k of pass){
+        const v = (qs.get(k) || "").trim();
+        if (v) out.searchParams.set(k, v);
+      }
+      link.href = `${out.pathname}${out.search}`;
+    }
+    async function loadSelectedProgressSummary(){
+      const ids = getSelectedIds();
+      const el = document.getElementById("progressSummary");
+      if (!el) return;
+      if (!ids.length) {
+        el.textContent = "No selected receipts.";
+        return;
+      }
+      const details = await Promise.all(ids.map(async (id) => {
+        try {
+          const r = await fetch(`/api/inbox/receipts/${id}`);
+          const d = await r.json();
+          return r.ok ? (d.receipt || null) : null;
+        } catch (_) {
+          return null;
+        }
+      }));
+      const rows = details.filter(Boolean);
+      const out = { total: rows.length, risky: 0, ready: 0, assigned: 0 };
+      for (const x of rows) {
+        const lc = String(x.lifecycle_state || "").toUpperCase();
+        if (lc === "READY_FOR_REPORT") out.ready += 1;
+        if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
+        if (["LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE","NEEDS_REVIEW"].includes(lc) || String(x.status || "") === "needs_review") out.risky += 1;
+      }
+      el.textContent = `Selected ${out.total} · Risky ${out.risky} · Ready ${out.ready} · Assigned ${out.assigned}`;
+    }
+    async function openPrecheck(){
+      const dirty = getSelectedDirtyIds();
+      if (dirty.length) return alert(`Unsaved edited rows detected (${dirty.length}). Go back to Step 4 and save.`);
+      const ids = getSelectedIds();
+      if(!ids.length) return alert("No selected receipts. Go back to Step 4.");
+      const detailRows = await Promise.all(ids.map(async id => {
+        const r = await fetch(`/api/inbox/receipts/${id}`);
+        const d = await r.json();
+        return r.ok ? (d.receipt || null) : null;
+      }));
+      const rows = detailRows.filter(Boolean);
+      const risky = rows.filter(x => {
+        const lc = String(x.lifecycle_state || "").toUpperCase();
+        return ["LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE","NEEDS_REVIEW"].includes(lc) || String(x.status || "") === "needs_review";
+      });
+      const total = rows.reduce((s, x) => s + Number(x.amount || 0), 0);
+      document.getElementById("precheckSummary").innerHTML = `
+        <div>Selected receipts: <strong>${rows.length}</strong></div>
+        <div>Risky receipts: <strong>${risky.length}</strong></div>
+        <div>Total amount: <strong>${total.toLocaleString()}</strong></div>
+      `;
+      const blocked = rows.length === 0 || risky.length > 0;
+      document.getElementById("confirmGenerateBtn").disabled = blocked;
+      if (blocked && risky.length > 0) {
+        document.getElementById("precheckSummary").innerHTML += `<div class="text-danger mt-2">Risky receipts exist. Go back to Step 4 and resolve/confirm them first.</div>`;
+      }
+      const modal = new bootstrap.Modal(document.getElementById("precheckModal"));
+      modal.show();
+    }
+    async function generateAfterConfirm(){
+      const dirty = getSelectedDirtyIds();
+      if (dirty.length) return alert(`Unsaved edited rows detected (${dirty.length}). Go back to Step 4 and save.`);
+      const ids = getSelectedIds();
+      if(!ids.length) return alert("No selected receipts. Go back to Step 4.");
+      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      const body = {
+        mode: document.getElementById("mode").value,
+        title: document.getElementById("title").value.trim(),
+        receipt_ids: ids,
+        employee_name: s.employeeName || "",
+        department: s.department || "",
+        employee_id: s.employeeId || "",
+        manager: s.manager || "",
+        project: s.project || "",
+        period_from: s.periodFrom || "",
+        period_to: s.periodTo || "",
+        trip_purpose: s.tripPurpose || "",
+        notes: s.notes || ""
+      };
+      const r = await fetch("/api/inbox/reports/generate", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+      const d = await r.json();
+      if(!r.ok) return alert(d.error || "Generate failed");
+      const modalEl = document.getElementById("precheckModal");
+      if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+      localStorage.removeItem(IDS_KEY);
+      localStorage.removeItem(DIRTY_KEY);
+      document.getElementById("msg").innerHTML = `<span class="text-success">Generated: <a href="${d.download_url}">${esc(d.report.output_filename)}</a></span>`;
+    }
+    function getSelectedDirtyIds(){
+      const ids = new Set(getSelectedIds().map(Number));
+      const dirty = wizardGet(DIRTY_KEY, []);
+      return (dirty || []).map(Number).filter(x => x && ids.has(Number(x)));
+    }
+    function buildDirtyBackHref(dirtyIds){
+      const url = new URL("/reports/wizard/review", window.location.origin);
+      const arr = (dirtyIds || []).map(Number).filter(Boolean);
+      if (arr.length) url.searchParams.set("ids", arr.join(","));
+      return `${url.pathname}${url.search}`;
+    }
+    function renderDirtyBanner(){
+      const el = document.getElementById("dirtyBanner");
+      const btn = document.getElementById("confirmGenerateBtn");
+      const back = document.getElementById("dirtyBackLink");
+      const list = document.getElementById("dirtyList");
+      const dirty = getSelectedDirtyIds();
+      if (!el || !btn) return;
+      if (dirty.length) {
+        el.style.display = "";
+        btn.disabled = true;
+        if (back) back.href = buildDirtyBackHref(dirty);
+        if (list) list.textContent = `Unsaved receipt IDs: ${dirty.join(", ")}`;
+      } else {
+        el.style.display = "none";
+        btn.disabled = false;
+        if (back) back.href = "/reports/wizard/review";
+        if (list) list.textContent = "";
+      }
+    }
+    (async()=>{
+      await loadWizardConfig();
+      loadPreset();
+      renderExpiredNotice();
+      renderReviewStateBadges();
+      syncBackToReviewLink();
+      await loadSelectedProgressSummary();
+      renderDirtyBanner();
+    })();
+  </script>
+</body>
+</html>
+
+
+

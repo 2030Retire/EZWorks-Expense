@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="container py-4">
+    {% include "_module_nav.html" %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0 page-header-title">Reports</h4>
+      <div class="d-flex gap-2">
+        <a id="adminBackLink" href="/admin" class="btn btn-sm btn-outline-dark" style="display:none;">Back to Admin Monitor</a>
+        <a href="/reports/wizard/settings" class="btn btn-sm btn-primary">Create Report Wizard</a>
+      </div>
+    </div>
+    <div class="card p-3 mb-3">
+      <div class="row g-2">
+        <div class="col-md-3"><input id="q" class="form-control form-control-sm" placeholder="search title/file/employee"></div>
+        <div class="col-md-2">
+          <select id="mode" class="form-select form-select-sm">
+            <option value="">all mode</option>
+            <option value="domestic">domestic</option>
+            <option value="international">international</option>
+          </select>
+        </div>
+        <div class="col-md-2"><input id="dateFrom" type="date" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><input id="dateTo" type="date" class="form-control form-control-sm"></div>
+        <div class="col-md-3" id="creatorWrap">
+          <select id="creatorEmail" class="form-select form-select-sm">
+            <option value="">all creator</option>
+          </select>
+        </div>
+        <div class="col-md-2"><button class="btn btn-outline-secondary btn-sm w-100" onclick="loadReports()">Search</button></div>
+        <div class="col-md-2"><button class="btn btn-outline-light border btn-sm w-100" onclick="resetFilters()">Reset</button></div>
+      </div>
+      <div id="summary" class="small text-muted mt-2"></div>
+    </div>
+    <div class="card p-3">
+      <h6>History (view/download only)</h6>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th id="thCreatedAt" style="cursor:pointer;" onclick="toggleReportSort('created')">created</th>
+              <th>file</th>
+              <th>employee</th>
+              <th id="thReceiptCount" style="cursor:pointer;" onclick="toggleReportSort('count')">receipts</th>
+              <th id="thTotalAmount" style="cursor:pointer;" onclick="toggleReportSort('amount')">total</th>
+              <th>period</th>
+              <th>creator</th>
+              <th>action</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script>
+    function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+    let canViewAllReports = false;
+    let reportSortBy = "created_desc";
+    let adminBackLink = "";
+    async function loadPermissions(){
+      try{
+        const r = await fetch("/api/inbox/permissions");
+        const d = await r.json();
+        if(!r.ok) return;
+        const perms = Array.isArray(d.permissions) ? d.permissions : [];
+        canViewAllReports = !!d.operator || perms.includes("report.view_all");
+      }catch(_){}
+      document.getElementById("creatorWrap").style.display = canViewAllReports ? "" : "none";
+    }
+    function syncCreatorOptions(rows){
+      const sel = document.getElementById("creatorEmail");
+      const prev = (sel.value || "").trim().toLowerCase();
+      const users = [...new Set((rows || []).map(x => String(x.creator_email || "").trim().toLowerCase()).filter(Boolean))].sort();
+      sel.innerHTML = `<option value="">all creator</option>` + users.map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join("");
+      if (prev && !users.includes(prev)) sel.innerHTML += `<option value="${esc(prev)}">${esc(prev)} (custom)</option>`;
+      sel.value = prev;
+    }
+    function buildQuery(){
+      const q = (document.getElementById("q").value || "").trim();
+      const mode = (document.getElementById("mode").value || "").trim();
+      const dateFrom = (document.getElementById("dateFrom").value || "").trim();
+      const dateTo = (document.getElementById("dateTo").value || "").trim();
+      const creator = (document.getElementById("creatorEmail").value || "").trim().toLowerCase();
+      return `limit=200${q ? `&q=${encodeURIComponent(q)}` : ""}${mode ? `&mode=${encodeURIComponent(mode)}` : ""}${dateFrom ? `&date_from=${encodeURIComponent(dateFrom)}` : ""}${dateTo ? `&date_to=${encodeURIComponent(dateTo)}` : ""}${(canViewAllReports && creator) ? `&creator_email=${encodeURIComponent(creator)}` : ""}`;
+    }
+    function restoreReportFiltersFromUrl(){
+      const qs = new URLSearchParams(window.location.search || "");
+      const byId = (id) => document.getElementById(id);
+      if (byId("q")) byId("q").value = (qs.get("rq") || "").trim();
+      if (byId("mode")) byId("mode").value = (qs.get("rmode") || "").trim();
+      if (byId("dateFrom")) byId("dateFrom").value = (qs.get("rdate_from") || "").trim();
+      if (byId("dateTo")) byId("dateTo").value = (qs.get("rdate_to") || "").trim();
+      if (byId("creatorEmail")) byId("creatorEmail").value = (qs.get("rcreator") || "").trim().toLowerCase();
+      adminBackLink = (qs.get("aback") || "").trim();
+      const s = (qs.get("rsort") || "").trim();
+      if (s) reportSortBy = s;
+    }
+    function syncReportFiltersToUrl(){
+      const url = new URL(window.location.href);
+      const setOrDelete = (k, v) => {
+        const val = String(v || "").trim();
+        if (val) url.searchParams.set(k, val);
+        else url.searchParams.delete(k);
+      };
+      setOrDelete("rq", document.getElementById("q")?.value || "");
+      setOrDelete("rmode", document.getElementById("mode")?.value || "");
+      setOrDelete("rdate_from", document.getElementById("dateFrom")?.value || "");
+      setOrDelete("rdate_to", document.getElementById("dateTo")?.value || "");
+      setOrDelete("rcreator", document.getElementById("creatorEmail")?.value || "");
+      setOrDelete("rsort", reportSortBy || "");
+      setOrDelete("aback", adminBackLink || "");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+    function normalizeIsoInt(v){
+      const s = String(v || "").trim();
+      if(!s) return 0;
+      const iso = s.slice(0,10);
+      const p = iso.split("-");
+      if (p.length !== 3) return 0;
+      const y = Number(p[0] || 0);
+      const m = Number(p[1] || 0);
+      const d = Number(p[2] || 0);
+      if(!y || !m || !d) return 0;
+      return y * 10000 + m * 100 + d;
+    }
+    function sortReports(rows){
+      const list = (rows || []).slice();
+      if (reportSortBy === "created_asc") return list.sort((a,b)=> normalizeIsoInt(a.created_at)-normalizeIsoInt(b.created_at) || Number(a.id||0)-Number(b.id||0));
+      if (reportSortBy === "count_desc") return list.sort((a,b)=> Number(b.receipt_count||0)-Number(a.receipt_count||0) || Number(b.id||0)-Number(a.id||0));
+      if (reportSortBy === "count_asc") return list.sort((a,b)=> Number(a.receipt_count||0)-Number(b.receipt_count||0) || Number(a.id||0)-Number(b.id||0));
+      if (reportSortBy === "amount_desc") return list.sort((a,b)=> Number(b.total_amount||0)-Number(a.total_amount||0) || Number(b.id||0)-Number(a.id||0));
+      if (reportSortBy === "amount_asc") return list.sort((a,b)=> Number(a.total_amount||0)-Number(b.total_amount||0) || Number(a.id||0)-Number(b.id||0));
+      return list.sort((a,b)=> normalizeIsoInt(b.created_at)-normalizeIsoInt(a.created_at) || Number(b.id||0)-Number(a.id||0));
+    }
+    function updateSortHeaders(){
+      const thC = document.getElementById("thCreatedAt");
+      const thR = document.getElementById("thReceiptCount");
+      const thA = document.getElementById("thTotalAmount");
+      if (thC) thC.textContent = "created";
+      if (thR) thR.textContent = "receipts";
+      if (thA) thA.textContent = "total";
+      if (reportSortBy === "created_desc" && thC) thC.textContent = "created ▼";
+      if (reportSortBy === "created_asc" && thC) thC.textContent = "created ▲";
+      if (reportSortBy === "count_desc" && thR) thR.textContent = "receipts ▼";
+      if (reportSortBy === "count_asc" && thR) thR.textContent = "receipts ▲";
+      if (reportSortBy === "amount_desc" && thA) thA.textContent = "total ▼";
+      if (reportSortBy === "amount_asc" && thA) thA.textContent = "total ▲";
+    }
+    function toggleReportSort(col){
+      if (col === "created") reportSortBy = (reportSortBy === "created_desc") ? "created_asc" : "created_desc";
+      if (col === "count") reportSortBy = (reportSortBy === "count_desc") ? "count_asc" : "count_desc";
+      if (col === "amount") reportSortBy = (reportSortBy === "amount_desc") ? "amount_asc" : "amount_desc";
+      loadReports();
+    }
+    async function loadReports(){
+      syncReportFiltersToUrl();
+      const r = await fetch(`/api/inbox/reports?${buildQuery()}`);
+      const d = await r.json();
+      if(!r.ok) return alert(d.error||"Failed");
+      const rowsRaw = d.reports || [];
+      syncCreatorOptions(rowsRaw);
+      const rows = sortReports(rowsRaw);
+      const backBtn = document.getElementById("adminBackLink");
+      if (backBtn) {
+        if (adminBackLink) {
+          backBtn.style.display = "";
+          backBtn.href = adminBackLink;
+        } else {
+          backBtn.style.display = "none";
+          backBtn.href = "/admin";
+        }
+      }
+      updateSortHeaders();
+      document.getElementById("summary").textContent = `reports: ${rows.length}`;
+      document.getElementById("rows").innerHTML = rows.length ? rows.map(x=>`
+        <tr>
+          <td class="small text-muted">${esc(x.created_at || "")}</td>
+          <td>${esc(x.output_filename || "")}</td>
+          <td>${esc(x.employee_name || "")}</td>
+          <td>${Number(x.receipt_count || 0)}</td>
+          <td>${Number(x.total_amount || 0).toLocaleString()} ${esc(x.currency || "")}</td>
+          <td class="small">${esc(x.period_from || "")}${x.period_from || x.period_to ? " ~ " : ""}${esc(x.period_to || "")}</td>
+          <td class="small">${esc(x.creator_email || "")}</td>
+          <td>
+            <a href="/api/download/${x.output_session_id}/${x.output_filename}">Download</a>
+            <span class="mx-1">|</span>
+            <a href="/reports/${x.id}">Detail</a>
+          </td>
+        </tr>
+      `).join("") : '<tr><td colspan="8" class="text-muted small">No history</td></tr>';
+    }
+    function resetFilters(){
+      document.getElementById("q").value = "";
+      document.getElementById("mode").value = "";
+      document.getElementById("dateFrom").value = "";
+      document.getElementById("dateTo").value = "";
+      document.getElementById("creatorEmail").value = "";
+      loadReports();
+    }
+    (async()=>{ restoreReportFiltersFromUrl(); await loadPermissions(); await loadReports(); })();
+  </script>
+</body>
+</html>
+
+
+

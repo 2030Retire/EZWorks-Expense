@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Receipt Review</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="container py-4">
+    {% include "_module_nav.html" %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0 page-header-title">Inbox</h4>
+      <div class="d-flex gap-2">
+        <a id="adminBackLink" href="/admin" class="btn btn-sm btn-outline-dark" style="display:none;">Back to Admin Monitor</a>
+        <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Upload Receipts</a>
+        <button class="btn btn-sm btn-primary" onclick="startWizardWithSelected()">Create Report (selected)</button>
+      </div>
+    </div>
+    <div class="card p-3 mb-3">
+      <div class="row g-2">
+        <div class="col-md-2"><input id="q" class="form-control form-control-sm" placeholder="search (text, id, #id)"></div>
+        <div class="col-md-2"><select id="status" class="form-select form-select-sm"><option value="">all status</option><option>needs_review</option><option>processed</option><option>duplicate</option></select></div>
+        <div class="col-md-2"><select id="reportStatus" class="form-select form-select-sm"><option value="">all report</option><option>unassigned</option><option>assigned</option></select></div>
+        <div class="col-md-3"><select id="lifecycleState" class="form-select form-select-sm">
+          <option value="">all lifecycle</option>
+          <option value="UPLOADED">UPLOADED</option>
+          <option value="OCR_PROCESSING">OCR_PROCESSING</option>
+          <option value="OCR_FAILED">OCR_FAILED</option>
+          <option value="LOW_CONFIDENCE">LOW_CONFIDENCE</option>
+          <option value="IMAGE_UNREADABLE">IMAGE_UNREADABLE</option>
+          <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
+          <option value="READY_FOR_REPORT">READY_FOR_REPORT</option>
+          <option value="ASSIGNED_TO_REPORT">ASSIGNED_TO_REPORT</option>
+        </select></div>
+        <div class="col-md-2"><input id="dateFrom" type="date" class="form-control form-control-sm" title="receipt date from"></div>
+        <div class="col-md-2"><input id="dateTo" type="date" class="form-control form-control-sm" title="receipt date to"></div>
+        <div class="col-md-1"><button class="btn btn-outline-secondary btn-sm w-100" onclick="loadReceipts()">Search</button></div>
+      </div>
+      <div class="row g-2 mt-1">
+        <div class="col-md-2">
+          <select id="quickDateRange" class="form-select form-select-sm" onchange="setQuickDateRange(this.value)">
+            <option value="all">all period</option>
+            <option value="7">last 7 days</option>
+            <option value="30">last 30 days</option>
+            <option value="90">last 90 days</option>
+            <option value="custom">custom</option>
+          </select>
+        </div>
+        <div class="col-md-2"><button class="btn btn-outline-light border btn-sm w-100" onclick="resetFilters()">Reset Filters</button></div>
+      </div>
+      <div class="row g-2 mt-1">
+        <div class="col-md-3"><input id="merchant" class="form-control form-control-sm" placeholder="merchant contains"></div>
+        <div class="col-md-2"><input id="category" class="form-control form-control-sm" placeholder="category"></div>
+        <div class="col-md-2"><input id="minAmount" type="number" min="0" class="form-control form-control-sm" placeholder="min amount"></div>
+        <div class="col-md-2"><input id="maxAmount" type="number" min="0" class="form-control form-control-sm" placeholder="max amount"></div>
+        <div class="col-md-3">
+          <select id="sortBy" class="form-select form-select-sm">
+            <option value="created_desc">sort: newest upload</option>
+            <option value="date_desc">date: newest</option>
+            <option value="date_asc">date: oldest</option>
+            <option value="amount_desc">amount: high to low</option>
+            <option value="amount_asc">amount: low to high</option>
+            <option value="status_asc">status: a-z</option>
+          </select>
+        </div>
+      </div>
+      <div class="row g-2 mt-2">
+        <div class="col-md-3"><select id="presetSelect" class="form-select form-select-sm"></select></div>
+        <div class="col-md-3"><input id="presetName" class="form-control form-control-sm" placeholder="preset name"></div>
+        <div class="col-md-2" id="presetScopeWrap"><select id="presetScope" class="form-select form-select-sm"><option value="personal">Personal</option><option value="shared">Shared (Tenant)</option></select></div>
+        <div class="col-md-2 d-flex align-items-center" id="presetLockWrap"><label class="small mb-0"><input type="checkbox" id="presetLock" class="form-check-input me-1">Lock shared</label></div>
+        <div class="col-md-2"><button id="btnSavePreset" class="btn btn-outline-primary btn-sm w-100" onclick="savePreset()">Save Preset</button></div>
+        <div class="col-md-2"><button class="btn btn-outline-secondary btn-sm w-100" onclick="applyPreset()">Apply</button></div>
+        <div class="col-md-2"><button id="btnDeletePreset" class="btn btn-outline-danger btn-sm w-100" onclick="deletePreset()">Delete</button></div>
+      </div>
+      <div class="small text-muted mt-2" id="presetMeta"></div>
+      <div class="small text-primary mt-1" id="userScopeNote" style="display:none;"></div>
+      <div class="table-responsive mt-2">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Shared Preset</th>
+              <th>Lock</th>
+              <th>Owner</th>
+              <th>Created</th>
+              <th>Updated</th>
+              <th>Toggle Lock</th>
+            </tr>
+          </thead>
+          <tbody id="sharedPresetRows"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card p-3">
+      <table class="table table-sm">
+        <thead><tr><th><input type="checkbox" onchange="toggleAll(this)"></th><th>#</th><th>image</th><th>file</th><th id="thDate" style="cursor:pointer;" onclick="toggleSortByColumn('date')">date</th><th>merchant</th><th id="thAmount" style="cursor:pointer;" onclick="toggleSortByColumn('amount')">amount</th><th id="thStatus" style="cursor:pointer;" onclick="toggleSortByColumn('status')">status</th><th>report</th><th>action</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+    let presetMap = {};
+    let inboxPermissions = [];
+    let canManageSharedPresets = false;
+    let forcedUserEmail = "";
+    let adminBackLink = "";
+    async function loadInboxPermissions(){
+      try {
+        const r = await fetch("/api/inbox/permissions");
+        const d = await r.json();
+        if(!r.ok) return;
+        inboxPermissions = Array.isArray(d.permissions) ? d.permissions : [];
+        canManageSharedPresets = !!d.operator || inboxPermissions.includes("user.manage") || inboxPermissions.includes("policy.manage");
+      } catch(_) {}
+    }
+    function applyPresetControlPermissions(){
+      const selScope = document.getElementById("presetScope");
+      const lockWrap = document.getElementById("presetLockWrap");
+      const btnSave = document.getElementById("btnSavePreset");
+      if (selScope) {
+        const hasShared = [...selScope.options].some(o => o.value === "shared");
+        if (canManageSharedPresets && !hasShared) {
+          const opt = document.createElement("option");
+          opt.value = "shared";
+          opt.textContent = "Shared (Tenant)";
+          selScope.appendChild(opt);
+        }
+        if (!canManageSharedPresets && hasShared) {
+          [...selScope.options].forEach(o => { if (o.value === "shared") o.remove(); });
+        }
+      }
+      if (lockWrap) lockWrap.style.display = "none";
+      if (selScope && !canManageSharedPresets && selScope.value === "shared") {
+        selScope.value = "personal";
+      }
+      if (btnSave) btnSave.style.display = "";
+    }
+    function currentFilterState(){
+      return {
+        q: document.getElementById("q").value || "",
+        status: document.getElementById("status").value || "",
+        reportStatus: document.getElementById("reportStatus").value || "",
+        lifecycleState: document.getElementById("lifecycleState").value || "",
+        dateFrom: document.getElementById("dateFrom").value || "",
+        dateTo: document.getElementById("dateTo").value || "",
+        merchant: document.getElementById("merchant").value || "",
+        category: document.getElementById("category").value || "",
+        minAmount: document.getElementById("minAmount").value || "",
+        maxAmount: document.getElementById("maxAmount").value || "",
+        sortBy: document.getElementById("sortBy").value || "created_desc",
+      };
+    }
+    function loadPresetOptions(){
+      const sel = document.getElementById("presetSelect");
+      const names = Object.keys(presetMap).sort();
+      sel.innerHTML = `<option value="">select preset</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+    }
+    async function refreshPresets(){
+      const r = await fetch("/api/inbox/filter-presets");
+      const d = await r.json();
+      if(!r.ok) return;
+      presetMap = {};
+      const sharedRows = [];
+      for(const p of (d.personal || [])){
+        if(p && p.preset_name) presetMap[`[P] ${p.preset_name}`] = { ...(p.filters || {}), _scope:"personal", _name:p.preset_name };
+      }
+      for(const p of (d.shared || [])){
+        if(p && p.preset_name) {
+          presetMap[`[S${p.is_locked ? "🔒" : ""}] ${p.preset_name}`] = {
+          ...(p.filters || {}),
+          _scope:"shared",
+          _name:p.preset_name,
+          _locked: !!p.is_locked,
+          _owner: !!p.is_owner,
+          _canEdit: !!p.can_edit,
+          _canDelete: !!p.can_delete,
+          _ownerEmail: p.created_by_email || "",
+          _createdAt: p.created_at || "",
+          _updatedAt: p.updated_at || "",
+          };
+          sharedRows.push(p);
+        }
+      }
+      loadPresetOptions();
+      const tbody = document.getElementById("sharedPresetRows");
+      tbody.innerHTML = sharedRows.length ? sharedRows.map(p => `
+        <tr>
+          <td>${esc(p.preset_name || "")}</td>
+          <td>${p.is_locked ? "Locked" : "Unlocked"}</td>
+          <td>${esc(p.created_by_email || "")}</td>
+          <td class="small text-muted">${esc(p.created_at || "")}</td>
+          <td class="small text-muted">${esc(p.updated_at || "")}</td>
+          <td>
+            ${p.can_edit ? `<button class="btn btn-sm btn-outline-dark" onclick="toggleSharedLock('${encodeURIComponent(p.preset_name || "")}', ${p.is_locked ? "false" : "true"})">
+              ${p.is_locked ? "Unlock" : "Lock"}
+            </button>` : `<span class="small text-muted">-</span>`}
+          </td>
+        </tr>
+      `).join("") : `<tr><td colspan="6" class="text-muted small">No shared presets.</td></tr>`;
+      onPresetChanged();
+    }
+    async function savePreset(){
+      const name = (document.getElementById("presetName").value || "").trim();
+      if(!name) return alert("Preset name required.");
+      const requestedScope = (document.getElementById("presetScope").value || "personal");
+      if (requestedScope === "shared" && !canManageSharedPresets) {
+        return alert("No permission to save shared preset.");
+      }
+      const r = await fetch("/api/inbox/filter-presets", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          preset_name: name,
+          filters: currentFilterState(),
+          scope: requestedScope,
+          is_locked: document.getElementById("presetLock").checked
+        }),
+      });
+      const d = await r.json();
+      if(!r.ok) return alert(d.error || "Save failed");
+      await refreshPresets();
+      const scope = (document.getElementById("presetScope").value || "personal");
+      const sel = document.getElementById("presetSelect");
+      const target = [...sel.options].find(o => scope === "shared" ? o.value.endsWith(` ${name}`) && o.value.startsWith("[S") : o.value === `[P] ${name}`);
+      if (target) sel.value = target.value;
+      onPresetChanged();
+    }
+    function applyPreset(){
+      const name = document.getElementById("presetSelect").value;
+      if(!name) return;
+      const p = presetMap[name];
+      if(!p) return;
+      document.getElementById("presetScope").value = p._scope || "personal";
+      document.getElementById("presetLock").checked = !!p._locked;
+      document.getElementById("q").value = p.q || "";
+      document.getElementById("status").value = p.status || "";
+      document.getElementById("reportStatus").value = p.reportStatus || "";
+      document.getElementById("lifecycleState").value = p.lifecycleState || "";
+      document.getElementById("dateFrom").value = p.dateFrom || "";
+      document.getElementById("dateTo").value = p.dateTo || "";
+      document.getElementById("merchant").value = p.merchant || "";
+      document.getElementById("category").value = p.category || "";
+      document.getElementById("minAmount").value = p.minAmount || "";
+      document.getElementById("maxAmount").value = p.maxAmount || "";
+      document.getElementById("sortBy").value = p.sortBy || "created_desc";
+      syncQuickRangeFromDates();
+      loadReceipts();
+    }
+    async function deletePreset(){
+      const key = document.getElementById("presetSelect").value;
+      if(!key) return;
+      const p = presetMap[key];
+      if(!p || !p._name) return;
+      if (p._scope === "shared" && !p._canDelete) return alert("No permission to delete this shared preset.");
+      const r = await fetch(`/api/inbox/filter-presets/${encodeURIComponent(p._name)}?scope=${encodeURIComponent(p._scope || "personal")}`, { method:"DELETE" });
+      const d = await r.json();
+      if(!r.ok) return alert(d.error || "Delete failed");
+      await refreshPresets();
+    }
+    function onPresetChanged(){
+      const key = document.getElementById("presetSelect").value;
+      const p = presetMap[key];
+      const meta = document.getElementById("presetMeta");
+      const btnDelete = document.getElementById("btnDeletePreset");
+      const btnSave = document.getElementById("btnSavePreset");
+      const lockWrap = document.getElementById("presetLockWrap");
+      const scopeSel = document.getElementById("presetScope");
+      if(!p){
+        meta.textContent = "";
+        if (btnDelete) btnDelete.style.display = "";
+        if (btnSave) btnSave.style.display = "";
+        if (lockWrap) lockWrap.style.display = "none";
+        if (scopeSel && !canManageSharedPresets && scopeSel.value === "shared") scopeSel.value = "personal";
+        return;
+      }
+      if((p._scope || "personal") === "shared"){
+        const bits = [
+          "Shared preset",
+          p._locked ? "Locked" : "Unlocked",
+          p._owner ? "Owner" : "Not owner",
+          p._canEdit ? "Editable" : "Read-only",
+          p._ownerEmail ? `By: ${p._ownerEmail}` : "",
+        ].filter(Boolean);
+        meta.textContent = bits.join(" · ");
+        if (btnDelete) btnDelete.style.display = p._canDelete ? "" : "none";
+        if (btnSave) btnSave.style.display = p._canEdit ? "" : "none";
+        if (lockWrap) lockWrap.style.display = (canManageSharedPresets && p._canEdit) ? "" : "none";
+      } else {
+        meta.textContent = "Personal preset";
+        if (btnDelete) btnDelete.style.display = "";
+        if (btnSave) btnSave.style.display = "";
+        if (lockWrap) lockWrap.style.display = "none";
+      }
+    }
+    function statusBadge(v){
+      const txt = String(v || "");
+      const map = {
+        processed: {cls:"success", icon:"&#10003;"},
+        needs_review: {cls:"warning", icon:"&#9888;"},
+        duplicate: {cls:"danger", icon:"&#8635;"},
+        ocr_processing: {cls:"info", icon:"&#8987;"},
+      };
+      const d = map[txt] || {cls:"secondary", icon:"&#8226;"};
+      return `<span class="badge text-bg-${d.cls}">${d.icon} ${esc(txt)}</span>`;
+    }
+    function lifecycleBadge(v){
+      const txt = String(v || "");
+      const map = {
+        ASSIGNED_TO_REPORT: {cls:"success", icon:"&#128278;"},
+        READY_FOR_REPORT: {cls:"success", icon:"&#9989;"},
+        NEEDS_REVIEW: {cls:"warning", icon:"&#9888;"},
+        LOW_CONFIDENCE: {cls:"warning", icon:"&#128680;"},
+        OCR_FAILED: {cls:"danger", icon:"&#10060;"},
+        IMAGE_UNREADABLE: {cls:"danger", icon:"&#128247;"},
+        OCR_PROCESSING: {cls:"info", icon:"&#8987;"},
+        UPLOADED: {cls:"secondary", icon:"&#128228;"},
+      };
+      const d = map[txt] || {cls:"secondary", icon:"&#8226;"};
+      return `<span class="badge text-bg-${d.cls}">${d.icon} ${esc(txt)}</span>`;
+    }
+    function isoDateFromLocal(d){
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    }
+    function syncQuickRangeFromDates(){
+      const from = (document.getElementById("dateFrom").value || "").trim();
+      const to = (document.getElementById("dateTo").value || "").trim();
+      const quick = document.getElementById("quickDateRange");
+      if (!quick) return;
+      quick.value = (!from && !to) ? "all" : "custom";
+    }
+    function setQuickDateRange(v, shouldLoad = true){
+      const val = String(v || "all");
+      const fromEl = document.getElementById("dateFrom");
+      const toEl = document.getElementById("dateTo");
+      if (val === "all") {
+        fromEl.value = "";
+        toEl.value = "";
+      } else if (val === "7" || val === "30" || val === "90") {
+        const to = new Date();
+        const from = new Date();
+        from.setDate(from.getDate() - (Number(val) - 1));
+        fromEl.value = isoDateFromLocal(from);
+        toEl.value = isoDateFromLocal(to);
+      } else {
+        return;
+      }
+      if (shouldLoad) loadReceipts();
+    }
+    function resetFilters(){
+      document.getElementById("q").value = "";
+      document.getElementById("status").value = "";
+      document.getElementById("reportStatus").value = "";
+      document.getElementById("lifecycleState").value = "";
+      document.getElementById("dateFrom").value = "";
+      document.getElementById("dateTo").value = "";
+      document.getElementById("merchant").value = "";
+      document.getElementById("category").value = "";
+      document.getElementById("minAmount").value = "";
+      document.getElementById("maxAmount").value = "";
+      document.getElementById("sortBy").value = "created_desc";
+      document.getElementById("quickDateRange").value = "all";
+      loadReceipts();
+    }
+    function restoreInboxFiltersFromUrl(){
+      const qs = new URLSearchParams(window.location.search || "");
+      const byId = (id) => document.getElementById(id);
+      if (byId("q")) byId("q").value = (qs.get("iq") || "").trim();
+      if (byId("status")) byId("status").value = (qs.get("istatus") || "").trim();
+      if (byId("reportStatus")) byId("reportStatus").value = (qs.get("ireport_status") || "").trim();
+      if (byId("lifecycleState")) byId("lifecycleState").value = (qs.get("ilifecycle") || "").trim();
+      if (byId("merchant")) byId("merchant").value = (qs.get("imerchant") || "").trim();
+      if (byId("category")) byId("category").value = (qs.get("icategory") || "").trim();
+      if (byId("minAmount")) byId("minAmount").value = (qs.get("imin_amount") || "").trim();
+      if (byId("maxAmount")) byId("maxAmount").value = (qs.get("imax_amount") || "").trim();
+      if (byId("sortBy")) byId("sortBy").value = (qs.get("isort") || "").trim() || "created_desc";
+      const qd = (qs.get("iquick_days") || "").trim();
+      forcedUserEmail = (qs.get("iuser") || "").trim().toLowerCase();
+      adminBackLink = (qs.get("aback") || "").trim();
+      const df = (qs.get("idate_from") || "").trim();
+      const dt = (qs.get("idate_to") || "").trim();
+      if (byId("quickDateRange") && qd) byId("quickDateRange").value = qd;
+      if (byId("dateFrom")) byId("dateFrom").value = df;
+      if (byId("dateTo")) byId("dateTo").value = dt;
+      if ((!df && !dt) && ["7","30","90","all"].includes(qd)) {
+        setQuickDateRange(qd, false);
+      } else {
+        syncQuickRangeFromDates();
+      }
+    }
+    function syncInboxFiltersToUrl(){
+      const url = new URL(window.location.href);
+      const setOrDelete = (k, v) => {
+        const val = String(v || "").trim();
+        if (val) url.searchParams.set(k, val);
+        else url.searchParams.delete(k);
+      };
+      setOrDelete("iq", document.getElementById("q")?.value || "");
+      setOrDelete("istatus", document.getElementById("status")?.value || "");
+      setOrDelete("ireport_status", document.getElementById("reportStatus")?.value || "");
+      setOrDelete("ilifecycle", document.getElementById("lifecycleState")?.value || "");
+      setOrDelete("idate_from", document.getElementById("dateFrom")?.value || "");
+      setOrDelete("idate_to", document.getElementById("dateTo")?.value || "");
+      setOrDelete("iquick_days", document.getElementById("quickDateRange")?.value || "");
+      setOrDelete("imerchant", document.getElementById("merchant")?.value || "");
+      setOrDelete("icategory", document.getElementById("category")?.value || "");
+      setOrDelete("imin_amount", document.getElementById("minAmount")?.value || "");
+      setOrDelete("imax_amount", document.getElementById("maxAmount")?.value || "");
+      setOrDelete("isort", document.getElementById("sortBy")?.value || "");
+      setOrDelete("iuser", forcedUserEmail || "");
+      setOrDelete("aback", adminBackLink || "");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+    function normalizeDateInt(v){
+      const s = String(v || "").trim();
+      if(!s) return 0;
+      const parts = s.split("-");
+      if(parts.length !== 3) return 0;
+      const y = Number(parts[0] || 0);
+      const m = Number(parts[1] || 0);
+      const d = Number(parts[2] || 0);
+      if(!y || !m || !d) return 0;
+      return y * 10000 + m * 100 + d;
+    }
+    function sortReceipts(rows){
+      const sortBy = document.getElementById("sortBy").value || "created_desc";
+      const list = (rows || []).slice();
+      if(sortBy === "date_desc"){
+        return list.sort((a,b)=> normalizeDateInt(b.date) - normalizeDateInt(a.date) || Number(b.id||0)-Number(a.id||0));
+      }
+      if(sortBy === "date_asc"){
+        return list.sort((a,b)=> normalizeDateInt(a.date) - normalizeDateInt(b.date) || Number(a.id||0)-Number(b.id||0));
+      }
+      if(sortBy === "amount_desc"){
+        return list.sort((a,b)=> Number(b.amount||0)-Number(a.amount||0) || Number(b.id||0)-Number(a.id||0));
+      }
+      if(sortBy === "amount_asc"){
+        return list.sort((a,b)=> Number(a.amount||0)-Number(b.amount||0) || Number(a.id||0)-Number(b.id||0));
+      }
+      if(sortBy === "status_asc"){
+        return list.sort((a,b)=> String(a.status||"").localeCompare(String(b.status||"")) || Number(b.id||0)-Number(a.id||0));
+      }
+      return list.sort((a,b)=> Number(b.id||0)-Number(a.id||0));
+    }
+    function updateSortHeaderIndicators(){
+      const sortBy = document.getElementById("sortBy").value || "created_desc";
+      const thDate = document.getElementById("thDate");
+      const thAmount = document.getElementById("thAmount");
+      const thStatus = document.getElementById("thStatus");
+      if (thDate) thDate.textContent = "date";
+      if (thAmount) thAmount.textContent = "amount";
+      if (thStatus) thStatus.textContent = "status";
+      if (sortBy === "date_desc" && thDate) thDate.textContent = "date ▼";
+      if (sortBy === "date_asc" && thDate) thDate.textContent = "date ▲";
+      if (sortBy === "amount_desc" && thAmount) thAmount.textContent = "amount ▼";
+      if (sortBy === "amount_asc" && thAmount) thAmount.textContent = "amount ▲";
+      if (sortBy === "status_asc" && thStatus) thStatus.textContent = "status ▲";
+    }
+    function toggleSortByColumn(col){
+      const sel = document.getElementById("sortBy");
+      const cur = sel.value || "created_desc";
+      if (col === "date") {
+        sel.value = (cur === "date_desc") ? "date_asc" : "date_desc";
+      } else if (col === "amount") {
+        sel.value = (cur === "amount_desc") ? "amount_asc" : "amount_desc";
+      } else if (col === "status") {
+        sel.value = "status_asc";
+      }
+      loadReceipts();
+    }
+    async function loadReceipts() {
+      syncInboxFiltersToUrl();
+      const q = encodeURIComponent(document.getElementById("q").value || "");
+      const status = encodeURIComponent(document.getElementById("status").value || "");
+      const rs = encodeURIComponent(document.getElementById("reportStatus").value || "");
+      const ls = encodeURIComponent(document.getElementById("lifecycleState").value || "");
+      const df = encodeURIComponent(document.getElementById("dateFrom").value || "");
+      const dt = encodeURIComponent(document.getElementById("dateTo").value || "");
+      const merchant = encodeURIComponent(document.getElementById("merchant").value || "");
+      const category = encodeURIComponent(document.getElementById("category").value || "");
+      const minAmount = encodeURIComponent(document.getElementById("minAmount").value || "");
+      const maxAmount = encodeURIComponent(document.getElementById("maxAmount").value || "");
+      const userEmail = encodeURIComponent(forcedUserEmail || "");
+      const r = await fetch(`/api/inbox/receipts?limit=300&q=${q}&status=${status}&report_status=${rs}&lifecycle_state=${ls}&date_from=${df}&date_to=${dt}&merchant=${merchant}&category=${category}&min_amount=${minAmount}&max_amount=${maxAmount}${forcedUserEmail ? `&user_email=${userEmail}` : ""}`);
+      const d = await r.json();
+      if (!r.ok) return alert(d.error || "Failed");
+      const rows = sortReceipts(d.receipts || []);
+      const tbody = document.getElementById("rows");
+      const backBtn = document.getElementById("adminBackLink");
+      if (backBtn) {
+        if (adminBackLink) {
+          backBtn.style.display = "";
+          backBtn.href = adminBackLink;
+        } else {
+          backBtn.style.display = "none";
+          backBtn.href = "/admin";
+        }
+      }
+      const userScope = document.getElementById("userScopeNote");
+      if (userScope) {
+        if (forcedUserEmail) {
+          userScope.style.display = "";
+          userScope.textContent = `User scope: ${forcedUserEmail}`;
+        } else {
+          userScope.style.display = "none";
+          userScope.textContent = "";
+        }
+      }
+      updateSortHeaderIndicators();
+      tbody.innerHTML = rows.map((x,i)=>`
+        <tr>
+          <td><input type="checkbox" class="sel" value="${x.id}"></td>
+          <td>${i+1}</td>
+          <td><a href="/api/inbox/image/${x.id}" target="_blank">view</a></td>
+          <td>${esc(x.orig_filename)}</td>
+          <td>${esc(x.date||"-")}</td>
+          <td>${esc(x.merchant||"-")}</td>
+          <td>${Number(x.amount||0).toLocaleString()} ${esc(x.currency||"")}</td>
+          <td>${statusBadge(x.status)}<div class="mt-1">${lifecycleBadge(x.lifecycle_state)}</div></td>
+          <td>${esc(x.report_status)}</td>
+          <td>
+            <button class="btn btn-outline-secondary btn-sm" onclick="runOCR(${x.id})">OCR</button>
+            ${x.status==='duplicate'?`<button class="btn btn-outline-warning btn-sm ms-1" onclick="ignoreDup(${x.id})">Ignore</button>`:""}
+          </td>
+        </tr>
+      `).join("");
+    }
+    function toggleAll(cb){ document.querySelectorAll(".sel").forEach(x=>x.checked=cb.checked); }
+    function getSelectedIds(){ return [...document.querySelectorAll(".sel:checked")].map(x=>Number(x.value)); }
+    async function runOCR(id){
+      const r = await fetch(`/api/inbox/ocr/${id}`,{method:"POST"});
+      const d = await r.json();
+      if(!r.ok) return alert(d.error||"OCR failed");
+      loadReceipts();
+    }
+    async function ignoreDup(id){
+      const r = await fetch(`/api/inbox/receipts/${id}/ignore-duplicate`,{method:"POST"});
+      const d = await r.json();
+      if(!r.ok) return alert(d.error||"Failed");
+      loadReceipts();
+    }
+    function startWizardWithSelected(){
+      const ids = getSelectedIds();
+      const q = ids.length ? `?ids=${encodeURIComponent(ids.join(","))}` : "";
+      window.location.href = `/reports/wizard/review${q}`;
+    }
+    document.getElementById("presetSelect").addEventListener("change", onPresetChanged);
+    document.getElementById("presetScope").addEventListener("change", applyPresetControlPermissions);
+    document.getElementById("dateFrom").addEventListener("change", syncQuickRangeFromDates);
+    document.getElementById("dateTo").addEventListener("change", syncQuickRangeFromDates);
+    document.getElementById("sortBy").addEventListener("change", loadReceipts);
+    async function toggleSharedLock(encodedName, lockValue){
+      const name = decodeURIComponent(encodedName || "");
+      const r = await fetch(`/api/inbox/filter-presets/${encodeURIComponent(name)}/lock`, {
+        method: "PATCH",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ is_locked: !!lockValue }),
+      });
+      const d = await r.json();
+      if(!r.ok) return alert(d.error || "Lock toggle failed");
+      await refreshPresets();
+    }
+    (async()=>{
+      restoreInboxFiltersFromUrl();
+      await loadInboxPermissions();
+      applyPresetControlPermissions();
+      await refreshPresets();
+      await loadReceipts();
+    })();
+  </script>
+</body>
+</html>
+
+
+

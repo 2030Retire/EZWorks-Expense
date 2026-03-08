@@ -1,0 +1,29 @@
+[
+  {
+    "code": "ezworks",
+    "company_name": "EZWorks",
+    "host": "root.local",
+    "primary_color": "1E3A5F",
+    "secondary_color": "2563EB",
+    "tagline": "Operator-first multi-tenant expense automation",
+    "logo_path": "static/logos/ezworks_mark.svg"
+  },
+  {
+    "code": "kioti",
+    "company_name": "KIOTI",
+    "host": "kioti.local",
+    "primary_color": "B91C1C",
+    "secondary_color": "F97316",
+    "tagline": "Branded expense workflow for employee adoption",
+    "logo_path": "static/logos/company_logo.png"
+  },
+  {
+    "code": "lekpartners",
+    "company_name": "LEK Partners",
+    "host": "lekpartners.local",
+    "primary_color": "0F2F57",
+    "secondary_color": "2E6DA4",
+    "tagline": "Accounting-firm ready tenant operations",
+    "logo_path": ""
+  }
+]

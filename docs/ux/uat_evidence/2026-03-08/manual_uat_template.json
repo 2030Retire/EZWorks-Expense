@@ -1,0 +1,98 @@
+{
+  "generated_at": "2026-03-08T22:15:33",
+  "matrix": [
+    {
+      "host": "localhost:5000",
+      "user": "(manual)",
+      "role": "General",
+      "scope": "Own data only"
+    },
+    {
+      "host": "localhost:5000",
+      "user": "(manual)",
+      "role": "Accounting",
+      "scope": "Tenant-wide by permission"
+    },
+    {
+      "host": "localhost:5000",
+      "user": "(manual)",
+      "role": "Tenant Admin",
+      "scope": "Admin module (current host)"
+    },
+    {
+      "host": "lek-partners.local:5000",
+      "user": "user@lekpartners.com",
+      "role": "General",
+      "scope": "Own data only"
+    },
+    {
+      "host": "lek-partners.local:5000",
+      "user": "admin@lekpartners.com",
+      "role": "Accounting",
+      "scope": "Tenant-wide by permission"
+    },
+    {
+      "host": "lek-partners.local:5000",
+      "user": "it@lekpartners.com",
+      "role": "Tenant Admin",
+      "scope": "Admin module (current host)"
+    },
+    {
+      "host": "(operator host)",
+      "user": "operator account",
+      "role": "Operator",
+      "scope": "Platform + cross-tenant"
+    }
+  ],
+  "critical_cases": [
+    {
+      "id": "C-01",
+      "scenario": "Anonymous redirect",
+      "steps": "Open /dashboard, /inbox/review, /reports, /admin without login",
+      "expected": "Redirect to /login"
+    },
+    {
+      "id": "C-02",
+      "scenario": "Host isolation",
+      "steps": "Change company name/logo on lek-partners.local host",
+      "expected": "localhost host config/logo unchanged"
+    },
+    {
+      "id": "C-03",
+      "scenario": "Cross-tenant admin guard",
+      "steps": "Tenant admin tries host switch to another tenant",
+      "expected": "Forbidden/guarded"
+    },
+    {
+      "id": "C-04",
+      "scenario": "Receipt ownership scope",
+      "steps": "General user A/B compare Inbox list/detail/image/audit",
+      "expected": "Only own receipts visible"
+    },
+    {
+      "id": "C-05",
+      "scenario": "Admin monitor drill-down",
+      "steps": "Click KPI/user/receipt links from Admin monitor",
+      "expected": "Correct filter applied and Back to Admin Monitor works"
+    },
+    {
+      "id": "C-06",
+      "scenario": "Wizard step separation",
+      "steps": "Check top nav and wizard pages",
+      "expected": "Top nav only Dashboard/Inbox/Reports/Admin, steps only in wizard progress"
+    },
+    {
+      "id": "C-07",
+      "scenario": "Unsaved edit guard",
+      "steps": "Edit Step4 row and move Step5 without save",
+      "expected": "Warning shown and generate blocked"
+    },
+    {
+      "id": "C-08",
+      "scenario": "Accounting permission boundary",
+      "steps": "Login as non-accounting user and open /inbox/settings",
+      "expected": "No accounting edit access"
+    }
+  ],
+  "status": "PENDING-MANUAL"
+}

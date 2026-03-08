@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Expense Report Automation</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <style>
+    .navbar { background:#0f2f57 !important; box-shadow:0 8px 18px rgba(15,47,87,.15); }
+    .card-header { background:#f8fafc; border-bottom:1px solid #e2e8f0; font-weight:600; border-radius:12px 12px 0 0 !important; padding:.8rem 1.25rem; }
+    .section-badge { display:inline-block; width:26px; height:26px; border-radius:50%; background:#2e6da4; color:#fff; font-size:.8rem; font-weight:700; text-align:center; line-height:26px; margin-right:.5rem; }
+    .type-row { display:flex; align-items:center; gap:.5rem; padding:.4rem .5rem; border-radius:6px; background:#f8fafc; border:1px solid #e2e8f0; margin-bottom:.35rem; cursor:grab; }
+    .type-row:active { cursor:grabbing; }
+    .type-row .drag-handle { color:#aaa; font-size:.85rem; }
+    .type-row input[type=text] { flex:1; border:none; background:transparent; font-size:.9rem; padding:0 .25rem; }
+    .type-row input[type=text]:focus { outline:none; background:#fff; border-radius:4px; }
+    .type-row .del-btn { color:#dc3545; border:none; background:none; cursor:pointer; padding:0 .25rem; font-size:.85rem; }
+    .field-toggle-row { display:flex; align-items:center; gap:.75rem; padding:.4rem .5rem; border-radius:6px; background:#f8fafc; border:1px solid #e2e8f0; margin-bottom:.4rem; }
+    .field-toggle-row label { margin:0; flex:1; font-size:.9rem; }
+    .logo-preview { max-height:80px; max-width:200px; border-radius:8px; border:1px solid #e2e8f0; }
+    .tpl-status-ok      { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:.75rem 1rem; }
+    .tpl-status-missing { background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:.75rem 1rem; }
+    .drop-zone { border:2px dashed #cbd5e1; border-radius:10px; padding:2rem; text-align:center; cursor:pointer; transition:all .2s; background:#f8fafc; }
+    .drop-zone:hover,.drop-zone.dragover { border-color:#2563eb; background:#eff6ff; }
+    .pw-required { font-size:.78rem; color:#888; }
+    .sticky-save { position:sticky; bottom:0; background:#fff; border-top:1px solid #e2e8f0; padding:.75rem 1.25rem; margin-top:.5rem; border-radius:0 0 12px 12px; display:flex; align-items:center; gap:.75rem; }
+    .sortable-ghost { opacity:.4; }
+    .company-snapshot { border:1px solid #dbe7f5; border-radius:12px; background:#ffffff; box-shadow:0 6px 18px rgba(30,58,95,.06); }
+    .company-snapshot-logo { max-height:54px; max-width:160px; object-fit:contain; border:1px solid #e2e8f0; border-radius:8px; padding:.2rem; background:#f8fafc; }
+    .company-snapshot-fallback { width:160px; height:54px; border-radius:8px; background:#f8fbff; border:1px solid #d9e6f8; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .company-snapshot-fallback img { width:100%; height:100%; object-fit:contain; padding:.28rem; }
+    .admin-tabs .btn { min-width:110px; font-weight:600; }
+  </style>
+</head>
+<body class="app-shell">
+
+<nav class="navbar navbar-dark">
+  <div class="container">
+    <span class="navbar-brand fw-bold">
+      <i class="fa-solid fa-gear me-2"></i>Admin Panel — Expense Report Automation
+    </span>
+    <div class="d-flex gap-2 align-items-center">
+      <span id="pwStatus" class="text-white-50 small"></span>
+      <a id="btnPlatform" href="/platform" class="btn btn-sm btn-outline-light" style="display:none;">
+        <i class="fa-solid fa-building me-1"></i>Platform
+      </a>
+      <button id="btnLogout" class="btn btn-sm btn-outline-light" onclick="logoutAdmin()" style="display:none;">
+        <i class="fa-solid fa-right-from-bracket me-1"></i>Logout
+      </button>
+      <a href="/dashboard" class="btn btn-sm btn-outline-light"><i class="fa-solid fa-arrow-left me-1"></i>Back to App</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4">
+  <div class="company-snapshot p-3 mb-3">
+    <div class="d-flex align-items-center gap-3">
+      <img id="companySnapshotLogo" src="" alt="Company Logo" class="company-snapshot-logo" style="display:none;">
+      <div id="companySnapshotFallback" class="company-snapshot-fallback"><img src="/static/logos/ezworks_mark.svg" alt="EZWorks"></div>
+      <div>
+        <div id="companySnapshotName" class="fw-bold" style="font-size:1.05rem;">Company Name</div>
+        <div id="companySnapshotAddress" class="small text-muted">Company address</div>
+        <div id="companySnapshotPhone" class="small text-muted"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-2 mb-3">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Top module navigation">
+      <a class="btn btn-outline-primary" href="/dashboard">Dashboard</a>
+      <a class="btn btn-outline-primary" href="/inbox">Inbox</a>
+      <a class="btn btn-outline-primary" href="/reports">Reports</a>
+      <a class="btn btn-primary" href="/admin">Admin</a>
+    </div>
+  </div>
+
+  <div class="card p-2 mb-3 admin-tabs">
+    <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Admin section tabs">
+      <button type="button" id="adminTab_all" class="btn btn-outline-primary" onclick="switchAdminTab('all')">All</button>
+      <button type="button" id="adminTab_company" class="btn btn-outline-primary" onclick="switchAdminTab('company')">Company</button>
+      <button type="button" id="adminTab_accounting" class="btn btn-outline-primary" onclick="switchAdminTab('accounting')">Accounting</button>
+      <button type="button" id="adminTab_users" class="btn btn-outline-primary" onclick="switchAdminTab('users')">Users</button>
+      <button type="button" id="adminTab_templates" class="btn btn-outline-primary" onclick="switchAdminTab('templates')">Templates</button>
+      <button type="button" id="adminTab_monitor" class="btn btn-outline-primary" onclick="switchAdminTab('monitor')">Monitor</button>
+    </div>
+  </div>
+
+  <!-- ① Company Info -->
+  <div class="card admin-section" id="sectionCompany" data-admin-tab="company" style="opacity:.4;pointer-events:none;">
+    <div class="card-header">
+      <span class="section-badge">1</span>Company Information
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold small">Company Name</label>
+          <input type="text" id="companyName" class="form-control form-control-sm" placeholder="e.g. Acme Corp.">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold small">Phone</label>
+          <input type="text" id="companyPhone" class="form-control form-control-sm" placeholder="e.g. +1 (555) 123-4567">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold small">Address</label>
+          <input type="text" id="companyAddress" class="form-control form-control-sm" placeholder="e.g. 123 Main St, New York, NY 10001">
+        </div>
+      </div>
+
+      <!-- Logo -->
+      <hr class="my-3">
+      <div class="d-flex align-items-start gap-3">
+        <div>
+          <div id="logoPreviewWrap" style="display:none;">
+            <img id="logoPreview" src="" class="logo-preview mb-2" alt="logo">
+            <br>
+          </div>
+          <label class="form-label fw-semibold small mb-1">Company Logo</label>
+          <div class="d-flex gap-2">
+            <input type="file" id="logoFile" accept=".png,.jpg,.jpeg,.svg,.gif,.webp" class="form-control form-control-sm" style="max-width:240px;">
+            <button class="btn btn-sm btn-outline-primary" onclick="uploadLogo()">
+              <i class="fa-solid fa-upload me-1"></i>Upload
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="removeLogo()" id="logoRemoveBtn" style="display:none;">
+              <i class="fa-solid fa-trash me-1"></i>Remove
+            </button>
+          </div>
+          <div id="logoMsg" class="mt-1 small text-muted"></div>
+        </div>
+      </div>
+
+      <div class="sticky-save">
+        <button class="btn btn-success btn-sm" onclick="saveCompanyInfo()">
+          <i class="fa-solid fa-floppy-disk me-1"></i>Save Company Info
+        </button>
+        <span id="companyMsg" class="small"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② Employee Fields -->
+  <div class="card admin-section" id="sectionFields" data-admin-tab="company" style="opacity:.4;pointer-events:none;">
+    <div class="card-header">
+      <span class="section-badge">2</span>Employee Info Fields
+      <span class="text-muted small fw-normal ms-2">— Toggle which fields appear on the expense report</span>
+    </div>
+    <div class="card-body">
+      <div id="fieldsList"></div>
+      <div class="sticky-save">
+        <button class="btn btn-success btn-sm" onclick="saveFields()">
+          <i class="fa-solid fa-floppy-disk me-1"></i>Save Field Settings
+        </button>
+        <span id="fieldsMsg" class="small"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ Expense Types -->
+  <div class="card admin-section" id="sectionTypes" data-admin-tab="accounting" style="opacity:.4;pointer-events:none;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div><span class="section-badge">3</span>Expense Types
+        <span class="text-muted small fw-normal ms-2">— Enable/disable, rename, reorder, or add custom types</span>
+      </div>
+      <button class="btn btn-sm btn-outline-primary" onclick="addExpenseType()">
+        <i class="fa-solid fa-plus me-1"></i>Add Type
+      </button>
+    </div>
+    <div class="card-body">
+      <div id="expenseTypesList"></div>
+      <div class="sticky-save">
+        <button class="btn btn-success btn-sm" onclick="saveExpenseTypes()">
+          <i class="fa-solid fa-floppy-disk me-1"></i>Save Expense Types
+        </button>
+        <span id="typesMsg" class="small"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ Report Modes -->
+  <div class="card admin-section" id="sectionModes" data-admin-tab="company" style="opacity:.4;pointer-events:none;">
+    <div class="card-header">
+      <span class="section-badge">4</span>Report Modes
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="p-3 border rounded" style="background:#f0f9ff;">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="modeDomestic" checked>
+              </div>
+              <label class="fw-semibold" for="modeDomestic">
+                <i class="fa-solid fa-flag-usa text-primary me-1"></i>Domestic (USD only)
+              </label>
+            </div>
+            <p class="text-muted small mb-0">For US domestic business travel. All amounts in USD.</p>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="p-3 border rounded" style="background:#f0fdf4;">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="modeInternational" checked>
+              </div>
+              <label class="fw-semibold" for="modeInternational">
+                <i class="fa-solid fa-earth-americas text-success me-1"></i>International
+              </label>
+            </div>
+            <p class="text-muted small mb-0">For overseas travel. Supports foreign currency + exchange rate.</p>
+          </div>
+        </div>
+      </div>
+      <div class="sticky-save">
+        <button class="btn btn-success btn-sm" onclick="saveModes()">
+          <i class="fa-solid fa-floppy-disk me-1"></i>Save Mode Settings
+        </button>
+        <span id="modesMsg" class="small"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ User Management -->
+  <div class="card admin-section" id="sectionWizard" data-admin-tab="accounting" style="opacity:.4;pointer-events:none;">
+    <div class="card-header">
+      <span class="section-badge">5</span>Wizard Risk Priority
+    </div>
+    <div class="card-body">
+      <div class="small text-muted mb-2">Drag to reorder Step4 risky sorting priority.</div>
+      <div id="wizardRiskList"></div>
+      <div class="row g-2 mt-2" style="max-width:360px;">
+        <div class="col-7">
+          <label class="form-label small fw-semibold mb-1">Local Draft TTL (hours)</label>
+          <input type="number" id="wizardCacheTtlHours" class="form-control form-control-sm" min="1" max="720" value="168">
+        </div>
+        <div class="col-12">
+          <div class="small text-muted">Applies to wizard local cache expiry (settings/selection/dirty state).</div>
+        </div>
+      </div>
+      <div class="sticky-save">
+        <button class="btn btn-success btn-sm" onclick="saveWizardSettings()">
+          <i class="fa-solid fa-floppy-disk me-1"></i>Save Wizard Settings
+        </button>
+        <span id="wizardMsg" class="small"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ User Management -->
+  <div class="card admin-section" id="sectionUsers" data-admin-tab="users" style="opacity:.4;pointer-events:none;">
+    <div class="card-header">
+      <span class="section-badge">6</span>User Management
+    </div>
+    <div class="card-body">
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        <input type="text" id="tenantHostReadonly" class="form-control form-control-sm" disabled style="max-width:260px;">
+        <input type="email" id="newAdminEmail" class="form-control form-control-sm" placeholder="admin@company.com" style="max-width:280px;">
+        <input type="text" id="newAdminName" class="form-control form-control-sm" placeholder="Display name (optional)" style="max-width:220px;">
+        <button class="btn btn-sm btn-outline-primary" onclick="addAdminByEmail()">
+          <i class="fa-solid fa-user-shield me-1"></i>Add/Grant Admin
+        </button>
+      </div>
+      <div id="usersScope" class="small text-muted mb-2"></div>
+      <div class="small text-muted mb-2">This page manages users for the current host only. Use Platform page for cross-tenant/customer management.</div>
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        <input type="text" id="allowedDomains" class="form-control form-control-sm" placeholder="allowed login domains (comma-separated)" style="max-width:420px;">
+        <button class="btn btn-sm btn-outline-dark" onclick="saveAuthPolicy()">
+          <i class="fa-solid fa-shield-halved me-1"></i>Save Login Domain Policy
+        </button>
+      </div>
+      <div id="usersMsg" class="small mb-2"></div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Org</th>
+              <th>Admin</th>
+              <th>Active</th>
+              <th>Updated</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ Permission Matrix -->
+  <div class="card admin-section" id="sectionPerms" data-admin-tab="users" style="opacity:.4;pointer-events:none;">
+    <div class="card-header">
+      <span class="section-badge">7</span>User Permissions (General / Accounting / Admin)
+    </div>
+    <div class="card-body">
+      <div class="small text-muted mb-2">Set feature permissions per user for current host.</div>
+      <div id="permMsg" class="small mb-2"></div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Email</th>
+              <th>General</th>
+              <th>Accounting</th>
+              <th>Admin</th>
+              <th>Custom</th>
+              <th>Save</th>
+            </tr>
+          </thead>
+          <tbody id="permTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ Admin Inbox Monitor -->
+  <div class="card admin-section" id="sectionInboxMonitor" data-admin-tab="monitor" style="opacity:.4;pointer-events:none;">
+    <div class="card-header">
+      <span class="section-badge">8</span>Inbox Monitor (Admin only)
+    </div>
+    <div class="card-body">
+      <div class="row g-2 mb-3">
+        <div class="col-md-3">
+          <input type="email" id="monitorUserEmail" class="form-control form-control-sm" placeholder="user email filter (optional)">
+        </div>
+        <div class="col-md-3">
+          <select id="monitorUserSelect" class="form-select form-select-sm" onchange="applyMonitorUserSelect()">
+            <option value="">all users</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select id="monitorPeriod" class="form-select form-select-sm">
+            <option value="0">all period</option>
+            <option value="7">last 7 days</option>
+            <option value="30">last 30 days</option>
+            <option value="90">last 90 days</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select id="monitorReceiptStatus" class="form-select form-select-sm">
+            <option value="">all receipt status</option>
+            <option value="needs_review">needs_review</option>
+            <option value="processed">processed</option>
+            <option value="duplicate">duplicate</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <input type="number" id="monitorReceiptId" class="form-control form-control-sm" placeholder="receipt id">
+        </div>
+        <div class="col-md-3">
+          <input type="text" id="monitorPresetName" class="form-control form-control-sm" placeholder="shared preset name (optional)">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-sm btn-outline-secondary w-100" onclick="loadAdminInboxMonitor(true)">Search</button>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-sm btn-outline-primary w-100" onclick="downloadAuditCsv()">Audit CSV</button>
+        </div>
+      </div>
+      <div class="small text-muted mb-2" id="monitorSummary"></div>
+      <div class="table-responsive mb-3">
+        <h6 class="small fw-semibold">User KPI</h6>
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th id="thMonKpiUser" style="cursor:pointer;" onclick="toggleMonitorSort('kpi','user')">User</th>
+              <th id="thMonKpiReceipts" style="cursor:pointer;" onclick="toggleMonitorSort('kpi','receipts')">Receipts</th>
+              <th>Needs Review</th>
+              <th>Duplicate</th>
+              <th>Assigned</th>
+              <th id="thMonKpiReports" style="cursor:pointer;" onclick="toggleMonitorSort('kpi','reports')">Reports</th>
+            </tr>
+          </thead>
+          <tbody id="monitorKpiRows"></tbody>
+        </table>
+      </div>
+      <div class="table-responsive mb-3">
+        <h6 class="small fw-semibold">Receipts</h6>
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th id="thMonRcptId" style="cursor:pointer;" onclick="toggleMonitorSort('receipts','id')">ID</th>
+              <th id="thMonRcptUser" style="cursor:pointer;" onclick="toggleMonitorSort('receipts','user')">User</th>
+              <th>File</th>
+              <th>Status</th>
+              <th>Report</th>
+              <th id="thMonRcptUpdated" style="cursor:pointer;" onclick="toggleMonitorSort('receipts','updated')">Updated</th>
+            </tr>
+          </thead>
+          <tbody id="monitorReceiptsRows"></tbody>
+        </table>
+        <div class="small text-muted" id="monitorReceiptsPager"></div>
+      </div>
+      <div class="table-responsive">
+        <h6 class="small fw-semibold">Reports</h6>
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th id="thMonRptId" style="cursor:pointer;" onclick="toggleMonitorSort('reports','id')">ID</th>
+              <th id="thMonRptUser" style="cursor:pointer;" onclick="toggleMonitorSort('reports','user')">User</th>
+              <th>Filename</th>
+              <th id="thMonRptCount" style="cursor:pointer;" onclick="toggleMonitorSort('reports','count')">Receipts</th>
+              <th id="thMonRptCreated" style="cursor:pointer;" onclick="toggleMonitorSort('reports','created')">Created</th>
+            </tr>
+          </thead>
+          <tbody id="monitorReportsRows"></tbody>
+        </table>
+        <div class="small text-muted" id="monitorReportsPager"></div>
+      </div>
+      <div class="table-responsive mt-3">
+        <h6 class="small fw-semibold">Audit Logs</h6>
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Time</th>
+              <th>Receipt</th>
+              <th>Actor</th>
+              <th>Changed Fields</th>
+              <th>Diff</th>
+            </tr>
+          </thead>
+          <tbody id="monitorAuditRows"></tbody>
+        </table>
+        <div class="small text-muted" id="monitorAuditPager"></div>
+      </div>
+      <div class="table-responsive mt-3">
+        <h6 class="small fw-semibold">Shared Preset Audit Logs</h6>
+        <div class="mb-2">
+          <button class="btn btn-sm btn-outline-primary" onclick="downloadSharedPresetAuditCsv()">Shared Preset Audit CSV</button>
+        </div>
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Time</th>
+              <th>Preset</th>
+              <th>Actor</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="monitorSharedPresetAuditRows"></tbody>
+        </table>
+        <div class="small text-muted" id="monitorSharedPresetAuditPager"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ Login Page Visuals -->
+  <div class="card admin-section" id="sectionLoginVisuals" data-admin-tab="templates" style="opacity:.4;pointer-events:none;">
+    <div class="card-header">
+      <span class="section-badge">9</span>Login Page Visuals
+    </div>
+    <div class="card-body">
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+          <label class="form-label small fw-semibold">Slide Interval (sec)</label>
+          <input type="number" id="loginSlideInterval" class="form-control form-control-sm" min="3" max="120" value="8" style="width:120px;">
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-sm btn-success" onclick="saveLoginVisualSettings()">
+            <i class="fa-solid fa-floppy-disk me-1"></i>Save Interval
+          </button>
+        </div>
+      </div>
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Image</label>
+          <input type="file" id="loginSlideFile" class="form-control form-control-sm" accept=".png,.jpg,.jpeg,.webp,.gif,.svg">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Caption (optional)</label>
+          <input type="text" id="loginSlideCaption" class="form-control form-control-sm" maxlength="120" placeholder="Promo text">
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-sm btn-outline-primary" onclick="uploadLoginSlide()">
+            <i class="fa-solid fa-image me-1"></i>Add Slide
+          </button>
+        </div>
+      </div>
+      <div id="loginVisualMsg" class="small mb-2"></div>
+      <div class="row g-2" id="loginSlidesGrid"></div>
+    </div>
+  </div>
+
+  <!-- ⑦ Templates -->
+  <div class="card admin-section" id="sectionTemplates" data-admin-tab="templates" style="opacity:.4;pointer-events:none;">
+    <div class="card-header">
+      <span class="section-badge">10</span>Report Templates
+    </div>
+    <div class="card-body">
+
+      <!-- Base template generation -->
+      <div class="alert alert-info d-flex gap-3 align-items-start">
+        <i class="fa-solid fa-file-lines fa-lg mt-1"></i>
+        <div>
+          <strong>Generate Base Templates</strong><br>
+          <span class="small">Generate tenant-scoped base templates using current company info, field toggles, and expense type settings.</span>
+          <div class="mt-2 d-flex gap-2 flex-wrap">
+            <button class="btn btn-sm btn-primary" onclick="generateTemplates('domestic')">
+              <i class="fa-solid fa-file-excel me-1"></i>Generate Domestic
+            </button>
+            <button class="btn btn-sm btn-success" onclick="generateTemplates('international')">
+              <i class="fa-solid fa-file-excel me-1"></i>Generate International
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="generateTemplates('both')">
+              <i class="fa-solid fa-layer-group me-1"></i>Generate Both
+            </button>
+          </div>
+          <div id="genMsg" class="mt-2 small"></div>
+        </div>
+      </div>
+
+      <!-- Template Status -->
+      <div id="templateStatusArea"></div>
+      <div class="card p-3 mt-3">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <strong class="small mb-0">Template Preview</strong>
+          <select class="form-select form-select-sm" id="previewMode" style="max-width:170px;">
+            <option value="domestic">Domestic</option>
+            <option value="international">International</option>
+            <option value="default">Default</option>
+          </select>
+          <button class="btn btn-sm btn-outline-primary" onclick="loadTemplatePreview()">
+            <i class="fa-solid fa-eye me-1"></i>Preview
+          </button>
+        </div>
+        <div id="templatePreviewMeta" class="small text-muted mt-2"></div>
+        <div id="templatePreviewArea" class="mt-2"></div>
+      </div>
+
+      <!-- Manual Upload -->
+      <div class="mt-3">
+        <p class="fw-semibold small mb-2">Upload tenant custom template (isolated per host):</p>
+        <div class="row g-2 align-items-end">
+          <div class="col-auto">
+            <select class="form-select form-select-sm" id="uploadMode">
+              <option value="domestic">Domestic</option>
+              <option value="international">International</option>
+            </select>
+          </div>
+          <div class="col">
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('tplInput').click()">
+              <i class="fa-solid fa-file-excel d-block mb-1" style="color:#16a34a;font-size:1.5rem;"></i>
+              <div class="small fw-semibold">Click or drag & drop .xlsx template</div>
+            </div>
+            <input type="file" id="tplInput" accept=".xlsx" style="display:none" onchange="handleTplFile(this.files)">
+            <div id="selectedTpl" class="mt-1 text-muted small"></div>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-sm btn-primary" id="uploadTplBtn" onclick="uploadTemplate()" disabled>
+              <i class="fa-solid fa-cloud-arrow-up me-1"></i>Upload
+            </button>
+          </div>
+        </div>
+        <div id="uploadTplMsg" class="mt-2 small"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Sortable.js for drag-and-drop -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+// ─── State ───────────────────────────────────────────
+let cfg = null;
+let authenticated = false;
+let selectedTplFile = null;
+let userTargetHost = "";
+let isOperator = false;
+let wizardRiskSortable = null;
+let adminPermissions = [];
+let currentAdminTab = localStorage.getItem("admin_tab_v1") || "all";
+const ADMIN_TAB_SECTIONS = {
+  all: ["sectionCompany","sectionFields","sectionTypes","sectionModes","sectionWizard","sectionUsers","sectionPerms","sectionInboxMonitor","sectionLoginVisuals","sectionTemplates"],
+  company: ["sectionCompany","sectionFields","sectionModes"],
+  accounting: ["sectionTypes","sectionWizard"],
+  users: ["sectionUsers","sectionPerms"],
+  templates: ["sectionLoginVisuals","sectionTemplates"],
+  monitor: ["sectionInboxMonitor"],
+};
+const ROLE_GENERAL = ["receipt.create","receipt.view_own","report.submit","report.view_own"];
+const ROLE_ACCOUNTING = ["receipt.view_all","mapping.manage","category.manage","duplicate.resolve","report.generate","report.view_all"];
+const ROLE_ADMIN = ["company.manage","template.manage","user.manage","policy.manage"];
+let monitorSortKpi = "receipts_desc";
+let monitorSortReceipts = "updated_desc";
+let monitorSortReports = "created_desc";
+let monitorPageReceipts = 1;
+let monitorPageReports = 1;
+let monitorPageAudit = 1;
+let monitorPageSharedAudit = 1;
+const MONITOR_PAGE_SIZE = 100;
+
+// ─── Auth ────────────────────────────────────────────
+async function logoutAdmin() {
+  await postJSON("/auth/logout", {});
+  setAuthenticated(false);
+  cfg = null;
+  window.location.href = "/login";
+}
+function setAuthenticated(isAuth, label = "") {
+  authenticated = isAuth;
+  document.getElementById("pwStatus").textContent = isAuth
+    ? (label || "✓ Authenticated")
+    : "";
+  document.getElementById("btnLogout").style.display = isAuth ? "" : "none";
+  document.getElementById("btnPlatform").style.display = (isAuth && isOperator) ? "" : "none";
+  document.querySelectorAll(".admin-section").forEach(s => {
+    s.style.opacity = isAuth ? "1" : ".4";
+    s.style.pointerEvents = isAuth ? "auto" : "none";
+  });
+}
+function hasAdminPerm(p){
+  return isOperator || adminPermissions.includes(p);
+}
+async function loadAdminPermissions(){
+  try{
+    const r = await fetch("/api/inbox/permissions");
+    const d = await r.json();
+    if (!r.ok) return;
+    isOperator = !!d.operator;
+    adminPermissions = Array.isArray(d.permissions) ? d.permissions : [];
+  }catch(_){}
+}
+function setSectionVisible(id, visible){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.dataset.permHidden = visible ? "0" : "1";
+  if (!visible) {
+    el.style.display = "none";
+    return;
+  }
+  if (el.dataset.tabHidden === "1") {
+    el.style.display = "none";
+    return;
+  }
+  el.style.display = "";
+}
+function switchAdminTab(tab, save = true){
+  const key = ADMIN_TAB_SECTIONS[tab] ? tab : "all";
+  currentAdminTab = key;
+  if (save) localStorage.setItem("admin_tab_v1", key);
+  const showSet = new Set(ADMIN_TAB_SECTIONS[key] || ADMIN_TAB_SECTIONS.all);
+  Object.keys(ADMIN_TAB_SECTIONS).forEach((k)=>{
+    const btn = document.getElementById(`adminTab_${k}`);
+    if (!btn) return;
+    const active = k === key;
+    btn.classList.toggle("btn-primary", active);
+    btn.classList.toggle("btn-outline-primary", !active);
+  });
+  document.querySelectorAll(".admin-section").forEach((el)=>{
+    const id = el.id || "";
+    const showByTab = showSet.has(id);
+    el.dataset.tabHidden = showByTab ? "0" : "1";
+    if (!showByTab || el.dataset.permHidden === "1") {
+      el.style.display = "none";
+    } else {
+      el.style.display = "";
+    }
+  });
+}
+function applyAdminSectionVisibility(){
+  setSectionVisible("sectionCompany", hasAdminPerm("company.manage"));
+  setSectionVisible("sectionFields", hasAdminPerm("company.manage"));
+  setSectionVisible("sectionTypes", hasAdminPerm("category.manage"));
+  setSectionVisible("sectionModes", hasAdminPerm("company.manage"));
+  setSectionVisible("sectionWizard", hasAdminPerm("policy.manage"));
+  setSectionVisible("sectionUsers", hasAdminPerm("user.manage"));
+  setSectionVisible("sectionPerms", hasAdminPerm("policy.manage") || hasAdminPerm("user.manage"));
+  setSectionVisible("sectionInboxMonitor", hasAdminPerm("user.manage"));
+  setSectionVisible("sectionLoginVisuals", hasAdminPerm("template.manage"));
+  setSectionVisible("sectionTemplates", hasAdminPerm("template.manage"));
+  switchAdminTab(currentAdminTab, false);
+}
+async function loadAdminConfig(statusLabel = "") {
+  const res = await fetch("/admin/config");
+  const data = await res.json();
+  if (!res.ok) {
+    setAuthenticated(false);
+    window.location.href = "/login?next=/admin";
+    return;
+  }
+  cfg = data;
+  userTargetHost = (data._config_host || "").toLowerCase();
+  const hostBox = document.getElementById("tenantHostReadonly");
+  if (hostBox) hostBox.value = `${userTargetHost} (current host)`;
+  await loadAdminPermissions();
+  setAuthenticated(true, statusLabel);
+  renderAll();
+  applyAdminSectionVisibility();
+}
+
+function getTargetHost() {
+  return (userTargetHost || window.location.hostname).trim().toLowerCase().replace(/:\d+$/, "");
+}
+
+// ─── Render All ──────────────────────────────────────
+function renderAll() {
+  if (!cfg) return;
+  renderCompanyInfo();
+  renderFields();
+  renderExpenseTypes();
+  renderModes();
+  renderWizardSettings();
+  renderAuthPolicy();
+  if (hasAdminPerm("user.manage")) loadUsers();
+  if (hasAdminPerm("policy.manage") || hasAdminPerm("user.manage")) loadUserPermissionMatrix();
+  if (hasAdminPerm("user.manage")) loadAdminInboxMonitor(true);
+  if (hasAdminPerm("template.manage")) loadLoginSlides();
+  if (hasAdminPerm("template.manage")) loadTemplateStatus();
+}
+
+// ─── Company Info ────────────────────────────────────
+function renderCompanyInfo() {
+  document.getElementById("companyName").value    = cfg.company.name    || "";
+  document.getElementById("companyPhone").value   = cfg.company.phone   || "";
+  document.getElementById("companyAddress").value = cfg.company.address || "";
+  renderCompanySnapshot();
+  if (cfg.logo_url) {
+    document.getElementById("logoPreview").src = cfg.logo_url;
+    document.getElementById("logoPreviewWrap").style.display = "block";
+    document.getElementById("logoRemoveBtn").style.display  = "";
+  }
+}
+function renderCompanySnapshot() {
+  const company = (cfg && cfg.company) ? cfg.company : {};
+  const name = String(company.name || "").trim();
+  const address = String(company.address || "").trim();
+  const phone = String(company.phone || "").trim();
+  document.getElementById("companySnapshotName").textContent = name || "Company Name";
+  document.getElementById("companySnapshotAddress").textContent = address || "Company address";
+  document.getElementById("companySnapshotPhone").textContent = phone || "";
+  const logo = String(cfg.logo_url || "").trim();
+  const logoEl = document.getElementById("companySnapshotLogo");
+  const fallbackEl = document.getElementById("companySnapshotFallback");
+  if (logo) {
+    logoEl.src = logo;
+    logoEl.style.display = "";
+    fallbackEl.style.display = "none";
+  } else {
+    logoEl.src = "";
+    logoEl.style.display = "none";
+    fallbackEl.style.display = "";
+  }
+}
+async function saveCompanyInfo() {
+  const body = {
+    company: {
+      name:    document.getElementById("companyName").value,
+      phone:   document.getElementById("companyPhone").value,
+      address: document.getElementById("companyAddress").value,
+    }
+  };
+  const res = await postJSON("/admin/config", body);
+  showMsg("companyMsg", res);
+  if (res.ok) {
+    cfg = res.data.config;
+    renderCompanySnapshot();
+  }
+}
+
+// ─── Logo ─────────────────────────────────────────────
+async function uploadLogo() {
+  const file = document.getElementById("logoFile").files[0];
+  if (!file) { alert("Please select a logo file."); return; }
+  const fd = new FormData();
+  fd.append("logo", file);
+  const res = await fetch("/admin/upload-logo", { method: "POST", body: fd });
+  const data = await res.json();
+  if (res.ok) {
+    const url = data.url + "?t=" + Date.now();
+    document.getElementById("logoPreview").src = url;
+    document.getElementById("logoPreviewWrap").style.display = "block";
+    document.getElementById("logoRemoveBtn").style.display = "";
+    cfg.logo_url = url;
+    renderCompanySnapshot();
+    document.getElementById("logoMsg").innerHTML = '<span class="text-success">Logo uploaded!</span>';
+  } else {
+    document.getElementById("logoMsg").innerHTML = `<span class="text-danger">${data.error}</span>`;
+  }
+}
+function removeLogo() {
+  document.getElementById("logoPreview").src = "";
+  document.getElementById("logoPreviewWrap").style.display = "none";
+  document.getElementById("logoRemoveBtn").style.display = "none";
+  cfg.logo_url = "";
+  renderCompanySnapshot();
+  // TODO: could add a server endpoint to clear the logo filename from config
+}
+
+// ─── Fields ──────────────────────────────────────────
+function renderFields() {
+  const container = document.getElementById("fieldsList");
+  container.innerHTML = "";
+  const fieldOrder = ["employee_name","department","employee_id","manager","project","period"];
+  fieldOrder.forEach(fid => {
+    const f = cfg.fields[fid];
+    if (!f) return;
+    const row = document.createElement("div");
+    row.className = "field-toggle-row";
+    row.innerHTML = `
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="fld_${fid}" ${f.enabled ? "checked" : ""}>
+      </div>
+      <label class="fw-semibold small" for="fld_${fid}" style="min-width:180px;">${f.label}</label>
+      <input type="text" class="form-control form-control-sm" id="fld_label_${fid}"
+             value="${f.label}" placeholder="Display label" style="max-width:260px;">
+    `;
+    container.appendChild(row);
+  });
+}
+async function saveFields() {
+  const fieldOrder = ["employee_name","department","employee_id","manager","project","period"];
+  const fields = {};
+  fieldOrder.forEach(fid => {
+    const chk   = document.getElementById(`fld_${fid}`);
+    const label = document.getElementById(`fld_label_${fid}`);
+    if (chk) fields[fid] = { enabled: chk.checked, label: label ? label.value : fid };
+  });
+  const res = await postJSON("/admin/config", { fields });
+  showMsg("fieldsMsg", res);
+  if (res.ok) cfg = res.data.config;
+}
+
+// ─── Expense Types ───────────────────────────────────
+let sortableInstance = null;
+function renderExpenseTypes() {
+  const container = document.getElementById("expenseTypesList");
+  container.innerHTML = "";
+  (cfg.expense_types || []).forEach((t, i) => {
+    const row = document.createElement("div");
+    row.className = "type-row";
+    row.dataset.idx = i;
+    row.innerHTML = `
+      <i class="fa-solid fa-grip-vertical drag-handle"></i>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input type-enabled" type="checkbox" ${t.enabled ? "checked" : ""}>
+      </div>
+      <input type="text" class="type-label" value="${escHtml(t.label)}" placeholder="Label">
+      <span class="text-muted small" style="min-width:120px;font-size:.75rem;">(ID: ${t.id})</span>
+      <button class="del-btn" title="Remove" onclick="removeTypeRow(this)">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    `;
+    container.appendChild(row);
+  });
+  if (sortableInstance) sortableInstance.destroy();
+  sortableInstance = new Sortable(container, {
+    animation: 150,
+    handle: ".drag-handle",
+    ghostClass: "sortable-ghost",
+  });
+}
+function addExpenseType() {
+  const id    = "CUSTOM_" + Date.now();
+  const label = "New Type";
+  cfg.expense_types = cfg.expense_types || [];
+  cfg.expense_types.push({ id, label, enabled: true });
+  renderExpenseTypes();
+  // focus last input
+  const inputs = document.querySelectorAll(".type-label");
+  if (inputs.length) inputs[inputs.length - 1].select();
+}
+function removeTypeRow(btn) {
+  btn.closest(".type-row").remove();
+}
+async function saveExpenseTypes() {
+  const rows = document.querySelectorAll("#expenseTypesList .type-row");
+  const types = [];
+  rows.forEach((row, i) => {
+    const enabled = row.querySelector(".type-enabled").checked;
+    const label   = row.querySelector(".type-label").value.trim();
+    const idSpan  = row.querySelector(".text-muted").textContent.replace("(ID: ","").replace(")","").trim();
+    if (label) types.push({ id: idSpan, label, enabled });
+  });
+  const res = await postJSON("/admin/config", {
+    expense_types: types
+  });
+  showMsg("typesMsg", res);
+  if (res.ok) { cfg = res.data.config; renderExpenseTypes(); }
+}
+
+// ─── Modes ───────────────────────────────────────────
+function renderModes() {
+  document.getElementById("modeDomestic").checked      = cfg.modes?.domestic?.enabled !== false;
+  document.getElementById("modeInternational").checked = cfg.modes?.international?.enabled !== false;
+}
+async function saveModes() {
+  const modes = {
+    domestic:      { enabled: document.getElementById("modeDomestic").checked },
+    international: { enabled: document.getElementById("modeInternational").checked },
+  };
+  const res = await postJSON("/admin/config", { modes });
+  showMsg("modesMsg", res);
+  if (res.ok) cfg = res.data.config;
+}
+
+function renderWizardSettings() {
+  const items = (cfg?.wizard?.risk_priority) || ["OCR_FAILED","IMAGE_UNREADABLE","LOW_CONFIDENCE","NEEDS_REVIEW"];
+  const box = document.getElementById("wizardRiskList");
+  if (!box) return;
+  box.innerHTML = items.map(k => `
+    <div class="type-row wizard-risk-item" data-key="${escHtml(k)}">
+      <i class="fa-solid fa-grip-vertical drag-handle"></i>
+      <span class="fw-semibold small">${escHtml(k)}</span>
+    </div>
+  `).join("");
+  if (wizardRiskSortable) wizardRiskSortable.destroy();
+  wizardRiskSortable = new Sortable(box, {
+    animation: 150,
+    handle: ".drag-handle",
+    ghostClass: "sortable-ghost",
+  });
+  const ttlBox = document.getElementById("wizardCacheTtlHours");
+  if (ttlBox) ttlBox.value = Number(cfg?.wizard?.cache_ttl_hours || 168);
+}
+async function saveWizardSettings() {
+  const risk_priority = [...document.querySelectorAll("#wizardRiskList .wizard-risk-item")]
+    .map(x => String(x.dataset.key || "").trim().toUpperCase())
+    .filter(Boolean);
+  let cache_ttl_hours = Number(document.getElementById("wizardCacheTtlHours")?.value || 168);
+  if (!Number.isFinite(cache_ttl_hours)) cache_ttl_hours = 168;
+  cache_ttl_hours = Math.max(1, Math.min(720, Math.round(cache_ttl_hours)));
+  const res = await postJSON("/admin/config", { wizard: { risk_priority, cache_ttl_hours } });
+  showMsg("wizardMsg", res);
+  if (res.ok) cfg = res.data.config;
+}
+
+function renderAuthPolicy() {
+  const values = (cfg?.auth?.allowed_email_domains || []);
+  const box = document.getElementById("allowedDomains");
+  if (box) box.value = values.join(", ");
+}
+
+async function saveAuthPolicy() {
+  const raw = (document.getElementById("allowedDomains").value || "").trim();
+  const allowed_email_domains = raw
+    ? raw.split(",").map(x => x.trim().toLowerCase()).filter(Boolean)
+    : [];
+  const host = getTargetHost();
+  const res = await postJSON(`/admin/config?host=${encodeURIComponent(host)}`, {
+    target_host: host,
+    auth: { allowed_email_domains }
+  });
+  if (!res.ok) {
+    document.getElementById("usersMsg").innerHTML = `<span class="text-danger">${res.error}</span>`;
+    return;
+  }
+  cfg = res.data.config;
+  document.getElementById("usersMsg").innerHTML = `<span class="text-success">Login domain policy saved for ${host}.</span>`;
+}
+
+// ─── Users ────────────────────────────────────────────
+async function loadUsers() {
+  const targetHost = getTargetHost();
+  const res = await fetch(`/admin/users?host=${encodeURIComponent(targetHost)}`);
+  const data = await res.json();
+  const tbody = document.getElementById("usersTableBody");
+  const scope = document.getElementById("usersScope");
+  if (!res.ok) {
+    scope.textContent = "";
+    tbody.innerHTML = `<tr><td colspan="6" class="text-danger small">${data.error || "Failed to load users."}</td></tr>`;
+    return;
+  }
+  userTargetHost = data._target_host || targetHost;
+  if (scope) scope.textContent = `Managing tenant host: ${userTargetHost}`;
+  const users = data.users || [];
+  if (!users.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-muted small">No users yet. Users will appear after first SSO login.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td>${escHtml(u.email || "")}</td>
+      <td>${escHtml(u.name || "")}</td>
+      <td>${escHtml(u.org_name || "")}</td>
+      <td>
+        <input type="checkbox" ${u.is_admin ? "checked" : ""} onchange="setUserFlag(${u.id}, 'is_admin', this.checked)">
+      </td>
+      <td>
+        <input type="checkbox" ${u.is_active ? "checked" : ""} onchange="setUserFlag(${u.id}, 'is_active', this.checked)">
+      </td>
+      <td class="small text-muted">${escHtml(u.updated_at || "")}</td>
+    </tr>
+  `).join("");
+}
+
+async function setUserFlag(userId, key, value) {
+  const payload = {};
+  payload[key] = value;
+  payload.target_host = getTargetHost();
+  const res = await fetch(`/admin/users/${userId}?host=${encodeURIComponent(getTargetHost())}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    document.getElementById("usersMsg").innerHTML = `<span class="text-danger">${data.error || "Update failed."}</span>`;
+  } else {
+    document.getElementById("usersMsg").innerHTML = `<span class="text-success">Updated.</span>`;
+  }
+  await loadUsers();
+}
+
+async function addAdminByEmail() {
+  const email = document.getElementById("newAdminEmail").value.trim();
+  const name = document.getElementById("newAdminName").value.trim();
+  if (!email) {
+    document.getElementById("usersMsg").innerHTML = `<span class="text-danger">Email is required.</span>`;
+    return;
+  }
+  const res = await postJSON(`/admin/users?host=${encodeURIComponent(getTargetHost())}`, {
+    email, name, is_admin: true, target_host: getTargetHost()
+  });
+  if (!res.ok) {
+    document.getElementById("usersMsg").innerHTML = `<span class="text-danger">${res.error}</span>`;
+    return;
+  }
+  document.getElementById("newAdminEmail").value = "";
+  document.getElementById("newAdminName").value = "";
+  document.getElementById("usersMsg").innerHTML = `<span class="text-success">Admin user saved.</span>`;
+  await loadUsers();
+  await loadUserPermissionMatrix();
+}
+
+async function loadUserPermissionMatrix() {
+  const host = getTargetHost();
+  const res = await fetch(`/admin/user-permissions?host=${encodeURIComponent(host)}`);
+  const data = await res.json();
+  const tbody = document.getElementById("permTableBody");
+  if (!res.ok) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-danger small">${data.error || "Failed."}</td></tr>`;
+    return;
+  }
+  const users = data.users || [];
+  if (!users.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-muted small">No users.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = users.map(u => {
+    const perms = new Set(u.explicit_permissions || []);
+    const isGeneral = ROLE_GENERAL.every(p => perms.has(p));
+    const isAccounting = ROLE_ACCOUNTING.every(p => perms.has(p));
+    const isAdmin = ROLE_ADMIN.every(p => perms.has(p));
+    return `
+      <tr data-user="${u.id}">
+        <td>${escHtml(u.email || "")}</td>
+        <td><input type="checkbox" class="perm-role-general" ${isGeneral ? "checked" : ""}></td>
+        <td><input type="checkbox" class="perm-role-accounting" ${isAccounting ? "checked" : ""}></td>
+        <td><input type="checkbox" class="perm-role-admin" ${isAdmin ? "checked" : ""}></td>
+        <td><input type="text" class="form-control form-control-sm perm-custom" value="${escHtml((u.explicit_permissions || []).join(","))}" placeholder="comma perms"></td>
+        <td><button class="btn btn-sm btn-outline-primary" onclick="saveUserPermRow(${u.id}, this)">Save</button></td>
+      </tr>
+    `;
+  }).join("");
+}
+
+async function saveUserPermRow(userId, btn) {
+  const tr = btn.closest("tr");
+  const roleGeneral = tr.querySelector(".perm-role-general").checked;
+  const roleAccounting = tr.querySelector(".perm-role-accounting").checked;
+  const roleAdmin = tr.querySelector(".perm-role-admin").checked;
+  const customRaw = (tr.querySelector(".perm-custom").value || "").trim();
+  const custom = customRaw ? customRaw.split(",").map(x => x.trim()).filter(Boolean) : [];
+  const perms = new Set(custom);
+  if (roleGeneral) ROLE_GENERAL.forEach(p => perms.add(p));
+  if (roleAccounting) ROLE_ACCOUNTING.forEach(p => perms.add(p));
+  if (roleAdmin) ROLE_ADMIN.forEach(p => perms.add(p));
+  const res = await fetch(`/admin/user-permissions/${userId}?host=${encodeURIComponent(getTargetHost())}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target_host: getTargetHost(), permissions: [...perms] }),
+  });
+  const data = await res.json();
+  const msg = document.getElementById("permMsg");
+  if (!res.ok) {
+    msg.innerHTML = `<span class="text-danger">${data.error || "Save failed."}</span>`;
+  } else {
+    msg.innerHTML = `<span class="text-success">Permissions updated.</span>`;
+  }
+}
+
+function applyMonitorUserSelect() {
+  const sel = document.getElementById("monitorUserSelect");
+  const inp = document.getElementById("monitorUserEmail");
+  if (!sel || !inp) return;
+  inp.value = (sel.value || "").trim().toLowerCase();
+}
+
+function syncMonitorUserSelect(users, selectedEmail) {
+  const sel = document.getElementById("monitorUserSelect");
+  if (!sel) return;
+  const uniq = [...new Set((users || []).map(u => String(u.email || "").trim().toLowerCase()).filter(Boolean))].sort();
+  const selected = String(selectedEmail || "").trim().toLowerCase();
+  sel.innerHTML = `<option value="">all users</option>` + uniq.map(e => `<option value="${escHtml(e)}">${escHtml(e)}</option>`).join("");
+  if (selected && !uniq.includes(selected)) {
+    sel.innerHTML += `<option value="${escHtml(selected)}">${escHtml(selected)} (custom)</option>`;
+  }
+  sel.value = selected;
+}
+
+function monitorLinkToInboxByUser(email){
+  return monitorLinkToInboxByUserWith(email, {});
+}
+
+function monitorLinkToInboxByUserWith(email, extra){
+  const e = String(email || "").trim().toLowerCase();
+  const url = new URL("/inbox/review", window.location.origin);
+  if (e) url.searchParams.set("iuser", e);
+  const monStatus = (document.getElementById("monitorReceiptStatus")?.value || "").trim().toLowerCase();
+  const monPeriod = (document.getElementById("monitorPeriod")?.value || "").trim();
+  if (monStatus) url.searchParams.set("istatus", monStatus);
+  if (["7","30","90","all"].includes(monPeriod)) url.searchParams.set("iquick_days", monPeriod);
+  if (extra && typeof extra === "object") {
+    Object.entries(extra).forEach(([k, v]) => {
+      const sv = String(v || "").trim();
+      if (sv) url.searchParams.set(k, sv);
+    });
+  }
+  url.searchParams.set("aback", `${window.location.pathname}${window.location.search}`);
+  return `${url.pathname}${url.search}`;
+}
+
+function monitorLinkToReportsByUser(email){
+  const e = String(email || "").trim().toLowerCase();
+  const url = new URL("/reports", window.location.origin);
+  if (e) url.searchParams.set("rcreator", e);
+  const monPeriod = (document.getElementById("monitorPeriod")?.value || "").trim();
+  if (["7","30","90"].includes(monPeriod)) {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - Number(monPeriod));
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    url.searchParams.set("rdate_from", iso(from));
+    url.searchParams.set("rdate_to", iso(to));
+  }
+  url.searchParams.set("aback", `${window.location.pathname}${window.location.search}`);
+  return `${url.pathname}${url.search}`;
+}
+
+function monitorLinkToInboxReceipt(email, receiptId){
+  const e = String(email || "").trim().toLowerCase();
+  const rid = String(receiptId || "").trim();
+  const url = new URL("/inbox/review", window.location.origin);
+  if (e) url.searchParams.set("iuser", e);
+  if (rid) url.searchParams.set("iq", rid);
+  const back = new URL(window.location.href);
+  if (rid) back.searchParams.set("monitor_receipt_id", rid);
+  url.searchParams.set("aback", `${back.pathname}${back.search}`);
+  return `${url.pathname}${url.search}`;
+}
+
+function monitorTooltip(key){
+  const isKo = String(navigator.language || "").toLowerCase().startsWith("ko");
+  const ko = {
+    inbox_receipt: "이 영수증 ID로 Inbox 열기 (iq=<id>)",
+    inbox_user: "이 사용자 업로더 기준으로 Inbox 열기 (iuser)",
+    reports_user: "이 사용자 생성자 기준으로 Reports 열기 (rcreator)",
+    all_receipts: "이 사용자의 전체 영수증 열기 (iuser)",
+    needs_review: "이 사용자의 검토 필요 영수증 열기 (istatus=needs_review)",
+    duplicate: "이 사용자의 중복 영수증 열기 (istatus=duplicate)",
+    assigned: "이 사용자의 보고서 할당 영수증 열기 (ireport_status=assigned)",
+    all_reports: "이 사용자의 Reports 열기 (rcreator)",
+  };
+  const en = {
+    inbox_receipt: "Open Inbox with this receipt ID filter (iq=<id>)",
+    inbox_user: "Open Inbox filtered by this uploader (iuser)",
+    reports_user: "Open Reports filtered by this user (rcreator)",
+    all_receipts: "Open all receipts for this user (iuser)",
+    needs_review: "Open needs_review receipts for this user (istatus=needs_review)",
+    duplicate: "Open duplicate receipts for this user (istatus=duplicate)",
+    assigned: "Open assigned receipts for this user (ireport_status=assigned)",
+    all_reports: "Open reports for this user (rcreator)",
+  };
+  const src = isKo ? ko : en;
+  return src[key] || (isKo ? "링크 열기" : "Open link");
+}
+
+function monitorIsoInt(v){
+  const raw = String(v || "").trim();
+  if(!raw) return 0;
+  const d = new Date(raw);
+  if(Number.isNaN(d.getTime())) return 0;
+  return d.getTime();
+}
+
+function sortMonitorKpiRows(rows){
+  const list = (rows || []).slice();
+  if (monitorSortKpi === "user_asc") return list.sort((a,b)=> String(a.email||"").localeCompare(String(b.email||"")));
+  if (monitorSortKpi === "reports_desc") return list.sort((a,b)=> Number(b.reports||0)-Number(a.reports||0) || String(a.email||"").localeCompare(String(b.email||"")));
+  if (monitorSortKpi === "reports_asc") return list.sort((a,b)=> Number(a.reports||0)-Number(b.reports||0) || String(a.email||"").localeCompare(String(b.email||"")));
+  if (monitorSortKpi === "receipts_asc") return list.sort((a,b)=> Number(a.receipts||0)-Number(b.receipts||0) || String(a.email||"").localeCompare(String(b.email||"")));
+  return list.sort((a,b)=> Number(b.receipts||0)-Number(a.receipts||0) || String(a.email||"").localeCompare(String(b.email||"")));
+}
+
+function sortMonitorReceiptRows(rows){
+  const list = (rows || []).slice();
+  if (monitorSortReceipts === "id_asc") return list.sort((a,b)=> Number(a.id||0)-Number(b.id||0));
+  if (monitorSortReceipts === "id_desc") return list.sort((a,b)=> Number(b.id||0)-Number(a.id||0));
+  if (monitorSortReceipts === "user_asc") return list.sort((a,b)=> String(a.uploader_email||"").localeCompare(String(b.uploader_email||"")) || Number(b.id||0)-Number(a.id||0));
+  if (monitorSortReceipts === "updated_asc") return list.sort((a,b)=> monitorIsoInt(a.updated_at)-monitorIsoInt(b.updated_at) || Number(b.id||0)-Number(a.id||0));
+  return list.sort((a,b)=> monitorIsoInt(b.updated_at)-monitorIsoInt(a.updated_at) || Number(b.id||0)-Number(a.id||0));
+}
+
+function sortMonitorReportRows(rows){
+  const list = (rows || []).slice();
+  if (monitorSortReports === "id_asc") return list.sort((a,b)=> Number(a.id||0)-Number(b.id||0));
+  if (monitorSortReports === "id_desc") return list.sort((a,b)=> Number(b.id||0)-Number(a.id||0));
+  if (monitorSortReports === "user_asc") return list.sort((a,b)=> String(a.creator_email||"").localeCompare(String(b.creator_email||"")) || Number(b.id||0)-Number(a.id||0));
+  if (monitorSortReports === "count_desc") return list.sort((a,b)=> Number(b.receipt_count||0)-Number(a.receipt_count||0) || Number(b.id||0)-Number(a.id||0));
+  if (monitorSortReports === "count_asc") return list.sort((a,b)=> Number(a.receipt_count||0)-Number(b.receipt_count||0) || Number(b.id||0)-Number(a.id||0));
+  if (monitorSortReports === "created_asc") return list.sort((a,b)=> monitorIsoInt(a.created_at)-monitorIsoInt(b.created_at) || Number(b.id||0)-Number(a.id||0));
+  return list.sort((a,b)=> monitorIsoInt(b.created_at)-monitorIsoInt(a.created_at) || Number(b.id||0)-Number(a.id||0));
+}
+
+function updateMonitorSortHeaders(){
+  const setTxt = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
+  setTxt("thMonKpiUser", "User");
+  setTxt("thMonKpiReceipts", "Receipts");
+  setTxt("thMonKpiReports", "Reports");
+  if (monitorSortKpi === "user_asc") setTxt("thMonKpiUser", "User ▲");
+  if (monitorSortKpi === "receipts_desc") setTxt("thMonKpiReceipts", "Receipts ▼");
+  if (monitorSortKpi === "receipts_asc") setTxt("thMonKpiReceipts", "Receipts ▲");
+  if (monitorSortKpi === "reports_desc") setTxt("thMonKpiReports", "Reports ▼");
+  if (monitorSortKpi === "reports_asc") setTxt("thMonKpiReports", "Reports ▲");
+
+  setTxt("thMonRcptId", "ID");
+  setTxt("thMonRcptUser", "User");
+  setTxt("thMonRcptUpdated", "Updated");
+  if (monitorSortReceipts === "id_desc") setTxt("thMonRcptId", "ID ▼");
+  if (monitorSortReceipts === "id_asc") setTxt("thMonRcptId", "ID ▲");
+  if (monitorSortReceipts === "user_asc") setTxt("thMonRcptUser", "User ▲");
+  if (monitorSortReceipts === "updated_desc") setTxt("thMonRcptUpdated", "Updated ▼");
+  if (monitorSortReceipts === "updated_asc") setTxt("thMonRcptUpdated", "Updated ▲");
+
+  setTxt("thMonRptId", "ID");
+  setTxt("thMonRptUser", "User");
+  setTxt("thMonRptCount", "Receipts");
+  setTxt("thMonRptCreated", "Created");
+  if (monitorSortReports === "id_desc") setTxt("thMonRptId", "ID ▼");
+  if (monitorSortReports === "id_asc") setTxt("thMonRptId", "ID ▲");
+  if (monitorSortReports === "user_asc") setTxt("thMonRptUser", "User ▲");
+  if (monitorSortReports === "count_desc") setTxt("thMonRptCount", "Receipts ▼");
+  if (monitorSortReports === "count_asc") setTxt("thMonRptCount", "Receipts ▲");
+  if (monitorSortReports === "created_desc") setTxt("thMonRptCreated", "Created ▼");
+  if (monitorSortReports === "created_asc") setTxt("thMonRptCreated", "Created ▲");
+}
+
+function toggleMonitorSort(group, key){
+  if (group === "kpi"){
+    if (key === "user") monitorSortKpi = "user_asc";
+    if (key === "receipts") monitorSortKpi = (monitorSortKpi === "receipts_desc") ? "receipts_asc" : "receipts_desc";
+    if (key === "reports") monitorSortKpi = (monitorSortKpi === "reports_desc") ? "reports_asc" : "reports_desc";
+  }
+  if (group === "receipts"){
+    if (key === "id") monitorSortReceipts = (monitorSortReceipts === "id_desc") ? "id_asc" : "id_desc";
+    if (key === "user") monitorSortReceipts = "user_asc";
+    if (key === "updated") monitorSortReceipts = (monitorSortReceipts === "updated_desc") ? "updated_asc" : "updated_desc";
+  }
+  if (group === "reports"){
+    if (key === "id") monitorSortReports = (monitorSortReports === "id_desc") ? "id_asc" : "id_desc";
+    if (key === "user") monitorSortReports = "user_asc";
+    if (key === "count") monitorSortReports = (monitorSortReports === "count_desc") ? "count_asc" : "count_desc";
+    if (key === "created") monitorSortReports = (monitorSortReports === "created_desc") ? "created_asc" : "created_desc";
+  }
+  loadAdminInboxMonitor();
+}
+
+function paginateMonitorRows(rows, page, pageSize){
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const current = Math.max(1, Math.min(page, pages));
+  const start = (current - 1) * pageSize;
+  return { items: rows.slice(start, start + pageSize), total, pages, current };
+}
+
+function renderMonitorPager(kind, pager){
+  const idMap = {
+    receipts: "monitorReceiptsPager",
+    reports: "monitorReportsPager",
+    audit: "monitorAuditPager",
+    shared_audit: "monitorSharedPresetAuditPager",
+  };
+  const el = document.getElementById(idMap[kind] || "");
+  if(!el) return;
+  if (!pager || pager.total <= MONITOR_PAGE_SIZE) {
+    el.textContent = pager ? `total ${pager.total}` : "";
+    return;
+  }
+  const prevDisabled = pager.current <= 1 ? "disabled" : "";
+  const nextDisabled = pager.current >= pager.pages ? "disabled" : "";
+  const prev = `changeMonitorPage('${kind}',-1)`;
+  const next = `changeMonitorPage('${kind}',1)`;
+  el.innerHTML = `
+    total ${pager.total} · page ${pager.current}/${pager.pages}
+    <button class="btn btn-sm btn-outline-secondary ms-2" ${prevDisabled} onclick="${prev}">Prev</button>
+    <button class="btn btn-sm btn-outline-secondary ms-1" ${nextDisabled} onclick="${next}">Next</button>
+  `;
+}
+
+function changeMonitorPage(kind, delta){
+  if (kind === "receipts") monitorPageReceipts = Math.max(1, monitorPageReceipts + Number(delta || 0));
+  if (kind === "reports") monitorPageReports = Math.max(1, monitorPageReports + Number(delta || 0));
+  if (kind === "audit") monitorPageAudit = Math.max(1, monitorPageAudit + Number(delta || 0));
+  if (kind === "shared_audit") monitorPageSharedAudit = Math.max(1, monitorPageSharedAudit + Number(delta || 0));
+  loadAdminInboxMonitor();
+}
+
+function restoreMonitorFiltersFromUrl(){
+  const qs = new URLSearchParams(window.location.search || "");
+  const userEmail = (qs.get("monitor_user_email") || "").trim().toLowerCase();
+  const status = (qs.get("monitor_status") || "").trim();
+  const period = (qs.get("monitor_period_days") || "").trim();
+  const receiptId = (qs.get("monitor_receipt_id") || "").trim();
+  const presetName = (qs.get("monitor_preset_name") || "").trim();
+  const byId = (id) => document.getElementById(id);
+  if (byId("monitorUserEmail")) byId("monitorUserEmail").value = userEmail;
+  if (byId("monitorReceiptStatus")) byId("monitorReceiptStatus").value = status;
+  if (byId("monitorPeriod")) byId("monitorPeriod").value = period || "0";
+  if (byId("monitorReceiptId")) byId("monitorReceiptId").value = receiptId;
+  if (byId("monitorPresetName")) byId("monitorPresetName").value = presetName;
+}
+
+function syncMonitorFiltersToUrl(){
+  const url = new URL(window.location.href);
+  const setOrDelete = (k, v) => {
+    const val = String(v || "").trim();
+    if (val) url.searchParams.set(k, val);
+    else url.searchParams.delete(k);
+  };
+  setOrDelete("monitor_user_email", (document.getElementById("monitorUserEmail")?.value || "").toLowerCase());
+  setOrDelete("monitor_status", document.getElementById("monitorReceiptStatus")?.value || "");
+  setOrDelete("monitor_period_days", document.getElementById("monitorPeriod")?.value || "0");
+  setOrDelete("monitor_receipt_id", document.getElementById("monitorReceiptId")?.value || "");
+  setOrDelete("monitor_preset_name", document.getElementById("monitorPresetName")?.value || "");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+async function loadAdminInboxMonitor(resetPage = false) {
+  if (resetPage) {
+    monitorPageReceipts = 1;
+    monitorPageReports = 1;
+    monitorPageAudit = 1;
+    monitorPageSharedAudit = 1;
+  }
+  const host = getTargetHost();
+  const userEmail = (document.getElementById("monitorUserEmail")?.value || "").trim().toLowerCase();
+  const receiptStatus = (document.getElementById("monitorReceiptStatus")?.value || "").trim();
+  const periodDays = (document.getElementById("monitorPeriod")?.value || "0").trim();
+  const receiptId = (document.getElementById("monitorReceiptId")?.value || "").trim();
+  syncMonitorFiltersToUrl();
+  const q = `${userEmail ? `&user_email=${encodeURIComponent(userEmail)}` : ""}${receiptStatus ? `&status=${encodeURIComponent(receiptStatus)}` : ""}${periodDays ? `&period_days=${encodeURIComponent(periodDays)}` : ""}${receiptId ? `&receipt_id=${encodeURIComponent(receiptId)}` : ""}`;
+  const [r1, r2] = await Promise.all([
+    fetch(`/admin/inbox/receipts?host=${encodeURIComponent(host)}${q}`),
+    fetch(`/admin/inbox/reports?host=${encodeURIComponent(host)}${q}`),
+  ]);
+  const d1 = await r1.json();
+  const d2 = await r2.json();
+  const rowsR = document.getElementById("monitorReceiptsRows");
+  const rowsP = document.getElementById("monitorReportsRows");
+  const rowsK = document.getElementById("monitorKpiRows");
+  const rowsA = document.getElementById("monitorAuditRows");
+  const rowsSPA = document.getElementById("monitorSharedPresetAuditRows");
+  const pagerR = document.getElementById("monitorReceiptsPager");
+  const pagerP = document.getElementById("monitorReportsPager");
+  const pagerA = document.getElementById("monitorAuditPager");
+  const pagerSPA = document.getElementById("monitorSharedPresetAuditPager");
+  const summary = document.getElementById("monitorSummary");
+  const presetName = (document.getElementById("monitorPresetName")?.value || "").trim();
+  if (!r1.ok || !r2.ok) {
+    rowsR.innerHTML = `<tr><td colspan="6" class="text-danger small">${escHtml(d1.error || d2.error || "Failed.")}</td></tr>`;
+    rowsP.innerHTML = `<tr><td colspan="5" class="text-danger small">${escHtml(d2.error || d1.error || "Failed.")}</td></tr>`;
+    rowsK.innerHTML = `<tr><td colspan="6" class="text-danger small">${escHtml(d1.error || d2.error || "Failed.")}</td></tr>`;
+    rowsA.innerHTML = `<tr><td colspan="5" class="text-danger small">${escHtml(d1.error || d2.error || "Failed.")}</td></tr>`;
+    rowsSPA.innerHTML = `<tr><td colspan="4" class="text-danger small">${escHtml(d1.error || d2.error || "Failed.")}</td></tr>`;
+    if (pagerR) pagerR.textContent = "";
+    if (pagerP) pagerP.textContent = "";
+    if (pagerA) pagerA.textContent = "";
+    if (pagerSPA) pagerSPA.textContent = "";
+    if (summary) summary.textContent = "";
+    return;
+  }
+  const receipts = sortMonitorReceiptRows(d1.receipts || []);
+  const reports = sortMonitorReportRows(d2.reports || []);
+  updateMonitorSortHeaders();
+  const receiptPage = paginateMonitorRows(receipts, monitorPageReceipts, MONITOR_PAGE_SIZE);
+  monitorPageReceipts = receiptPage.current;
+  renderMonitorPager("receipts", receiptPage);
+  rowsR.innerHTML = receiptPage.items.length ? receiptPage.items.map(x => `
+    <tr>
+      <td><a title="${escHtml(monitorTooltip("inbox_receipt"))}" href="${monitorLinkToInboxReceipt(x.uploader_email || "", x.id)}">${x.id}</a></td>
+      <td><a title="${escHtml(monitorTooltip("inbox_user"))}" href="${monitorLinkToInboxByUser(x.uploader_email || "")}">${escHtml(x.uploader_email || "")}</a></td>
+      <td>${escHtml(x.orig_filename || "")}</td>
+      <td>${escHtml(x.status || "")}</td>
+      <td>${escHtml(x.report_status || "")}</td>
+      <td class="small text-muted">${escHtml(x.updated_at || "")}</td>
+    </tr>
+  `).join("") : `<tr><td colspan="6" class="text-muted small">No receipts found.</td></tr>`;
+  const reportPage = paginateMonitorRows(reports, monitorPageReports, MONITOR_PAGE_SIZE);
+  monitorPageReports = reportPage.current;
+  renderMonitorPager("reports", reportPage);
+  rowsP.innerHTML = reportPage.items.length ? reportPage.items.map(x => `
+    <tr>
+      <td>${x.id}</td>
+      <td><a title="${escHtml(monitorTooltip("reports_user"))}" href="${monitorLinkToReportsByUser(x.creator_email || "")}">${escHtml(x.creator_email || "")}</a></td>
+      <td>${escHtml(x.output_filename || "")}</td>
+      <td>${x.receipt_count || 0}</td>
+      <td class="small text-muted">${escHtml(x.created_at || "")}</td>
+    </tr>
+  `).join("") : `<tr><td colspan="5" class="text-muted small">No reports found.</td></tr>`;
+  try {
+    const rk = await fetch(`/admin/inbox/kpi-by-user?host=${encodeURIComponent(host)}${periodDays ? `&period_days=${encodeURIComponent(periodDays)}` : ""}`);
+    const dk = await rk.json();
+    if (!rk.ok) {
+      rowsK.innerHTML = `<tr><td colspan="6" class="text-danger small">${escHtml(dk.error || "Failed.")}</td></tr>`;
+    } else {
+      const users = sortMonitorKpiRows(dk.users || []);
+      syncMonitorUserSelect(users, userEmail);
+      rowsK.innerHTML = users.length ? users.map(u => `
+        <tr>
+          <td>
+            <a title="${escHtml(monitorTooltip("inbox_user"))}" href="${monitorLinkToInboxByUser(u.email || "")}">${escHtml(u.email || "")}</a>
+            <span class="text-muted small"> · </span>
+            <a class="small" title="${escHtml(monitorTooltip("reports_user"))}" href="${monitorLinkToReportsByUser(u.email || "")}">reports</a>
+          </td>
+          <td>${u.receipts ? `<a title="${escHtml(monitorTooltip("all_receipts"))}" href="${monitorLinkToInboxByUserWith(u.email || "", { istatus: "", ireport_status: "" })}">${u.receipts}</a>` : 0}</td>
+          <td>${u.needs_review ? `<a title="${escHtml(monitorTooltip("needs_review"))}" href="${monitorLinkToInboxByUserWith(u.email || "", { istatus: "needs_review" })}">${u.needs_review}</a>` : 0}</td>
+          <td>${u.duplicate ? `<a title="${escHtml(monitorTooltip("duplicate"))}" href="${monitorLinkToInboxByUserWith(u.email || "", { istatus: "duplicate" })}">${u.duplicate}</a>` : 0}</td>
+          <td>${u.assigned ? `<a title="${escHtml(monitorTooltip("assigned"))}" href="${monitorLinkToInboxByUserWith(u.email || "", { ireport_status: "assigned" })}">${u.assigned}</a>` : 0}</td>
+          <td>${u.reports ? `<a title="${escHtml(monitorTooltip("all_reports"))}" href="${monitorLinkToReportsByUser(u.email || "")}">${u.reports}</a>` : 0}</td>
+        </tr>
+      `).join("") : `<tr><td colspan="6" class="text-muted small">No users.</td></tr>`;
+    }
+  } catch (_) {
+    rowsK.innerHTML = `<tr><td colspan="6" class="text-danger small">Failed.</td></tr>`;
+  }
+  try {
+    const ra = await fetch(`/admin/inbox/audit-logs?host=${encodeURIComponent(host)}${userEmail ? `&user_email=${encodeURIComponent(userEmail)}` : ""}${periodDays ? `&period_days=${encodeURIComponent(periodDays)}` : ""}${receiptId ? `&receipt_id=${encodeURIComponent(receiptId)}` : ""}`);
+    const da = await ra.json();
+    if (!ra.ok) {
+      rowsA.innerHTML = `<tr><td colspan="5" class="text-danger small">${escHtml(da.error || "Failed.")}</td></tr>`;
+      renderMonitorPager("audit", { total: 0, pages: 1, current: 1 });
+    } else {
+      const logs = da.logs || [];
+      const auditPage = paginateMonitorRows(logs, monitorPageAudit, MONITOR_PAGE_SIZE);
+      monitorPageAudit = auditPage.current;
+      renderMonitorPager("audit", auditPage);
+      rowsA.innerHTML = auditPage.items.length ? auditPage.items.map(x => `
+        <tr>
+          <td class="small text-muted">${escHtml(x.created_at || "")}</td>
+          <td>${x.receipt_id || ""}</td>
+          <td>${escHtml(x.actor_email || "")}</td>
+          <td class="small">${escHtml(x.changed_fields || "[]")}</td>
+          <td class="small">${renderAuditDiff(x)}</td>
+        </tr>
+      `).join("") : `<tr><td colspan="5" class="text-muted small">No audit logs.</td></tr>`;
+    }
+  } catch (_) {
+    rowsA.innerHTML = `<tr><td colspan="5" class="text-danger small">Failed.</td></tr>`;
+    renderMonitorPager("audit", { total: 0, pages: 1, current: 1 });
+  }
+  try {
+    const rsp = await fetch(`/admin/inbox/shared-preset-audit-logs?host=${encodeURIComponent(host)}${periodDays ? `&period_days=${encodeURIComponent(periodDays)}` : ""}${presetName ? `&preset_name=${encodeURIComponent(presetName)}` : ""}`);
+    const dsp = await rsp.json();
+    if (!rsp.ok) {
+      rowsSPA.innerHTML = `<tr><td colspan="4" class="text-danger small">${escHtml(dsp.error || "Failed.")}</td></tr>`;
+      renderMonitorPager("shared_audit", { total: 0, pages: 1, current: 1 });
+    } else {
+      const logs = dsp.logs || [];
+      const sharedAuditPage = paginateMonitorRows(logs, monitorPageSharedAudit, MONITOR_PAGE_SIZE);
+      monitorPageSharedAudit = sharedAuditPage.current;
+      renderMonitorPager("shared_audit", sharedAuditPage);
+      rowsSPA.innerHTML = sharedAuditPage.items.length ? sharedAuditPage.items.map(x => `
+        <tr>
+          <td class="small text-muted">${escHtml(x.created_at || "")}</td>
+          <td>${escHtml(x.preset_name || "")}</td>
+          <td>${escHtml(x.actor_email || "")}</td>
+          <td>${escHtml(x.action || "")}</td>
+        </tr>
+      `).join("") : `<tr><td colspan="4" class="text-muted small">No logs.</td></tr>`;
+    }
+  } catch (_) {
+    rowsSPA.innerHTML = `<tr><td colspan="4" class="text-danger small">Failed.</td></tr>`;
+    renderMonitorPager("shared_audit", { total: 0, pages: 1, current: 1 });
+  }
+  if (summary) {
+    summary.textContent = `Receipts ${receipts.length}건, Reports ${reports.length}건`;
+  }
+}
+function downloadAuditCsv() {
+  const host = getTargetHost();
+  const userEmail = (document.getElementById("monitorUserEmail")?.value || "").trim().toLowerCase();
+  const periodDays = (document.getElementById("monitorPeriod")?.value || "0").trim();
+  const receiptId = (document.getElementById("monitorReceiptId")?.value || "").trim();
+  const q = `${userEmail ? `&user_email=${encodeURIComponent(userEmail)}` : ""}${periodDays ? `&period_days=${encodeURIComponent(periodDays)}` : ""}${receiptId ? `&receipt_id=${encodeURIComponent(receiptId)}` : ""}`;
+  window.location.href = `/admin/inbox/audit-logs.csv?host=${encodeURIComponent(host)}${q}`;
+}
+function downloadSharedPresetAuditCsv() {
+  const host = getTargetHost();
+  const periodDays = (document.getElementById("monitorPeriod")?.value || "0").trim();
+  const presetName = (document.getElementById("monitorPresetName")?.value || "").trim();
+  window.location.href = `/admin/inbox/shared-preset-audit-logs.csv?host=${encodeURIComponent(host)}${periodDays ? `&period_days=${encodeURIComponent(periodDays)}` : ""}${presetName ? `&preset_name=${encodeURIComponent(presetName)}` : ""}`;
+}
+
+// ─── Login Page Visuals ───────────────────────────────
+async function loadLoginSlides() {
+  const res = await fetch("/admin/login-slides");
+  const data = await res.json();
+  const grid = document.getElementById("loginSlidesGrid");
+  if (!res.ok) {
+    grid.innerHTML = `<div class="small text-danger">${data.error || "Failed to load slides."}</div>`;
+    return;
+  }
+  document.getElementById("loginSlideInterval").value = data.interval_sec || 8;
+  const slides = data.slides || [];
+  if (!slides.length) {
+    grid.innerHTML = `<div class="small text-muted">No slides yet.</div>`;
+    return;
+  }
+  grid.innerHTML = slides.map(s => `
+    <div class="col-md-3">
+      <div class="border rounded p-2">
+        <img src="${s.url}" alt="" style="width:100%;height:90px;object-fit:cover;border-radius:6px;">
+        <div class="small mt-1 text-truncate">${escHtml(s.caption || "")}</div>
+        <button class="btn btn-sm btn-outline-danger mt-1 w-100" onclick="deleteLoginSlide('${s.filename}')">
+          <i class="fa-solid fa-trash me-1"></i>Delete
+        </button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function saveLoginVisualSettings() {
+  const intervalSec = parseInt(document.getElementById("loginSlideInterval").value || "8", 10);
+  const res = await postJSON("/admin/config", { login_page: { interval_sec: intervalSec } });
+  if (!res.ok) {
+    document.getElementById("loginVisualMsg").innerHTML = `<span class="text-danger">${res.error}</span>`;
+    return;
+  }
+  cfg = res.data.config;
+  document.getElementById("loginVisualMsg").innerHTML = `<span class="text-success">Interval saved.</span>`;
+}
+
+async function uploadLoginSlide() {
+  const file = document.getElementById("loginSlideFile").files[0];
+  const caption = document.getElementById("loginSlideCaption").value.trim();
+  if (!file) {
+    document.getElementById("loginVisualMsg").innerHTML = `<span class="text-danger">Select an image first.</span>`;
+    return;
+  }
+  const fd = new FormData();
+  fd.append("image", file);
+  fd.append("caption", caption);
+  const res = await fetch("/admin/login-slides", { method: "POST", body: fd });
+  const data = await res.json();
+  if (!res.ok) {
+    document.getElementById("loginVisualMsg").innerHTML = `<span class="text-danger">${data.error || "Upload failed."}</span>`;
+    return;
+  }
+  document.getElementById("loginSlideFile").value = "";
+  document.getElementById("loginSlideCaption").value = "";
+  document.getElementById("loginVisualMsg").innerHTML = `<span class="text-success">Slide uploaded.</span>`;
+  await loadLoginSlides();
+}
+
+async function deleteLoginSlide(filename) {
+  const res = await fetch(`/admin/login-slides/${encodeURIComponent(filename)}`, { method: "DELETE" });
+  const data = await res.json();
+  if (!res.ok) {
+    document.getElementById("loginVisualMsg").innerHTML = `<span class="text-danger">${data.error || "Delete failed."}</span>`;
+    return;
+  }
+  document.getElementById("loginVisualMsg").innerHTML = `<span class="text-success">Slide deleted.</span>`;
+  await loadLoginSlides();
+}
+
+// ─── Templates ───────────────────────────────────────
+async function loadTemplateStatus() {
+  const res  = await fetch("/admin/template-info");
+  const data = await res.json();
+  const area = document.getElementById("templateStatusArea");
+  const rows = [
+    ["domestic",      "🏠 Domestic",      data.domestic],
+    ["international", "🌍 International",  data.international],
+  ];
+  area.innerHTML = rows.map(([key, label, info]) => {
+    if (info.exists) {
+      const scopeTxt = info.scope === "tenant" ? "tenant custom" : "shared default";
+      return `<div class="tpl-status-ok d-flex align-items-center gap-2 mb-2">
+        <i class="fa-solid fa-circle-check text-success"></i>
+        <span class="fw-semibold">${label}</span>
+        <span class="text-muted small">— ${info.filename}, ${info.size_kb} KB, updated ${info.modified} (${scopeTxt})</span>
+      </div>`;
+    } else {
+      return `<div class="tpl-status-missing d-flex align-items-center gap-2 mb-2">
+        <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+        <span class="fw-semibold text-warning">${label} — not uploaded yet</span>
+      </div>`;
+    }
+  }).join("");
+}
+async function generateTemplates(which) {
+  const modes = which === "both" ? ["domestic","international"]
+              : which === "domestic" ? ["domestic"]
+              : ["international"];
+  const msgEl = document.getElementById("genMsg");
+  msgEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Generating...';
+  const res = await postJSON("/admin/generate-templates", {
+    modes
+  });
+  if (res.ok) {
+    msgEl.innerHTML = `<span class="text-success"><i class="fa-solid fa-check me-1"></i>Created: ${res.data.created.join(", ")}</span>`;
+    await loadTemplateStatus();
+    await loadTemplatePreview();
+  } else {
+    msgEl.innerHTML = `<span class="text-danger">${res.error}</span>`;
+  }
+}
+async function loadTemplatePreview() {
+  const mode = document.getElementById("previewMode").value || "domestic";
+  const area = document.getElementById("templatePreviewArea");
+  const meta = document.getElementById("templatePreviewMeta");
+  area.innerHTML = `<div class="small text-muted"><i class="fa-solid fa-spinner fa-spin me-1"></i>Loading preview...</div>`;
+  const res = await fetch(`/admin/template-preview?mode=${encodeURIComponent(mode)}`);
+  const data = await res.json();
+  if (!res.ok) {
+    meta.innerHTML = "";
+    area.innerHTML = `<div class="small text-danger">${data.error || "Preview failed."}</div>`;
+    return;
+  }
+  meta.innerHTML = `File: <b>${escHtml(data.filename || "-")}</b> · Scope: <b>${escHtml(data.scope || "-")}</b>`;
+  const sheets = Array.isArray(data.sheets) ? data.sheets : [];
+  if (!sheets.length) {
+    area.innerHTML = `<div class="small text-muted">No preview rows.</div>`;
+    return;
+  }
+  area.innerHTML = sheets.map(s => {
+    const rows = Array.isArray(s.rows) ? s.rows : [];
+    if (!rows.length) {
+      return `<div class="mb-3"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="small text-muted">No data rows.</div></div>`;
+    }
+    const cols = rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
+    const thead = `<tr>${Array.from({length: cols}, (_, i) => `<th class="small">C${i + 1}</th>`).join("")}</tr>`;
+    const tbody = rows.slice(0, 8).map(r => `<tr>${Array.from({length: cols}, (_, i) => `<td class="small">${escHtml((r && r[i]) || "")}</td>`).join("")}</tr>`).join("");
+    return `<div class="mb-3"><div class="small fw-semibold mb-1">${escHtml(s.name || "Sheet")}</div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
+  }).join("");
+}
+function handleTplFile(files) {
+  selectedTplFile = files[0] || null;
+  document.getElementById("selectedTpl").textContent = selectedTplFile
+    ? `${selectedTplFile.name} (${(selectedTplFile.size/1024).toFixed(1)} KB)` : "";
+  document.getElementById("uploadTplBtn").disabled = !selectedTplFile;
+}
+const dz = document.getElementById("dropZone");
+dz.addEventListener("dragover",  e => { e.preventDefault(); dz.classList.add("dragover"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
+dz.addEventListener("drop",      e => { e.preventDefault(); dz.classList.remove("dragover"); handleTplFile(e.dataTransfer.files); });
+async function uploadTemplate() {
+  if (!selectedTplFile) return;
+  const fd = new FormData();
+  fd.append("template", selectedTplFile);
+  fd.append("mode",     document.getElementById("uploadMode").value);
+  const res = await fetch("/admin/upload-template", { method:"POST", body:fd });
+  const data = await res.json();
+  const msgEl = document.getElementById("uploadTplMsg");
+  if (res.ok) {
+    msgEl.innerHTML = `<span class="text-success"><i class="fa-solid fa-check me-1"></i>${data.filename} uploaded (${(data.size/1024).toFixed(1)} KB)</span>`;
+    await loadTemplateStatus();
+    await loadTemplatePreview();
+  } else {
+    msgEl.innerHTML = `<span class="text-danger">${data.error}</span>`;
+  }
+  document.getElementById("uploadTplBtn").disabled = true;
+  selectedTplFile = null;
+}
+
+// ─── Helpers ─────────────────────────────────────────
+async function postJSON(url, body) {
+  try {
+    const res  = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || "Error" };
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+function showMsg(id, res) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (res.ok) {
+    el.innerHTML = '<span class="text-success"><i class="fa-solid fa-check me-1"></i>Saved!</span>';
+    setTimeout(() => el.innerHTML = "", 3000);
+  } else {
+    el.innerHTML = `<span class="text-danger"><i class="fa-solid fa-xmark me-1"></i>${res.error}</span>`;
+  }
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function safeJsonParse(txt, fallback) {
+  try { return JSON.parse(txt); } catch(_) { return fallback; }
+}
+function renderAuditDiff(x){
+  const fields = safeJsonParse(x.changed_fields || "[]", []);
+  const before = safeJsonParse(x.before_json || "{}", {});
+  const after = safeJsonParse(x.after_json || "{}", {});
+  if(!Array.isArray(fields) || !fields.length) return "-";
+  return fields.map(f => `${escHtml(String(f))}: <span class="text-danger">${escHtml(String(before[f] ?? ""))}</span> -> <span class="text-success">${escHtml(String(after[f] ?? ""))}</span>`).join("<br>");
+}
+
+// Auto-load on page open
+document.addEventListener("DOMContentLoaded", async () => {
+  restoreMonitorFiltersFromUrl();
+  const res = await fetch("/admin/auth-status");
+  if (!res.ok) return;
+  const data = await res.json();
+  isOperator = !!data.operator;
+  if (data.authenticated) {
+    const provider = (data.provider || "").toLowerCase();
+    const email = data.email || "";
+    const tag = provider === "microsoft" ? "MS365" : "Local";
+    const label = email ? `✓ ${tag} (${email})` : `✓ ${tag} Authenticated`;
+    await loadAdminConfig(label);
+    await loadTemplatePreview();
+  } else {
+    setAuthenticated(false, "");
+  }
+});
+</script>
+</body>
+</html>
+
+

@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  expense-processor:
+    build: .
+    container_name: expense-processor
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-this}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}   # 선택: 서버에 API 키 미리 설정 가능
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - ADMIN_SESSION_HOURS=${ADMIN_SESSION_HOURS:-12}
+      - LOCAL_LOGIN_ENABLED=${LOCAL_LOGIN_ENABLED:-true}
+      - LOCAL_LOGIN_PASSWORD=${LOCAL_LOGIN_PASSWORD:-admin123}
+      - SSO_ENABLED=${SSO_ENABLED:-false}
+      - SSO_PROVIDER=${SSO_PROVIDER:-microsoft}
+      - MS_TENANT_ID=${MS_TENANT_ID:-common}
+      - MS_CLIENT_ID=${MS_CLIENT_ID:-}
+      - MS_CLIENT_SECRET=${MS_CLIENT_SECRET:-}
+      - MS_REDIRECT_URI=${MS_REDIRECT_URI:-}
+      - SSO_SCOPES=${SSO_SCOPES:-openid profile email User.Read}
+      - SSO_FETCH_ORG=${SSO_FETCH_ORG:-true}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+      - OPERATOR_EMAILS=${OPERATOR_EMAILS:-john.kim@ezworks.co}
+      - OPERATOR_DOMAINS=${OPERATOR_DOMAINS:-ezworks.co}
+      - PROTECT_OPERATOR_ACCOUNTS=${PROTECT_OPERATOR_ACCOUNTS:-true}
+      - FLASK_DEBUG=false
+    volumes:
+      - ./uploads:/app/uploads    # 업로드 파일 영속화
+      - ./outputs:/app/outputs    # 생성 파일 영속화
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

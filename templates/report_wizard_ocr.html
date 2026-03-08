@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Wizard - OCR</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/app_ui.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="container py-4">
+    {% include "_module_nav.html" %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
+      <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
+    </div>
+    {% set wizard_step = 3 %}{% include "_wizard_progress.html" %}
+
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Step 3. OCR Processing</h6>
+        <button class="btn btn-sm btn-outline-primary" onclick="runOcrForNeedsReview()">Run OCR (needs_review)</button>
+      </div>
+      <div id="progressSummary" class="small text-muted mb-2"></div>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead><tr><th>#</th><th>File</th><th>Merchant</th><th>Status</th><th>Confidence</th><th>Lifecycle</th><th>Action</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-between mt-2">
+        <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
+        <a href="/reports/wizard/review" class="btn btn-sm btn-primary">Next: Review</a>
+      </div>
+    </div>
+  </div>
+  <script>
+    let rows = [];
+    function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+    function needsManual(x){
+      const lc = String(x.lifecycle_state || "").toUpperCase();
+      const cf = String(x.confidence || "").toLowerCase();
+      return lc === "LOW_CONFIDENCE" || lc === "OCR_FAILED" || lc === "IMAGE_UNREADABLE" || cf === "low";
+    }
+    function renderProgressSummary(){
+      const out = { total: 0, uploaded: 0, ocr: 0, needs_review: 0, ready: 0, assigned: 0 };
+      for (const x of (rows || [])) {
+        out.total += 1;
+        const lc = String(x.lifecycle_state || "").toUpperCase();
+        if (lc === "UPLOADED") out.uploaded += 1;
+        if (lc === "OCR_PROCESSING") out.ocr += 1;
+        if (lc === "NEEDS_REVIEW" || lc === "LOW_CONFIDENCE" || lc === "OCR_FAILED" || lc === "IMAGE_UNREADABLE") out.needs_review += 1;
+        if (lc === "READY_FOR_REPORT") out.ready += 1;
+        if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
+      }
+      const el = document.getElementById("progressSummary");
+      if (el) el.textContent = `Total ${out.total} · Uploaded ${out.uploaded} · OCR ${out.ocr} · Needs Review ${out.needs_review} · Ready ${out.ready} · Assigned ${out.assigned}`;
+    }
+    function toggleEdit(id){
+      const tr = document.getElementById(`edit-${id}`);
+      if(!tr) return;
+      tr.style.display = tr.style.display === "none" ? "" : "none";
+    }
+    async function loadRows(){
+      const r = await fetch("/api/inbox/receipts?report_status=unassigned&limit=200");
+      const d = await r.json();
+      if(!r.ok) return alert(d.error||"Failed");
+      rows = d.receipts || [];
+      renderProgressSummary();
+      document.getElementById("rows").innerHTML = rows.map((x,i)=>`
+        <tr>
+          <td>${i+1}</td>
+          <td>${esc(x.orig_filename||"")}</td>
+          <td>${esc(x.merchant||"-")}</td>
+          <td>${esc(x.status||"")}</td>
+          <td>${esc(x.confidence||"-")}</td>
+          <td>${esc(x.lifecycle_state||"-")}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-secondary" onclick="runOcr(${x.id})">OCR</button>
+            ${needsManual(x) ? `<button class="btn btn-sm btn-outline-warning ms-1" onclick="toggleEdit(${x.id})">Manual Entry</button>` : ""}
+          </td>
+        </tr>
+        <tr id="edit-${x.id}" style="display:none;">
+          <td colspan="7">
+            <div class="row g-2">
+              <div class="col-md-2"><input id="m-date-${x.id}" class="form-control form-control-sm" placeholder="YYYY-MM-DD" value="${esc(x.date||"")}"></div>
+              <div class="col-md-3"><input id="m-merchant-${x.id}" class="form-control form-control-sm" placeholder="merchant" value="${esc(x.merchant||"")}"></div>
+              <div class="col-md-2"><input id="m-amount-${x.id}" type="number" min="0" class="form-control form-control-sm" placeholder="amount" value="${Number(x.amount||0)}"></div>
+              <div class="col-md-1"><input id="m-currency-${x.id}" class="form-control form-control-sm" placeholder="cur" value="${esc(x.currency||"USD")}"></div>
+              <div class="col-md-2"><input id="m-category-${x.id}" class="form-control form-control-sm" placeholder="category" value="${esc(x.category||"")}"></div>
+              <div class="col-md-2"><button class="btn btn-sm btn-success w-100" onclick="saveManual(${x.id})">Save Manual</button></div>
+            </div>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="7" class="text-muted small">No receipts.</td></tr>`;
+    }
+    async function runOcr(id){
+      const r = await fetch(`/api/inbox/ocr/${id}`, {method:"POST"});
+      const d = await r.json();
+      if(!r.ok) return alert(d.error||"OCR failed");
+      loadRows();
+    }
+    async function runOcrForNeedsReview(){
+      const targets = rows.filter(x => x.status === "needs_review").map(x => x.id);
+      for(const id of targets){ await runOcr(id); }
+      await loadRows();
+    }
+    async function saveManual(id){
+      const body = {
+        date: (document.getElementById(`m-date-${id}`).value || "").trim(),
+        merchant: (document.getElementById(`m-merchant-${id}`).value || "").trim(),
+        amount: Number(document.getElementById(`m-amount-${id}`).value || 0),
+        currency: (document.getElementById(`m-currency-${id}`).value || "USD").trim().toUpperCase(),
+        category: (document.getElementById(`m-category-${id}`).value || "").trim().toUpperCase(),
+        confidence: "manual",
+        ocr_error: "",
+        status: "processed",
+      };
+      const r = await fetch(`/api/inbox/receipts/${id}`, {
+        method: "PATCH",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if(!r.ok) return alert(d.error || "Manual save failed");
+      await loadRows();
+    }
+    loadRows();
+  </script>
+</body>
+</html>
+
+
+

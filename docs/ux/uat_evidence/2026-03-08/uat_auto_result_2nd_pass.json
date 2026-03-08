@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-03-08T22:28:30",
+  "status": "PASS",
+  "gate": "GO",
+  "counts": {
+    "PASS": 8,
+    "FAIL": 0,
+    "PENDING": 0
+  },
+  "cases": [
+    {
+      "id": "C-01",
+      "title": "Anonymous redirect",
+      "status": "PASS",
+      "details": "redirects to /login",
+      "evidence": []
+    },
+    {
+      "id": "C-02",
+      "title": "Host isolation",
+      "status": "PASS",
+      "details": "host-specific config remained isolated",
+      "evidence": []
+    },
+    {
+      "id": "C-03",
+      "title": "Cross-tenant admin guard",
+      "status": "PASS",
+      "details": "cross-tenant admin request blocked",
+      "evidence": []
+    },
+    {
+      "id": "C-04",
+      "title": "Receipt ownership scope",
+      "status": "PASS",
+      "details": "own-scope list/detail guard works",
+      "evidence": []
+    },
+    {
+      "id": "C-05",
+      "title": "Admin monitor drill-down links",
+      "status": "PASS",
+      "details": "admin monitor drill-down link helpers present",
+      "evidence": []
+    },
+    {
+      "id": "C-06",
+      "title": "Wizard step separation",
+      "status": "PASS",
+      "details": "module nav and wizard separation maintained",
+      "evidence": []
+    },
+    {
+      "id": "C-07",
+      "title": "Unsaved edit guard wiring",
+      "status": "PASS",
+      "details": "dirty-state + generate guard wiring detected",
+      "evidence": []
+    },
+    {
+      "id": "C-08",
+      "title": "Accounting permission boundary",
+      "status": "PASS",
+      "details": "non-accounting user redirected from settings",
+      "evidence": []
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+<style>
+  .ezw-shell{border:1px solid #dbe4ef;border-radius:14px;background:#fff;box-shadow:0 8px 20px rgba(30,58,95,.06);padding:.85rem 1rem;margin-bottom:1rem;}
+  .ezw-brand{display:flex;align-items:center;gap:.85rem;padding:.35rem .2rem .7rem;border-bottom:1px solid #e6edf5;}
+  .ezw-brand-logo{width:84px;height:40px;object-fit:contain;border-radius:8px;background:#f8fbff;border:1px solid #e4edf7;padding:.15rem;}
+  .ezw-brand-fallback{width:84px;height:40px;border-radius:8px;background:#f8fbff;border:1px solid #d9e6f8;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .ezw-brand-fallback img{width:100%;height:100%;object-fit:contain;padding:.2rem;}
+  .ezw-brand-title{font-size:1rem;font-weight:700;color:#1e2a39;line-height:1.2;}
+  .ezw-brand-sub{font-size:.78rem;color:#64748b;line-height:1.2;}
+  .ezw-nav{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding-top:.75rem;}
+  .ezw-nav .btn-group .btn{min-width:92px;font-weight:600;}
+  .ezw-nav .btn-primary{background:#2563eb;border-color:#2563eb;}
+  .ezw-nav .btn-outline-primary{color:#1d4ed8;border-color:#b9cdf8;}
+  .ezw-host-chip{font-size:.72rem;color:#1e3a5f;background:#edf4ff;border:1px solid #d5e4ff;padding:.18rem .5rem;border-radius:999px;}
+</style>
+<div class="ezw-shell">
+  <div class="ezw-brand">
+    {% if logo_url %}
+    <img src="{{ logo_url }}" alt="Company Logo" class="ezw-brand-logo">
+    {% else %}
+    <div class="ezw-brand-fallback"><img src="/static/logos/ezworks_mark.svg" alt="EZWorks"></div>
+    {% endif %}
+    <div class="flex-grow-1">
+      <div class="ezw-brand-title">{{ (config.company.name if config and config.company else '') or 'Your Company' }}</div>
+      <div class="ezw-brand-sub">{{ (config.company.address if config and config.company else '') or 'Set company address in Admin > Company Information' }}</div>
+      {% if config and config.company and config.company.phone %}
+      <div class="ezw-brand-sub">{{ config.company.phone }}</div>
+      {% endif %}
+    </div>
+    <div class="ezw-host-chip" id="ezwCurrentHost"></div>
+  </div>
+  <div class="ezw-nav">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Top module navigation">
+      <a class="btn {{ 'btn-primary' if active_module == 'dashboard' else 'btn-outline-primary' }}" href="/dashboard">Dashboard</a>
+      <a class="btn {{ 'btn-primary' if active_module == 'inbox' else 'btn-outline-primary' }}" href="/inbox">Inbox</a>
+      <a class="btn {{ 'btn-primary' if active_module == 'reports' else 'btn-outline-primary' }}" href="/reports">Reports</a>
+      {% if can_access_admin_module|default(false) %}
+      <a class="btn {{ 'btn-primary' if active_module == 'admin' else 'btn-outline-primary' }}" href="/admin">Admin</a>
+      {% endif %}
+    </div>
+    <a href="/logout" class="btn btn-sm btn-outline-secondary">Logout</a>
+  </div>
+</div>
+<script>
+  (function(){
+    const el = document.getElementById("ezwCurrentHost");
+    if(!el) return;
+    el.textContent = window.location.host || "";
+  })();
+</script>
