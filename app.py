@@ -775,6 +775,30 @@ def _is_user_authenticated() -> bool:
         user = get_user_by_id(str(USER_DB_PATH), int(user_id))
         if user and user.get("is_active"):
             return True
+        email = (session.get("user_email") or "").strip().lower()
+        if email:
+            rebuilt = upsert_user_by_email(
+                db_path=str(USER_DB_PATH),
+                email=email,
+                name=(session.get("user_name") or "").strip(),
+                is_admin=bool(session.get("is_admin")),
+            )
+            if rebuilt and rebuilt.get("is_active"):
+                _set_session_user(rebuilt, provider=str(session.get("auth_provider") or "local"))
+                return True
+        _clear_session_user()
+        return False
+    email_only = (session.get("user_email") or "").strip().lower()
+    if email_only:
+        rebuilt = upsert_user_by_email(
+            db_path=str(USER_DB_PATH),
+            email=email_only,
+            name=(session.get("user_name") or "").strip(),
+            is_admin=bool(session.get("is_admin")),
+        )
+        if rebuilt and rebuilt.get("is_active"):
+            _set_session_user(rebuilt, provider=str(session.get("auth_provider") or "local"))
+            return True
         _clear_session_user()
         return False
     if session.get("is_admin"):
