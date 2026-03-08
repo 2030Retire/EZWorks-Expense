@@ -64,6 +64,7 @@
   </div>
   <script>
     let rows = [];
+    let uploading = false;
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function summarizeLifecycle(items){
       const out = { total: 0, uploaded: 0, ocr: 0, needs_review: 0, ready: 0, assigned: 0 };
@@ -209,11 +210,13 @@
     }
 
     async function uploadReceipts() {
+      if (uploading) return;
       const inp = document.getElementById("files");
       if (!inp.files.length) return alert("Select files.");
       const fd = new FormData();
       for (const f of inp.files) fd.append("receipts", f);
       try {
+        uploading = true;
         showUploadProgress(1);
         const d = await uploadWithProgress(fd);
         document.getElementById("msg").textContent = `Uploaded ${d.count} files`;
@@ -223,6 +226,7 @@
       } catch (e) {
         alert(e.message || "Upload failed");
       } finally {
+        uploading = false;
         setTimeout(hideUploadProgress, 500);
       }
     }

@@ -8,6 +8,7 @@ import json
 import copy
 import csv
 import io
+import hashlib
 from datetime import datetime, date as date_type, timedelta, timezone
 from pathlib import Path
 import uuid
@@ -22,6 +23,7 @@ from user_db import (
     get_user_by_id,
     list_users,
     update_user_flags,
+    update_user_profile,
     upsert_user_by_email,
     get_user_host_permissions,
     set_user_host_permissions,
@@ -43,6 +45,7 @@ from receipt_inbox_db import (
     create_receipt,
     get_receipt,
     delete_receipt,
+    find_receipt_by_hash,
     list_receipts,
     list_receipts_for_report,
     find_duplicate_receipt,
@@ -1018,7 +1021,7 @@ def reports_wizard_upload_page():
 def reports_wizard_ocr_page():
     if not _is_user_authenticated():
         return redirect("/login?next=/reports/wizard/ocr")
-    return _render_inbox_page("report_wizard_ocr.html", active_module="reports")
+    return redirect("/reports/wizard/upload")
 
 
 @app.route("/reports/wizard/review")
@@ -1184,6 +1187,19 @@ def inbox_upload_receipts():
         if not file or not allowed_file(file.filename, ALLOWED_IMAGE_EXT):
             continue
         orig_name = secure_filename(file.filename)
+        file_bytes = file.read()
+        file.stream.seek(0)
+        file_hash = hashlib.sha256(file_bytes).hexdigest() if file_bytes else ""
+        dup = find_receipt_by_hash(
+            db_path=str(RECEIPT_DB_PATH),
+            host=host,
+            file_hash=file_hash,
+            uploader_user_id=int(uploader_user_id) if uploader_user_id else None,
+            only_unassigned=True,
+        )
+        if dup:
+            rows.append(dup)
+            continue
         stored_name = f"{uuid.uuid4().hex[:8]}_{orig_name}"
         save_path = host_dir / stored_name
         file.save(str(save_path))
@@ -1195,6 +1211,7 @@ def inbox_upload_receipts():
             orig_filename=orig_name,
             stored_filename=stored_name,
             file_path=str(save_path),
+            file_hash=file_hash,
         )
         row = update_receipt(
             db_path=str(RECEIPT_DB_PATH),
@@ -2028,7 +2045,29 @@ def inbox_generate_report():
     exchange_rates_raw = body.get("exchange_rates")
     exchange_rates = None
     if exchange_rates_raw and isinstance(exchange_rates_raw, dict):
-        exchange_rates = {k: float(v) for k, v in exchange_rates_raw.items() if v}
+        parsed_rates = {}
+        for k, v in exchange_rates_raw.items():
+            key = str(k or "").strip()
+            if not key or v in (None, ""):
+                continue
+            if isinstance(v, dict):
+                nested = {}
+                for nk, nv in v.items():
+                    nkey = str(nk or "").strip().upper()
+                    if not nkey or nv in (None, ""):
+                        continue
+                    try:
+                        nested[nkey] = float(nv)
+                    except Exception:
+                        continue
+                if nested:
+                    parsed_rates[key] = nested
+            else:
+                try:
+                    parsed_rates[key] = float(v)
+                except Exception:
+                    continue
+        exchange_rates = parsed_rates or None
 
     employee_info = {
         "name": body.get("employee_name", ""),
@@ -2220,7 +2259,29 @@ def generate_report(session_id):
     exchange_rates_raw = data.get("exchange_rates")
     exchange_rates     = None
     if exchange_rates_raw and isinstance(exchange_rates_raw, dict):
-        exchange_rates = {k: float(v) for k, v in exchange_rates_raw.items() if v}
+        parsed_rates = {}
+        for k, v in exchange_rates_raw.items():
+            key = str(k or "").strip()
+            if not key or v in (None, ""):
+                continue
+            if isinstance(v, dict):
+                nested = {}
+                for nk, nv in v.items():
+                    nkey = str(nk or "").strip().upper()
+                    if not nkey or nv in (None, ""):
+                        continue
+                    try:
+                        nested[nkey] = float(nv)
+                    except Exception:
+                        continue
+                if nested:
+                    parsed_rates[key] = nested
+            else:
+                try:
+                    parsed_rates[key] = float(v)
+                except Exception:
+                    continue
+        exchange_rates = parsed_rates or None
 
     # 기간 필터
     date_range = None
@@ -2451,6 +2512,49 @@ def auth_me():
         "operator": _is_operator_session(),
         "user": view,
     })
+
+
+@app.route("/api/profile", methods=["GET", "PUT"])
+def api_profile():
+    uid = int(session.get("user_id") or 0)
+    if uid <= 0:
+        return jsonify({"error": "Login required."}), 401
+    if request.method == "GET":
+        user = get_user_by_id(str(USER_DB_PATH), uid)
+        if not user:
+            return jsonify({"error": "User not found."}), 404
+        return jsonify(
+            {
+                "profile": {
+                    "name": str(user.get("name") or ""),
+                    "department": str(user.get("department") or ""),
+                    "employee_id": str(user.get("employee_code") or ""),
+                    "manager": str(user.get("manager_name") or ""),
+                    "email": str(user.get("email") or ""),
+                }
+            }
+        )
+    body = request.get_json(silent=True) or {}
+    user = update_user_profile(
+        db_path=str(USER_DB_PATH),
+        user_id=uid,
+        name=body.get("name"),
+        department=body.get("department"),
+        employee_code=body.get("employee_id"),
+        manager_name=body.get("manager"),
+    )
+    return jsonify(
+        {
+            "status": "ok",
+            "profile": {
+                "name": str(user.get("name") or ""),
+                "department": str(user.get("department") or ""),
+                "employee_id": str(user.get("employee_code") or ""),
+                "manager": str(user.get("manager_name") or ""),
+                "email": str(user.get("email") or ""),
+            },
+        }
+    )
 
 
 @app.route("/auth/logout", methods=["POST"])

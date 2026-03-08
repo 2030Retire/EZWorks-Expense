@@ -37,11 +37,19 @@ def parse_date(value) -> Optional[date]:
     return None
 
 
-def get_rate_for_date(d, exchange_rate, exchange_rates):
+def get_rate_for_date(d, currency, exchange_rate, exchange_rates):
+    c = str(currency or "USD").strip().upper() or "USD"
+    if c == "USD":
+        return 1.0
     if exchange_rates and d:
         date_str = d.strftime("%Y-%m-%d")
         if date_str in exchange_rates:
-            return float(exchange_rates[date_str])
+            v = exchange_rates[date_str]
+            if isinstance(v, dict):
+                if c in v and v[c]:
+                    return float(v[c])
+            elif v:
+                return float(v)
     return float(exchange_rate)
 
 
@@ -253,7 +261,7 @@ def fill_list_sheet_domestic(ws, receipts, start_row: int,
         r_date  = parse_date(r.get("date"))
         amount  = float(r.get("amount") or 0)
         currency = r.get("currency", "USD")
-        rate     = get_rate_for_date(r_date, exchange_rate, exchange_rates)
+        rate     = get_rate_for_date(r_date, currency, exchange_rate, exchange_rates)
 
         if currency == "USD":
             amount_usd = amount
@@ -287,7 +295,7 @@ def fill_list_sheet_international(ws, receipts, start_row: int,
         r_date   = parse_date(r.get("date"))
         amount   = float(r.get("amount") or 0)
         currency = r.get("currency", "USD")
-        rate     = get_rate_for_date(r_date, exchange_rate, exchange_rates)
+        rate     = get_rate_for_date(r_date, currency, exchange_rate, exchange_rates)
 
         if currency == "USD":
             amount_usd    = amount
@@ -333,7 +341,7 @@ def fill_weekly_sheet_domestic(ws, receipts_by_date: dict, date_col_map: dict,
         for r in day_receipts:
             amount   = float(r.get("amount") or 0)
             currency = r.get("currency", "USD")
-            rate     = get_rate_for_date(d, exchange_rate, exchange_rates)
+            rate     = get_rate_for_date(d, currency, exchange_rate, exchange_rates)
             usd      = amount if currency == "USD" else (amount / rate if rate else 0.0)
             cat_totals[r.get("category", "MISCELLANEOUS")] += usd
 
@@ -377,7 +385,7 @@ def fill_weekly_sheet_international(ws, receipts_by_date: dict, date_col_map: di
         for r in day_receipts:
             amount   = float(r.get("amount") or 0)
             currency = r.get("currency", "USD")
-            rate     = get_rate_for_date(d, exchange_rate, exchange_rates)
+            rate     = get_rate_for_date(d, currency, exchange_rate, exchange_rates)
             if currency == "USD":
                 usd = amount; foreign = amount
             else:

@@ -17,21 +17,14 @@
     {% set wizard_step = 1 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
-      <h6 class="mb-3">Step 1. Settings</h6>
+      <h6 class="mb-3">Step 1. Basic Options</h6>
       <div class="row g-3">
-        <div class="col-md-6"><label class="form-label small">Employee Name</label><input id="employeeName" class="form-control form-control-sm"></div>
-        <div class="col-md-6"><label class="form-label small">Department</label><input id="department" class="form-control form-control-sm"></div>
-        <div class="col-md-4"><label class="form-label small">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
-        <div class="col-md-4"><label class="form-label small">Manager</label><input id="manager" class="form-control form-control-sm"></div>
-        <div class="col-md-4"><label class="form-label small">Project</label><input id="project" class="form-control form-control-sm"></div>
-
-        <div class="col-md-6"><label class="form-label small">Report Title</label><input id="reportTitle" class="form-control form-control-sm" placeholder="March expense report"></div>
-        <div class="col-md-3">
+        <div class="col-md-6">
           <label class="form-label small">Expense Type</label>
           <select id="reportType" class="form-select form-select-sm"></select>
           <div class="form-text">Domestic / International mode.</div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-6">
           <label class="form-label small">Base Currency</label>
           <select id="currency" class="form-select form-select-sm">
             <option value="USD">USD</option>
@@ -47,26 +40,6 @@
             <option value="VND">VND</option>
           </select>
         </div>
-
-        <div class="col-md-3">
-          <label class="form-label small">Expense Context</label>
-          <select id="expenseContext" class="form-select form-select-sm">
-            <option value="general">General Expense</option>
-            <option value="travel">Business Trip</option>
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small">Period Input</label>
-          <select id="periodMode" class="form-select form-select-sm">
-            <option value="auto">Auto from receipts</option>
-            <option value="manual">Manual input</option>
-          </select>
-        </div>
-        <div class="col-md-6"><label class="form-label small">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
-        <div class="col-md-6"><label class="form-label small">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
-
-        <div id="tripPurposeRow" class="col-md-12" style="display:none;"><label class="form-label small">Trip Purpose</label><input id="tripPurpose" class="form-control form-control-sm"></div>
-        <div class="col-md-12"><label class="form-label small">Notes</label><textarea id="notes" rows="3" class="form-control form-control-sm"></textarea></div>
       </div>
 
       <div class="d-flex justify-content-end mt-3">
@@ -77,9 +50,6 @@
   </div>
   <script>
     const KEY = "report_wizard_settings_v2";
-    const LEGACY_KEY = "report_wizard_settings_v1";
-    const FIELD_IDS = ["employeeName","department","employeeId","manager","project","reportTitle","reportType","currency","expenseContext","periodMode","periodFrom","periodTo","tripPurpose","notes"];
-    const PROFILE_IDS = new Set(["employeeName","department","employeeId","manager"]);
 
     function wizardGet(key, fallback){
       try {
@@ -106,22 +76,6 @@
         currency.disabled = false;
       }
     }
-    function applyContextRules(){
-      const context = String(document.getElementById("expenseContext").value || "general");
-      const row = document.getElementById("tripPurposeRow");
-      if (row) row.style.display = context === "travel" ? "" : "none";
-      if (context !== "travel") document.getElementById("tripPurpose").value = "";
-    }
-    function applyPeriodModeRules(){
-      const mode = String(document.getElementById("periodMode").value || "auto");
-      const manual = mode === "manual";
-      document.getElementById("periodFrom").disabled = !manual;
-      document.getElementById("periodTo").disabled = !manual;
-      if (!manual) {
-        document.getElementById("periodFrom").value = "";
-        document.getElementById("periodTo").value = "";
-      }
-    }
 
     async function loadWizardConfig(){
       try{
@@ -144,59 +98,17 @@
       }catch(_){ }
     }
 
-    async function prefillFromAuth(){
-      try {
-        const r = await fetch("/auth/me");
-        const d = await r.json();
-        if (!r.ok || !d?.authenticated || !d?.user) return;
-        const u = d.user;
-        const name = String(u.name || "").trim();
-        if (name) document.getElementById("employeeName").value = name;
-      } catch (_) {}
-    }
-
-    function resetNonProfileDefaults(){
-      const defaults = {
-        reportTitle: "",
-        reportType: "domestic",
-        currency: "USD",
-        expenseContext: "general",
-        periodMode: "auto",
-        periodFrom: "",
-        periodTo: "",
-        tripPurpose: "",
-        notes: "",
-        project: "",
-      };
-      Object.keys(defaults).forEach((id) => {
-        const el = document.getElementById(id);
-        if (el) el.value = defaults[id];
-      });
-    }
-
     function loadSettings(){
-      const s = wizardGet(KEY, wizardGet(LEGACY_KEY, {})) || {};
-      for (const id of FIELD_IDS){
-        const el = document.getElementById(id);
-        if (!el) continue;
-        if (s[id] === undefined) continue;
-        el.value = s[id];
-      }
-
-      const cameFromWizard = String(document.referrer || "").includes("/reports/wizard/");
-      if (!cameFromWizard) {
-        resetNonProfileDefaults();
-      }
+      const s = wizardGet(KEY, {}) || {};
+      if (s.reportType !== undefined) document.getElementById("reportType").value = s.reportType;
+      if (s.currency !== undefined) document.getElementById("currency").value = s.currency;
       applyTemplateRules();
-      applyContextRules();
-      applyPeriodModeRules();
     }
 
     function saveSettings(showMsg = false){
-      const s = {};
-      for(const id of FIELD_IDS){
-        s[id] = (document.getElementById(id).value || "").trim();
-      }
+      const s = wizardGet(KEY, {}) || {};
+      s.reportType = (document.getElementById("reportType").value || "domestic").trim();
+      s.currency = (document.getElementById("currency").value || "USD").trim().toUpperCase();
       wizardSet(KEY, s);
       if (showMsg) {
         const el = document.getElementById("saveStateMsg");
@@ -212,21 +124,13 @@
     (async()=>{
       await loadWizardConfig();
       loadSettings();
-      await prefillFromAuth();
-      saveSettings(false);
     })();
 
-    FIELD_IDS.forEach((id)=>{
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener("change", () => {
-        if (id === "reportType") applyTemplateRules();
-        if (id === "expenseContext") applyContextRules();
-        if (id === "periodMode") applyPeriodModeRules();
-        saveSettings(true);
-      });
-      el.addEventListener("blur", () => saveSettings(false));
+    document.getElementById("reportType").addEventListener("change", () => {
+      applyTemplateRules();
+      saveSettings(true);
     });
+    document.getElementById("currency").addEventListener("change", () => saveSettings(true));
   </script>
 </body>
 </html>

@@ -27,6 +27,7 @@ def _row_to_receipt(row):
         "orig_filename": row["orig_filename"] or "",
         "stored_filename": row["stored_filename"] or "",
         "file_path": row["file_path"] or "",
+        "file_hash": row["file_hash"] or "",
         "date": row["date"],
         "merchant": row["merchant"] or "",
         "amount": int(row["amount"] or 0),
@@ -85,6 +86,7 @@ def init_receipt_db(db_path: str):
                 orig_filename TEXT NOT NULL,
                 stored_filename TEXT NOT NULL,
                 file_path TEXT NOT NULL,
+                file_hash TEXT NOT NULL DEFAULT '',
                 date TEXT,
                 merchant TEXT NOT NULL DEFAULT '',
                 amount INTEGER NOT NULL DEFAULT 0,
@@ -133,6 +135,8 @@ def init_receipt_db(db_path: str):
         receipt_cols = {str(r[1]) for r in conn.execute("PRAGMA table_info(receipts)").fetchall()}
         if "lifecycle_state" not in receipt_cols:
             conn.execute("ALTER TABLE receipts ADD COLUMN lifecycle_state TEXT NOT NULL DEFAULT 'UPLOADED'")
+        if "file_hash" not in receipt_cols:
+            conn.execute("ALTER TABLE receipts ADD COLUMN file_hash TEXT NOT NULL DEFAULT ''")
         report_cols = {str(r[1]) for r in conn.execute("PRAGMA table_info(reports)").fetchall()}
         report_extra_cols = [
             ("employee_name", "TEXT NOT NULL DEFAULT ''"),
@@ -195,6 +199,7 @@ def init_receipt_db(db_path: str):
         conn.execute("CREATE INDEX IF NOT EXISTS idx_receipts_host_created ON receipts(host, created_at DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_receipts_host_status ON receipts(host, status, report_status)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_receipts_host_key_fields ON receipts(host, merchant, amount, date)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_receipts_host_hash ON receipts(host, file_hash)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_reports_host_created ON reports(host, created_at DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_category_mappings_host ON category_mappings(host)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_vendor_mappings_host ON vendor_mappings(host)")
@@ -210,6 +215,7 @@ def create_receipt(
     orig_filename: str,
     stored_filename: str,
     file_path: str,
+    file_hash: str = "",
 ):
     now = _utc_now()
     with _connect(db_path) as conn:
@@ -217,11 +223,11 @@ def create_receipt(
             """
             INSERT INTO receipts(
                 host, uploader_user_id, uploader_email,
-                orig_filename, stored_filename, file_path,
+                orig_filename, stored_filename, file_path, file_hash,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (host, uploader_user_id, uploader_email, orig_filename, stored_filename, file_path, now, now),
+            (host, uploader_user_id, uploader_email, orig_filename, stored_filename, file_path, file_hash or "", now, now),
         )
         conn.commit()
         row = conn.execute("SELECT * FROM receipts WHERE id = ?", (int(cur.lastrowid),)).fetchone()
@@ -234,6 +240,32 @@ def get_receipt(db_path: str, host: str, receipt_id: int):
             "SELECT * FROM receipts WHERE id = ? AND host = ?",
             (receipt_id, host),
         ).fetchone()
+    return _row_to_receipt(row)
+
+
+def find_receipt_by_hash(
+    db_path: str,
+    host: str,
+    file_hash: str,
+    uploader_user_id: int | None = None,
+    only_unassigned: bool = True,
+):
+    if not file_hash:
+        return None
+    clauses = ["host = ?", "file_hash = ?"]
+    args = [host, file_hash]
+    if uploader_user_id is not None:
+        clauses.append("uploader_user_id = ?")
+        args.append(int(uploader_user_id))
+    if only_unassigned:
+        clauses.append("report_status = 'unassigned'")
+    sql = (
+        "SELECT * FROM receipts "
+        f"WHERE {' AND '.join(clauses)} "
+        "ORDER BY id DESC LIMIT 1"
+    )
+    with _connect(db_path) as conn:
+        row = conn.execute(sql, tuple(args)).fetchone()
     return _row_to_receipt(row)
 
 

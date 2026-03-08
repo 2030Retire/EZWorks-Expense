@@ -24,6 +24,9 @@ def init_user_db(db_path: str):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 email TEXT NOT NULL UNIQUE,
                 name TEXT DEFAULT '',
+                department TEXT DEFAULT '',
+                employee_code TEXT DEFAULT '',
+                manager_name TEXT DEFAULT '',
                 tenant_id TEXT DEFAULT '',
                 org_name TEXT DEFAULT '',
                 is_admin INTEGER NOT NULL DEFAULT 0,
@@ -51,6 +54,13 @@ def init_user_db(db_path: str):
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_identities_user_id ON identities(user_id)"
         )
+        user_cols = {str(r[1]) for r in conn.execute("PRAGMA table_info(users)").fetchall()}
+        if "department" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN department TEXT DEFAULT ''")
+        if "employee_code" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN employee_code TEXT DEFAULT ''")
+        if "manager_name" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN manager_name TEXT DEFAULT ''")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS user_host_permissions (
@@ -154,6 +164,9 @@ def _row_to_user(row):
         "id": int(row["id"]),
         "email": row["email"],
         "name": row["name"] or "",
+        "department": row["department"] or "",
+        "employee_code": row["employee_code"] or "",
+        "manager_name": row["manager_name"] or "",
         "tenant_id": row["tenant_id"] or "",
         "org_name": row["org_name"] or "",
         "is_admin": bool(row["is_admin"]),
@@ -171,7 +184,7 @@ def list_users(db_path: str):
     with _connect(db_path) as conn:
         rows = conn.execute(
             """
-            SELECT id, email, name, tenant_id, org_name, is_admin, is_active, created_at, updated_at
+            SELECT id, email, name, department, employee_code, manager_name, tenant_id, org_name, is_admin, is_active, created_at, updated_at
             FROM users
             ORDER BY is_admin DESC, updated_at DESC, id DESC
             """
@@ -211,6 +224,43 @@ def update_user_flags(db_path: str, user_id: int, is_admin=None, is_active=None)
             raise ValueError("user not found")
         conn.commit()
         row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return _row_to_user(row)
+
+
+def update_user_profile(
+    db_path: str,
+    user_id: int,
+    name: str | None = None,
+    department: str | None = None,
+    employee_code: str | None = None,
+    manager_name: str | None = None,
+):
+    updates = []
+    values = []
+    if name is not None:
+        updates.append("name = ?")
+        values.append(str(name or "").strip())
+    if department is not None:
+        updates.append("department = ?")
+        values.append(str(department or "").strip())
+    if employee_code is not None:
+        updates.append("employee_code = ?")
+        values.append(str(employee_code or "").strip())
+    if manager_name is not None:
+        updates.append("manager_name = ?")
+        values.append(str(manager_name or "").strip())
+    if not updates:
+        raise ValueError("no profile updates requested")
+    now = _utc_now()
+    updates.append("updated_at = ?")
+    values.append(now)
+    values.append(int(user_id))
+    with _connect(db_path) as conn:
+        cur = conn.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = ?", tuple(values))
+        if cur.rowcount == 0:
+            raise ValueError("user not found")
+        conn.commit()
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (int(user_id),)).fetchone()
     return _row_to_user(row)
 
 

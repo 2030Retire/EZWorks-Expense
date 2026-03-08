@@ -14,442 +14,183 @@
       <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
       <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
     </div>
-    {% set wizard_step = 4 %}{% include "_wizard_progress.html" %}
+    {% set wizard_step = 3 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="mb-0">Step 4. Review & Edit</h6>
+        <h6 class="mb-0">Step 3. Review & Edit</h6>
         <div class="d-flex gap-2">
-          <select id="riskMode" class="form-select form-select-sm" style="max-width:170px;" onchange="applyRiskMode()">
-            <option value="default">Tenant Priority</option>
-            <option value="personal">My Priority</option>
-          </select>
-          <div id="riskOrderList" class="d-flex gap-2 flex-wrap" style="min-width:360px;"></div>
-          <button class="btn btn-sm btn-outline-dark" onclick="savePersonalRiskOrder()">Save My Priority</button>
-          <button id="btnRiskyOnly" class="btn btn-sm btn-outline-warning" onclick="showRiskyOnly()">Show Risky Only</button>
-          <button id="btnDirtyOnly" class="btn btn-sm btn-outline-danger" onclick="showDirtyOnly()">Show Dirty Only</button>
-          <button id="btnDirtyFirst" class="btn btn-sm btn-outline-dark" onclick="toggleDirtyFirst()">Dirty First: <span id="dirtyFirstLabel">ON</span></button>
-          <button id="btnShowAll" class="btn btn-sm btn-outline-secondary" onclick="showAllRows()">Show All</button>
-          <button class="btn btn-sm btn-outline-success" onclick="confirmAllRisky()">Confirm All Risky</button>
           <button class="btn btn-sm btn-outline-primary" onclick="saveSelection()">Save Selection</button>
+          <button class="btn btn-sm btn-success" onclick="saveAllDirty()">Save All Dirty</button>
         </div>
       </div>
       <div id="progressSummary" class="small text-muted mb-2"></div>
       <div id="dirtySummary" class="small text-warning mb-2"></div>
-      <div id="expiredNotice" class="alert alert-warning py-2 px-3 mb-2 small" style="display:none;"></div>
-      <div id="filterStateBadges" class="small mb-2"></div>
       <div class="table-responsive">
         <table class="table table-sm align-middle">
-          <thead><tr><th><input type="checkbox" onchange="toggleAll(this)"></th><th>File</th><th>Date</th><th>Merchant</th><th>Amount</th><th>Currency</th><th>Category</th><th>Memo</th><th>Confidence</th><th>Lifecycle</th><th>Dirty</th><th>Confirm</th><th>Save</th></tr></thead>
+          <thead><tr><th><input type="checkbox" onchange="toggleAll(this)"></th><th>File</th><th>Date</th><th>Merchant</th><th>Amount</th><th>Currency</th><th>Category</th><th>Memo</th><th>Status</th><th>Lifecycle</th><th>Dirty</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
       <datalist id="categoryOptions"></datalist>
-      <div class="small text-muted">Selected items with LOW_CONFIDENCE/OCR errors require manual confirmation before Generate.</div>
       <div class="d-flex justify-content-between mt-2">
-        <a href="/reports/wizard/ocr" class="btn btn-sm btn-outline-secondary">Back</a>
+        <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
         <button class="btn btn-sm btn-primary" onclick="goNext()">Next: Generate</button>
       </div>
       <div id="msg" class="small text-muted mt-2"></div>
     </div>
   </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
   <script>
     const KEY = "report_wizard_selected_ids_v1";
-    const RISK_CONFIRM_KEY = "report_wizard_risk_confirmed_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
-    let wizardTtlMs = 7 * 24 * 60 * 60 * 1000;
-    let wizardExpired = false;
-    const expiredKeys = new Set();
-    const isKo = String(navigator.language || "").toLowerCase().startsWith("ko");
-    let allRows = [];
-    let riskyOnly = false;
-    let dirtyOnly = false;
-    let dirtyFirst = true;
-    let defaultRiskOrder = ["OCR_FAILED","IMAGE_UNREADABLE","LOW_CONFIDENCE","NEEDS_REVIEW"];
-    let personalRiskOrder = [];
-    let riskMode = "default";
-    let riskSortable = null;
-    let categoryOptions = [];
-    const riskLabelMap = {
-      OCR_FAILED: "OCR parse failed",
-      IMAGE_UNREADABLE: "Image unreadable",
-      LOW_CONFIDENCE: "Low confidence extraction",
-      NEEDS_REVIEW: "Manual review required",
-    };
-    function keyLabel(key){
-      const map = {
-        [KEY]: "selection",
-        [RISK_CONFIRM_KEY]: "risk-confirm",
-        [DIRTY_KEY]: "dirty",
-      };
-      return map[key] || key;
-    }
+    let rowsAll = [];
+
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
       try{
         const raw = localStorage.getItem(key);
         if(!raw) return fallback;
         const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value") && Object.prototype.hasOwnProperty.call(parsed, "ts")) {
-          const ts = Number(parsed.ts || 0);
-          if (ts > 0 && (Date.now() - ts) > wizardTtlMs) {
-            localStorage.removeItem(key);
-            wizardExpired = true;
-            expiredKeys.add(keyLabel(key));
-            return fallback;
-          }
-          return parsed.value;
-        }
-        return parsed; // legacy raw JSON compatibility
-      }catch(_){
-        return fallback;
-      }
+        if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value")) return parsed.value;
+        return parsed;
+      }catch(_){ return fallback; }
     }
     function wizardSet(key, value){
-      try{
-        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value }));
-      }catch(_){}
-    }
-    function renderExpiredNotice(){
-      const el = document.getElementById("expiredNotice");
-      if (!el) return;
-      if (wizardExpired) {
-        el.style.display = "";
-        const keys = [...expiredKeys];
-        const msg = isKo
-          ? `일부 Wizard 로컬 상태가 만료되어 초기화되었습니다. (${keys.join(", ") || "state"})`
-          : `Some wizard local state expired and was reset. (${keys.join(", ") || "state"})`;
-        const btn = isKo ? "Step 1로 초기화" : "Reset to Step 1";
-        el.innerHTML = `${esc(msg)} <button class="btn btn-sm btn-outline-dark ms-2" onclick="resetWizardStateToStep1()">${esc(btn)}</button>`;
-      } else {
-        el.style.display = "none";
-        el.innerHTML = "";
-      }
-    }
-    function resetWizardStateToStep1(){
-      [KEY, RISK_CONFIRM_KEY, DIRTY_KEY, "report_wizard_settings_v1", "report_wizard_settings_v2"].forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
-      window.location.href = "/reports/wizard/settings";
-    }
-    function isRisky(x){
-      const lc = String(x.lifecycle_state || "").toUpperCase();
-      const cf = String(x.confidence || "").toLowerCase();
-      return ["LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE","NEEDS_REVIEW"].includes(lc) || cf === "low";
-    }
-    function riskPriority(x){
-      const lc = String(x.lifecycle_state || "").toUpperCase();
-      const normalized = (lc === "UPLOADED" && String(x.status || "").toLowerCase() === "needs_review")
-        ? "NEEDS_REVIEW"
-        : (String(x.confidence || "").toLowerCase() === "low" && lc === "READY_FOR_REPORT" ? "LOW_CONFIDENCE" : lc);
-      const activeOrder = (riskMode === "personal" && personalRiskOrder.length) ? personalRiskOrder : defaultRiskOrder;
-      const idx = activeOrder.indexOf(normalized);
-      if (idx >= 0) return (activeOrder.length - idx);
-      return 0;
-    }
-    async function loadRiskOrder(){
-      try {
-        const r = await fetch("/api/config");
-        const d = await r.json();
-        const arr = (d?.wizard?.risk_priority || []);
-        if (Array.isArray(arr) && arr.length) defaultRiskOrder = arr.map(x => String(x || "").toUpperCase()).filter(Boolean);
-        categoryOptions = (d?.expense_types || [])
-          .filter(x => x && x.enabled && x.id)
-          .map(x => String(x.id || "").toUpperCase())
-          .filter(Boolean);
-        const listEl = document.getElementById("categoryOptions");
-        if (listEl) {
-          listEl.innerHTML = categoryOptions.map((c) => `<option value="${esc(c)}"></option>`).join("");
-        }
-        const hours = Number(d?.wizard?.cache_ttl_hours || 168);
-        if (Number.isFinite(hours)) wizardTtlMs = Math.max(1, Math.min(24 * 30, Math.round(hours))) * 60 * 60 * 1000;
-      } catch(_) {}
-    }
-    function renderRiskOrderList(order){
-      const box = document.getElementById("riskOrderList");
-      box.innerHTML = (order || []).map(k => `
-        <div class="type-row risk-item" data-key="${esc(k)}" style="min-width:150px;" title="${esc(riskLabelMap[String(k || "").toUpperCase()] || "Risk priority item")}">
-          <i class="fa-solid fa-grip-vertical drag-handle"></i>
-          <span class="small fw-semibold">${esc(k)}</span>
-        </div>
-      `).join("");
-      if (riskSortable) riskSortable.destroy();
-      riskSortable = new Sortable(box, {
-        animation: 120,
-        handle: ".drag-handle",
-        disabled: (riskMode !== "personal"),
-      });
-    }
-    async function loadWizardPreference(){
-      try {
-        const r = await fetch("/api/inbox/wizard-preferences");
-        const d = await r.json();
-        if(!r.ok) return;
-        const pref = d.preference || {};
-        riskMode = (pref.mode || "default");
-        personalRiskOrder = Array.isArray(pref.risk_priority) ? pref.risk_priority.map(x => String(x || "").toUpperCase()) : [];
-      } catch(_) {}
-      document.getElementById("riskMode").value = riskMode;
-      const activeOrder = (riskMode === "personal" && personalRiskOrder.length) ? personalRiskOrder : defaultRiskOrder;
-      renderRiskOrderList(activeOrder);
-    }
-    function applyRiskMode(){
-      riskMode = document.getElementById("riskMode").value || "default";
-      const activeOrder = (riskMode === "personal" && personalRiskOrder.length) ? personalRiskOrder : defaultRiskOrder;
-      renderRiskOrderList(activeOrder);
-      renderRows();
-    }
-    async function savePersonalRiskOrder(){
-      const arr = [...document.querySelectorAll("#riskOrderList .risk-item")]
-        .map(x => String(x.dataset.key || "").trim().toUpperCase())
-        .filter(Boolean);
-      const payload = { mode: (document.getElementById("riskMode").value || "default"), risk_priority: arr };
-      const r = await fetch("/api/inbox/wizard-preferences", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(payload),
-      });
-      const d = await r.json();
-      if(!r.ok) return alert(d.error || "Save failed");
-      riskMode = payload.mode;
-      personalRiskOrder = arr;
-      renderRiskOrderList((riskMode === "personal" && personalRiskOrder.length) ? personalRiskOrder : defaultRiskOrder);
-      renderRows();
-    }
-    function markDirty(input){
-      const tr = input.closest("tr");
-      if (!tr) return;
-      tr.dataset.dirty = "1";
-      tr.classList.add("table-active");
-      const dirtyCell = tr.children[10];
-      if (dirtyCell) dirtyCell.innerHTML = `<span class="badge text-bg-warning">Unsaved</span>`;
-      const id = Number(tr.dataset.id || 0);
-      if (!id) return;
-      const dirty = wizardGet(DIRTY_KEY, []);
-      const set = new Set((dirty || []).map(Number).filter(Boolean));
-      set.add(id);
-      wizardSet(DIRTY_KEY, [...set]);
-      renderDirtySummary();
-    }
-    function toggleAll(cb){
-      document.querySelectorAll(".sel").forEach(x=>x.checked=cb.checked);
-      saveSelection();
-    }
-    function selectedIds(){ return [...document.querySelectorAll(".sel:checked")].map(x=>Number(x.value)); }
-    function preloadFromQuery(){
-      const p = new URLSearchParams(window.location.search);
-      const ids = (p.get("ids") || "").split(",").map(x => Number(x.trim())).filter(Boolean);
-      if(ids.length) wizardSet(KEY, ids);
-    }
-    function restoreWizardViewFromUrl(){
-      const p = new URLSearchParams(window.location.search);
-      const wrisky = String(p.get("wrisky") || "").trim();
-      const wdirty = String(p.get("wdirty") || "").trim();
-      const wdirtyfirst = String(p.get("wdirtyfirst") || "").trim();
-      riskyOnly = (wrisky === "1" || wrisky.toLowerCase() === "true");
-      dirtyOnly = (wdirty === "1" || wdirty.toLowerCase() === "true");
-      if (wdirtyfirst) dirtyFirst = !(wdirtyfirst === "0" || wdirtyfirst.toLowerCase() === "false");
-      const lbl = document.getElementById("dirtyFirstLabel");
-      if (lbl) lbl.textContent = dirtyFirst ? "ON" : "OFF";
-    }
-    function syncWizardViewToUrl(){
-      const url = new URL(window.location.href);
-      const setOrDelete = (k, v) => {
-        if (v) url.searchParams.set(k, "1");
-        else url.searchParams.delete(k);
-      };
-      setOrDelete("wrisky", riskyOnly);
-      setOrDelete("wdirty", dirtyOnly);
-      if (!dirtyFirst) url.searchParams.set("wdirtyfirst", "0");
-      else url.searchParams.delete("wdirtyfirst");
-      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){}
     }
     function getSavedSelection(){
       const v = wizardGet(KEY, []);
       return Array.isArray(v) ? v : [];
     }
-    function getSavedRiskConfirmIds(){
-      const v = wizardGet(RISK_CONFIRM_KEY, []);
-      return Array.isArray(v) ? v : [];
+    function getDirtySet(){
+      return new Set((wizardGet(DIRTY_KEY, []) || []).map(Number).filter(Boolean));
     }
-    function getDirtyIdSet(){
-      const arr = wizardGet(DIRTY_KEY, []);
-      return new Set((arr || []).map(Number).filter(Boolean));
+    function markDirty(tr){
+      const id = Number(tr.dataset.id || 0);
+      if (!id) return;
+      tr.dataset.dirty = "1";
+      tr.classList.add("table-active");
+      const set = getDirtySet();
+      set.add(id);
+      wizardSet(DIRTY_KEY, [...set]);
+      renderDirtySummary();
     }
     function renderDirtySummary(){
-      const el = document.getElementById("dirtySummary");
-      if (!el) return;
-      const cnt = getDirtyIdSet().size;
-      el.textContent = cnt > 0 ? `Unsaved edits: ${cnt}` : "";
+      const cnt = getDirtySet().size;
+      document.getElementById("dirtySummary").textContent = cnt ? `Unsaved edits: ${cnt}` : "";
     }
-    function renderFilterStateBadges(){
-      const el = document.getElementById("filterStateBadges");
-      if (!el) return;
-      const parts = [];
-      if (riskyOnly) parts.push('<a href="#" class="badge text-bg-warning me-1 text-decoration-none" onclick="showRiskyOnly();return false;">Risky only</a>');
-      if (dirtyOnly) parts.push('<a href="#" class="badge text-bg-danger me-1 text-decoration-none" onclick="showDirtyOnly();return false;">Dirty only</a>');
-      parts.push(`<a href="#" class="badge text-bg-dark text-decoration-none" onclick="toggleDirtyFirst();return false;">Dirty first: ${dirtyFirst ? "ON" : "OFF"}</a>`);
-      el.innerHTML = parts.join("");
-    }
-    function renderFilterButtonState(){
-      const btnRisky = document.getElementById("btnRiskyOnly");
-      const btnDirty = document.getElementById("btnDirtyOnly");
-      const btnAll = document.getElementById("btnShowAll");
-      const btnDirtyFirst = document.getElementById("btnDirtyFirst");
-      if (btnRisky) btnRisky.className = `btn btn-sm ${riskyOnly ? "btn-warning" : "btn-outline-warning"}`;
-      if (btnDirty) btnDirty.className = `btn btn-sm ${dirtyOnly ? "btn-danger" : "btn-outline-danger"}`;
-      if (btnAll) btnAll.className = `btn btn-sm ${(!riskyOnly && !dirtyOnly) ? "btn-secondary" : "btn-outline-secondary"}`;
-      if (btnDirtyFirst) btnDirtyFirst.className = `btn btn-sm ${dirtyFirst ? "btn-dark" : "btn-outline-dark"}`;
-    }
-    function saveRiskConfirmIds(){
-      const confirmed = [...document.querySelectorAll("#rows tr[data-risky='1'] .risk-confirm:checked")]
-        .map(el => Number(el.closest("tr")?.dataset?.id || 0))
-        .filter(Boolean);
-      wizardSet(RISK_CONFIRM_KEY, confirmed);
-    }
+
     function renderProgressSummary(){
-      const out = { total: 0, uploaded: 0, ocr: 0, needs_review: 0, ready: 0, assigned: 0 };
-      for (const x of (allRows || [])) {
+      const out = { total: 0, uploaded: 0, needs_review: 0, ready: 0, assigned: 0 };
+      for (const x of rowsAll) {
         out.total += 1;
         const lc = String(x.lifecycle_state || "").toUpperCase();
         if (lc === "UPLOADED") out.uploaded += 1;
-        if (lc === "OCR_PROCESSING") out.ocr += 1;
         if (lc === "NEEDS_REVIEW" || lc === "LOW_CONFIDENCE" || lc === "OCR_FAILED" || lc === "IMAGE_UNREADABLE") out.needs_review += 1;
         if (lc === "READY_FOR_REPORT") out.ready += 1;
         if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
       }
-      const el = document.getElementById("progressSummary");
-      if (el) el.textContent = `Total ${out.total} · Uploaded ${out.uploaded} · OCR ${out.ocr} · Needs Review ${out.needs_review} · Ready ${out.ready} · Assigned ${out.assigned}`;
+      document.getElementById("progressSummary").textContent = `Total ${out.total} · Uploaded ${out.uploaded} · Needs Review ${out.needs_review} · Ready ${out.ready} · Assigned ${out.assigned}`;
     }
+
+    async function loadCategories(){
+      try{
+        const r = await fetch("/api/config");
+        const d = await r.json();
+        if(!r.ok) return;
+        const arr = (d?.expense_types || []).filter(x => x && x.enabled && x.id).map(x => String(x.id || "").toUpperCase());
+        document.getElementById("categoryOptions").innerHTML = arr.map(c => `<option value="${esc(c)}"></option>`).join("");
+      }catch(_){ }
+    }
+
     function renderRows(){
-      syncWizardViewToUrl();
-      const selected = new Set(getSavedSelection());
-      const confirmedRisk = new Set(getSavedRiskConfirmIds());
-      const dirtySet = getDirtyIdSet();
-      renderExpiredNotice();
-      renderDirtySummary();
-      renderFilterStateBadges();
-      renderFilterButtonState();
-      let rowsBase = allRows.slice();
-      if (riskyOnly) rowsBase = rowsBase.filter(x => isRisky(x));
-      if (dirtyOnly) rowsBase = rowsBase.filter(x => dirtySet.has(Number(x.id)));
-      const rows = rowsBase.sort((a, b) => {
-        if (dirtyFirst) {
-          const ad = dirtySet.has(Number(a.id)) ? 1 : 0;
-          const bd = dirtySet.has(Number(b.id)) ? 1 : 0;
-          if (ad !== bd) return bd - ad;
-        }
-        const rp = riskPriority(b) - riskPriority(a);
-        if (rp !== 0) return rp;
-        return Number(b.id || 0) - Number(a.id || 0);
-      });
-      document.getElementById("rows").innerHTML = rows.map(x=>`
-        <tr data-id="${x.id}" data-risky="${isRisky(x) ? "1" : "0"}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${isRisky(x) ? "table-warning" : ""} ${dirtySet.has(Number(x.id)) ? "table-active" : ""}">
+      const selected = new Set(getSavedSelection().map(Number));
+      const dirtySet = getDirtySet();
+      const body = document.getElementById("rows");
+      body.innerHTML = rowsAll.map((x)=>`
+        <tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}">
           <td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td>
-          <td>${esc(x.orig_filename||"")}</td>
-          <td><input class="form-control form-control-sm f-date" type="date" value="${esc(x.date||"")}" oninput="markDirty(this)"></td>
-          <td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant||"")}" oninput="markDirty(this)"></td>
-          <td><input class="form-control form-control-sm f-amount" type="number" min="0" value="${Number(x.amount||0)}" oninput="markDirty(this)"></td>
-          <td><input class="form-control form-control-sm f-currency" value="${esc(x.currency||"")}" oninput="markDirty(this)"></td>
-          <td><input class="form-control form-control-sm f-category" list="categoryOptions" value="${esc(x.category||"")}" oninput="markDirty(this)"></td>
-          <td><input class="form-control form-control-sm f-memo" value="${esc(x.memo||"")}" oninput="markDirty(this)"></td>
-          <td>${esc(x.confidence || "-")}</td>
+          <td>${esc(x.orig_filename || "")}</td>
+          <td><input class="form-control form-control-sm f-date" type="date" value="${esc(x.date || "")}" oninput="markDirty(this.closest('tr'))"></td>
+          <td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td>
+          <td><input class="form-control form-control-sm f-amount" type="number" min="0" value="${Number(x.amount || 0)}" oninput="markDirty(this.closest('tr'))"></td>
+          <td><input class="form-control form-control-sm f-currency" value="${esc(x.currency || "USD")}" oninput="markDirty(this.closest('tr'))"></td>
+          <td><input class="form-control form-control-sm f-category" list="categoryOptions" value="${esc(x.category || "MISCELLANEOUS")}" oninput="markDirty(this.closest('tr'))"></td>
+          <td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td>
+          <td>${esc(x.status || "-")}</td>
           <td>${esc(x.lifecycle_state || "-")}</td>
-          <td>${dirtySet.has(Number(x.id)) ? `<span class="badge text-bg-warning">Unsaved</span>` : `<span class="text-muted small">-</span>`}</td>
-          <td>${isRisky(x) ? `<input type="checkbox" class="risk-confirm" ${confirmedRisk.has(Number(x.id)) ? "checked" : ""} onchange="saveRiskConfirmIds()" title="manual confirmation required">` : `<span class="text-success small">ok</span>`}</td>
-          <td><button class="btn btn-sm btn-outline-secondary" onclick="saveRow(${x.id}, this)">Save</button></td>
+          <td>${dirtySet.has(Number(x.id)) ? '<span class="badge text-bg-warning">Unsaved</span>' : '<span class="text-muted">-</span>'}</td>
         </tr>
-      `).join("") || `<tr><td colspan="13" class="text-muted small">No receipts to review. ${dirtyOnly ? "(Dirty filter applied)" : ""}</td></tr>`;
+      `).join("") || `<tr><td colspan="11" class="text-muted small">No receipts.</td></tr>`;
+      renderDirtySummary();
     }
+
     async function loadRows(){
-      preloadFromQuery();
       const r = await fetch("/api/inbox/receipts?report_status=unassigned&limit=300");
       const d = await r.json();
       if(!r.ok) return alert(d.error||"Failed");
-      allRows = d.receipts || [];
+      rowsAll = d.receipts || [];
       renderProgressSummary();
       renderRows();
     }
-    async function saveRow(id, btn){
-      const tr = btn.closest("tr");
+
+    async function saveRowByTr(tr){
+      const id = Number(tr.dataset.id || 0);
+      if (!id) return;
       const body = {
         date: tr.querySelector(".f-date").value.trim(),
         merchant: tr.querySelector(".f-merchant").value.trim(),
         amount: Number(tr.querySelector(".f-amount").value || 0),
-        currency: tr.querySelector(".f-currency").value.trim(),
-        category: tr.querySelector(".f-category").value.trim(),
+        currency: tr.querySelector(".f-currency").value.trim().toUpperCase(),
+        category: tr.querySelector(".f-category").value.trim().toUpperCase(),
         memo: tr.querySelector(".f-memo").value.trim(),
         status: "processed"
       };
       const r = await fetch(`/api/inbox/receipts/${id}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
       const d = await r.json();
-      if(!r.ok) return alert(d.error||"Save failed");
+      if(!r.ok) throw new Error(d.error || "Save failed");
       tr.dataset.dirty = "0";
       tr.classList.remove("table-active");
-      const dirtyCell = tr.children[10];
-      if (dirtyCell) dirtyCell.innerHTML = `<span class="text-muted small">-</span>`;
-      const idx = allRows.findIndex(x => Number(x.id) === Number(id));
-      if (idx >= 0 && d.receipt) allRows[idx] = d.receipt;
-      const dirty = wizardGet(DIRTY_KEY, []);
-      const next = (dirty || []).map(Number).filter(x => x && Number(x) !== Number(id));
-      wizardSet(DIRTY_KEY, next);
-      renderDirtySummary();
-      renderProgressSummary();
-      document.getElementById("msg").textContent = "Saved.";
+      const set = getDirtySet();
+      set.delete(id);
+      wizardSet(DIRTY_KEY, [...set]);
+    }
+
+    async function saveAllDirty(){
+      const dirtyRows = [...document.querySelectorAll("#rows tr[data-dirty='1']")];
+      if (!dirtyRows.length) {
+        document.getElementById("msg").textContent = "No dirty rows.";
+        return;
+      }
+      for (const tr of dirtyRows) {
+        await saveRowByTr(tr);
+      }
+      document.getElementById("msg").textContent = `Saved ${dirtyRows.length} row(s).`;
+      await loadRows();
+    }
+
+    function toggleAll(cb){
+      document.querySelectorAll(".sel").forEach(x=>x.checked=cb.checked);
+      saveSelection();
     }
     function saveSelection(){
-      wizardSet(KEY, selectedIds());
+      const ids = [...document.querySelectorAll(".sel:checked")].map(x=>Number(x.value));
+      wizardSet(KEY, ids);
       document.getElementById("msg").textContent = "Selection saved.";
     }
     function goNext(){
-      const selected = [...document.querySelectorAll(".sel:checked")].map(x => x.closest("tr"));
-      const unsaved = selected.filter(tr => tr && tr.dataset.dirty === "1");
-      if (unsaved.length) {
-        document.getElementById("msg").textContent = `Save edited rows first (${unsaved.length} unsaved).`;
-        return;
-      }
-      const missing = selected.filter(tr => tr && tr.dataset.risky === "1" && !(tr.querySelector(".risk-confirm") && tr.querySelector(".risk-confirm").checked));
-      if (missing.length) {
-        document.getElementById("msg").textContent = `Manual confirmation required for ${missing.length} low-confidence item(s).`;
+      if (getDirtySet().size) {
+        document.getElementById("msg").textContent = "Save all dirty rows first.";
         return;
       }
       saveSelection();
-      const selectedNow = new Set(selectedIds());
-      const dirty = wizardGet(DIRTY_KEY, []);
-      const remain = (dirty || []).map(Number).filter(x => x && !selectedNow.has(Number(x)));
-      wizardSet(DIRTY_KEY, remain);
-      renderDirtySummary();
-      const url = new URL("/reports/wizard/generate", window.location.origin);
-      const cur = new URL(window.location.href);
-      const passKeys = ["wrisky", "wdirty", "wdirtyfirst"];
-      for (const k of passKeys) {
-        const v = (cur.searchParams.get(k) || "").trim();
-        if (v) url.searchParams.set(k, v);
-      }
-      window.location.href = `${url.pathname}${url.search}`;
+      window.location.href = "/reports/wizard/generate";
     }
-    function showRiskyOnly(){ riskyOnly = true; dirtyOnly = false; renderRows(); }
-    function showDirtyOnly(){ dirtyOnly = true; riskyOnly = false; renderRows(); }
-    function showAllRows(){ riskyOnly = false; dirtyOnly = false; renderRows(); }
-    function toggleDirtyFirst(){
-      dirtyFirst = !dirtyFirst;
-      const lbl = document.getElementById("dirtyFirstLabel");
-      if (lbl) lbl.textContent = dirtyFirst ? "ON" : "OFF";
-      renderRows();
-    }
-    function confirmAllRisky(){
-      document.querySelectorAll("#rows tr[data-risky='1'] .risk-confirm").forEach(el => { el.checked = true; });
-      saveRiskConfirmIds();
-      document.getElementById("msg").textContent = "All visible risky rows confirmed.";
-    }
+
     (async()=>{
-      restoreWizardViewFromUrl();
-      await loadRiskOrder();
-      await loadWizardPreference();
+      await loadCategories();
       await loadRows();
     })();
   </script>
 </body>
 </html>
-
-
-

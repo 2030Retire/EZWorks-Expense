@@ -14,178 +14,115 @@
       <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
       <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
     </div>
-    {% set wizard_step = 5 %}{% include "_wizard_progress.html" %}
+    {% set wizard_step = 4 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
-      <h6 class="mb-3">Step 5. Generate Report</h6>
+      <h6 class="mb-3">Step 4. Generate Report</h6>
       <div class="small text-muted mb-2">Selected receipts: <span id="receiptCount">0</span></div>
-      <div id="reviewStateBadges" class="small mb-2"></div>
       <div id="progressSummary" class="small text-muted mb-2"></div>
-      <div id="expiredNotice" class="alert alert-warning py-2 px-3 mb-2 small" style="display:none;"></div>
       <div id="dirtyBanner" class="alert alert-warning py-2 px-3 small mb-2" style="display:none;">
-        Unsaved edits were detected from Step 4. Go back and save those rows before generating.
-        <a id="dirtyBackLink" class="ms-2" href="/reports/wizard/review">Go to Step 4</a>
-        <div id="dirtyList" class="mt-1 text-muted"></div>
+        Unsaved edits were detected from Review. Save those rows before generating.
+        <a id="dirtyBackLink" class="ms-2" href="/reports/wizard/review">Go to Review</a>
       </div>
+
       <div class="row g-2">
-        <div class="col-md-4"><label class="form-label small">Mode</label><select id="mode" class="form-select form-select-sm"><option value="domestic">domestic</option><option value="international">international</option></select></div>
-        <div class="col-md-8"><label class="form-label small">Title</label><input id="title" class="form-control form-control-sm"></div>
-        <div class="col-md-4"><label class="form-label small">FX Base (to USD)</label><input id="exchangeRate" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1"></div>
-        <div class="col-md-8">
-          <label class="form-label small">Currency Rates</label>
-          <div class="d-flex gap-2 align-items-center">
-            <button class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRates()">Fetch Latest Rates</button>
+        <div class="col-md-6"><label class="form-label small">Title</label><input id="title" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">Expense Type</label><select id="mode" class="form-select form-select-sm"><option value="domestic">domestic</option><option value="international">international</option></select></div>
+        <div class="col-md-3"><label class="form-label small">Base Currency</label><input id="currency" class="form-control form-control-sm"></div>
+
+        <div class="col-md-3"><label class="form-label small">Employee Name</label><input id="employeeName" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">Department</label><input id="department" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">Manager</label><input id="manager" class="form-control form-control-sm"></div>
+
+        <div class="col-md-6"><label class="form-label small">Project</label><input id="project" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">Expense Context</label><select id="expenseContext" class="form-select form-select-sm"><option value="general">general</option><option value="travel">travel</option></select></div>
+        <div class="col-md-3"><label class="form-label small">Period Mode</label><select id="periodMode" class="form-select form-select-sm"><option value="auto">auto</option><option value="manual">manual</option></select></div>
+
+        <div class="col-md-6"><label class="form-label small">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
+        <div class="col-md-6"><label class="form-label small">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
+        <div class="col-md-12"><label class="form-label small">Trip Purpose</label><input id="tripPurpose" class="form-control form-control-sm"></div>
+        <div class="col-md-12"><label class="form-label small">Notes</label><textarea id="notes" rows="2" class="form-control form-control-sm"></textarea></div>
+      </div>
+
+      <div class="d-flex justify-content-end mt-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="saveProfile()">Save Profile</button>
+      </div>
+
+      <hr>
+      <div class="row g-2">
+        <div class="col-md-3"><label class="form-label small">Default FX (to USD)</label><input id="exchangeRate" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1"></div>
+        <div class="col-md-9">
+          <label class="form-label small">Date-based FX Rates (receipt date + currency)</label>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <button class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRatesByDate()">Fetch by Date</button>
             <div id="rateUpdatedAt" class="small text-muted"></div>
           </div>
-          <div id="exchangeRatesEditor" class="small mt-1"></div>
+          <div id="fxEditor" class="small"></div>
         </div>
       </div>
+
       <div class="d-flex justify-content-between mt-3">
-        <a id="backToReviewLink" href="/reports/wizard/review" class="btn btn-sm btn-outline-secondary">Back</a>
-        <button class="btn btn-sm btn-success" onclick="openPrecheck()">Generate Report</button>
+        <a href="/reports/wizard/review" class="btn btn-sm btn-outline-secondary">Back</a>
+        <button class="btn btn-sm btn-success" onclick="generateReport()">Generate Report</button>
       </div>
       <div id="msg" class="small mt-2"></div>
     </div>
   </div>
-  <div class="modal fade" id="precheckModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Final Validation Summary</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div id="precheckSummary" class="small text-muted"></div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Back</button>
-          <button class="btn btn-sm btn-success" id="confirmGenerateBtn" onclick="generateAfterConfirm()">Confirm Generate</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
   <script>
     const SETTINGS_KEY = "report_wizard_settings_v2";
-    const LEGACY_SETTINGS_KEY = "report_wizard_settings_v1";
     const IDS_KEY = "report_wizard_selected_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
-    let wizardTtlMs = 7 * 24 * 60 * 60 * 1000;
-    let selectedRowsCache = [];
-    let wizardExpired = false;
-    const expiredKeys = new Set();
-    const isKo = String(navigator.language || "").toLowerCase().startsWith("ko");
+    let selectedRows = [];
+
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
-    function keyLabel(key){
-      const map = {
-        [SETTINGS_KEY]: "settings",
-        [IDS_KEY]: "selection",
-        [DIRTY_KEY]: "dirty",
-      };
-      return map[key] || key;
-    }
     function wizardGet(key, fallback){
       try{
         const raw = localStorage.getItem(key);
         if(!raw) return fallback;
         const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value") && Object.prototype.hasOwnProperty.call(parsed, "ts")) {
-          const ts = Number(parsed.ts || 0);
-          if (ts > 0 && (Date.now() - ts) > wizardTtlMs) {
-            localStorage.removeItem(key);
-            wizardExpired = true;
-            expiredKeys.add(keyLabel(key));
-            return fallback;
-          }
-          return parsed.value;
-        }
-        return parsed; // legacy raw JSON compatibility
-      }catch(_){
-        return fallback;
-      }
+        if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value")) return parsed.value;
+        return parsed;
+      }catch(_){ return fallback; }
     }
+
     function getSelectedIds(){
       const v = wizardGet(IDS_KEY, []);
       return Array.isArray(v) ? v : [];
     }
-    function renderExpiredNotice(){
-      const el = document.getElementById("expiredNotice");
-      if (!el) return;
-      if (wizardExpired) {
-        el.style.display = "";
-        const keys = [...expiredKeys];
-        const msg = isKo
-          ? `일부 Wizard 로컬 상태가 만료되어 초기화되었습니다. (${keys.join(", ") || "state"})`
-          : `Some wizard local state expired and was reset. (${keys.join(", ") || "state"})`;
-        const btn = isKo ? "Step 1로 초기화" : "Reset to Step 1";
-        el.innerHTML = `${esc(msg)} <button class="btn btn-sm btn-outline-dark ms-2" onclick="resetWizardStateToStep1()">${esc(btn)}</button>`;
+    function getSelectedDirtyIds(){
+      const ids = new Set(getSelectedIds().map(Number));
+      const dirty = wizardGet(DIRTY_KEY, []);
+      return (dirty || []).map(Number).filter(x => x && ids.has(Number(x)));
+    }
+
+    function applyModeRules(){
+      const mode = String(document.getElementById("mode").value || "domestic").toLowerCase();
+      const c = document.getElementById("currency");
+      if (mode === "domestic") {
+        c.value = "USD";
+        c.readOnly = true;
       } else {
-        el.style.display = "none";
-        el.innerHTML = "";
+        c.readOnly = false;
       }
     }
-    function resetWizardStateToStep1(){
-      [SETTINGS_KEY, IDS_KEY, DIRTY_KEY, "report_wizard_risk_confirmed_ids_v1"].forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
-      window.location.href = "/reports/wizard/settings";
+    function applyPeriodRules(){
+      const manual = String(document.getElementById("periodMode").value || "auto") === "manual";
+      document.getElementById("periodFrom").disabled = !manual;
+      document.getElementById("periodTo").disabled = !manual;
+      if (!manual) {
+        document.getElementById("periodFrom").value = "";
+        document.getElementById("periodTo").value = "";
+      }
     }
-    async function loadWizardConfig(){
-      try{
-        const r = await fetch("/api/config");
-        const d = await r.json();
-        if(!r.ok) return;
-        const hours = Number(d?.wizard?.cache_ttl_hours || 168);
-        if (Number.isFinite(hours)) wizardTtlMs = Math.max(1, Math.min(24 * 30, Math.round(hours))) * 60 * 60 * 1000;
-      }catch(_){}
-    }
-    function loadPreset(){
-      const s = wizardGet(SETTINGS_KEY, wizardGet(LEGACY_SETTINGS_KEY, {})) || {};
-      document.getElementById("title").value = s.reportTitle || "";
-      if ((s.reportType || "") === "international") document.getElementById("mode").value = "international";
+
+    async function loadSelectedRows(){
       const ids = getSelectedIds();
       document.getElementById("receiptCount").textContent = ids.length;
-    }
-    function renderReviewStateBadges(){
-      const el = document.getElementById("reviewStateBadges");
-      if (!el) return;
-      const qs = new URLSearchParams(window.location.search || "");
-      const wrisky = (qs.get("wrisky") || "").trim();
-      const wdirty = (qs.get("wdirty") || "").trim();
-      const wdirtyfirst = (qs.get("wdirtyfirst") || "").trim();
-      const backBase = new URL("/reports/wizard/review", window.location.origin);
-      const mk = (extra) => {
-        const u = new URL(backBase.toString());
-        Object.entries(extra || {}).forEach(([k,v]) => {
-          if (String(v || "").trim()) u.searchParams.set(k, String(v).trim());
-        });
-        return `${u.pathname}${u.search}`;
-      };
-      const parts = [];
-      if (wrisky === "1" || wrisky.toLowerCase() === "true") parts.push(`<a class="badge text-bg-warning me-1 text-decoration-none" href="${mk({wrisky:"1", wdirty:"", wdirtyfirst})}">Risky only</a>`);
-      if (wdirty === "1" || wdirty.toLowerCase() === "true") parts.push(`<a class="badge text-bg-danger me-1 text-decoration-none" href="${mk({wdirty:"1", wrisky:"", wdirtyfirst})}">Dirty only</a>`);
-      const dirtyFirstOn = !(wdirtyfirst === "0" || wdirtyfirst.toLowerCase() === "false");
-      parts.push(`<a class="badge text-bg-dark text-decoration-none" href="${mk({wrisky, wdirty, wdirtyfirst: dirtyFirstOn ? "0" : "1"})}">Dirty first: ${dirtyFirstOn ? "ON" : "OFF"}</a>`);
-      el.innerHTML = parts.join("");
-    }
-    function syncBackToReviewLink(){
-      const link = document.getElementById("backToReviewLink");
-      if (!link) return;
-      const qs = new URLSearchParams(window.location.search || "");
-      const out = new URL("/reports/wizard/review", window.location.origin);
-      const pass = ["wrisky","wdirty","wdirtyfirst"];
-      for (const k of pass){
-        const v = (qs.get(k) || "").trim();
-        if (v) out.searchParams.set(k, v);
-      }
-      link.href = `${out.pathname}${out.search}`;
-    }
-    async function loadSelectedProgressSummary(){
-      const ids = getSelectedIds();
-      const el = document.getElementById("progressSummary");
-      if (!el) return;
       if (!ids.length) {
-        el.textContent = "No selected receipts.";
-        selectedRowsCache = [];
-        renderExchangeRateEditor();
+        selectedRows = [];
+        renderProgressSummary();
+        renderFxEditor();
         return;
       }
       const details = await Promise.all(ids.map(async (id) => {
@@ -193,183 +130,167 @@
           const r = await fetch(`/api/inbox/receipts/${id}`);
           const d = await r.json();
           return r.ok ? (d.receipt || null) : null;
-        } catch (_) {
-          return null;
-        }
+        } catch (_) { return null; }
       }));
-      const rows = details.filter(Boolean);
-      selectedRowsCache = rows;
-      renderExchangeRateEditor();
-      const out = { total: rows.length, risky: 0, ready: 0, assigned: 0 };
-      for (const x of rows) {
+      selectedRows = details.filter(Boolean);
+      renderProgressSummary();
+      renderFxEditor();
+    }
+
+    function renderProgressSummary(){
+      const out = { total: selectedRows.length, risky: 0, ready: 0, assigned: 0 };
+      for (const x of selectedRows) {
         const lc = String(x.lifecycle_state || "").toUpperCase();
         if (lc === "READY_FOR_REPORT") out.ready += 1;
         if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
         if (["LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE","NEEDS_REVIEW"].includes(lc) || String(x.status || "") === "needs_review") out.risky += 1;
       }
-      el.textContent = `Selected ${out.total} · Risky ${out.risky} · Ready ${out.ready} · Assigned ${out.assigned}`;
+      document.getElementById("progressSummary").textContent = `Selected ${out.total} · Risky ${out.risky} · Ready ${out.ready} · Assigned ${out.assigned}`;
     }
-    function getCurrenciesFromSelection(){
-      const set = new Set();
-      for (const r of (selectedRowsCache || [])) {
+
+    function getDateCurrencyPairs(){
+      const keys = new Set();
+      const out = [];
+      for (const r of selectedRows) {
+        const dt = String(r.date || "").trim();
         const c = String(r.currency || "").trim().toUpperCase();
-        if (c && c !== "USD") set.add(c);
+        if (!dt || !c || c === "USD") continue;
+        const k = `${dt}|${c}`;
+        if (keys.has(k)) continue;
+        keys.add(k);
+        out.push({ date: dt, currency: c });
       }
-      return [...set].sort();
+      return out.sort((a,b) => (a.date < b.date ? -1 : 1));
     }
-    function renderExchangeRateEditor(){
-      const wrap = document.getElementById("exchangeRatesEditor");
-      if (!wrap) return;
-      const currencies = getCurrenciesFromSelection();
-      if (!currencies.length) {
-        wrap.innerHTML = `<span class="text-muted">No non-USD currencies in selected receipts.</span>`;
+
+    function renderFxEditor(){
+      const pairs = getDateCurrencyPairs();
+      const wrap = document.getElementById("fxEditor");
+      if (!pairs.length) {
+        wrap.innerHTML = `<span class="text-muted">No dated non-USD receipts selected.</span>`;
         return;
       }
-      wrap.innerHTML = currencies.map((c) => `
-        <div class="d-inline-flex align-items-center me-2 mb-1">
-          <span class="badge text-bg-light border me-1">${esc(c)} -> USD</span>
-          <input id="rate-${esc(c)}" class="form-control form-control-sm" style="width:110px;" type="number" step="0.0001" min="0" value="">
+      wrap.innerHTML = pairs.map((p, i) => `
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge text-bg-light border">${esc(p.date)}</span>
+          <span class="badge text-bg-light border">${esc(p.currency)} -> USD</span>
+          <input id="fx-${i}" data-date="${esc(p.date)}" data-currency="${esc(p.currency)}" class="form-control form-control-sm" style="max-width:140px;" type="number" step="0.0001" min="0" value="">
         </div>
       `).join("");
     }
-    function collectExchangeRates(){
+
+    function collectExchangeRatesByDate(){
       const out = {};
-      for (const c of getCurrenciesFromSelection()) {
-        const el = document.getElementById(`rate-${c}`);
-        if (!el) continue;
+      document.querySelectorAll("#fxEditor input[data-date][data-currency]").forEach((el) => {
+        const d = String(el.dataset.date || "").trim();
+        const c = String(el.dataset.currency || "").trim().toUpperCase();
         const v = Number(el.value || 0);
-        if (Number.isFinite(v) && v > 0) out[c] = v;
-      }
+        if (!d || !c || !Number.isFinite(v) || v <= 0) return;
+        if (!out[d]) out[d] = {};
+        out[d][c] = v;
+      });
       return out;
     }
-    async function fetchRates(){
-      const currencies = getCurrenciesFromSelection();
-      if (!currencies.length) return alert("No non-USD currencies in selected receipts.");
-      const symbols = currencies.join(",");
+
+    async function fetchRatesByDate(){
+      const pairs = getDateCurrencyPairs();
+      if (!pairs.length) return alert("No dated non-USD receipts selected.");
+      for (let i = 0; i < pairs.length; i++) {
+        const p = pairs[i];
+        try {
+          const r = await fetch(`https://api.frankfurter.app/${encodeURIComponent(p.date)}?from=USD&to=${encodeURIComponent(p.currency)}`);
+          const d = await r.json();
+          const usdToCur = Number(d?.rates?.[p.currency] || 0);
+          if (usdToCur > 0) {
+            const toUsd = 1 / usdToCur;
+            const el = document.getElementById(`fx-${i}`);
+            if (el) el.value = String(toUsd.toFixed(6));
+          }
+        } catch (_) {}
+      }
+      const tag = document.getElementById("rateUpdatedAt");
+      if (tag) tag.textContent = `Updated: ${new Date().toLocaleString()}`;
+    }
+
+    async function loadProfile(){
       try{
-        const r = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${encodeURIComponent(symbols)}`);
+        const r = await fetch("/api/profile");
         const d = await r.json();
-        if (!r.ok || !d || !d.rates) throw new Error(d?.error?.info || "Rate API failed");
-        for (const c of currencies) {
-          const usdToCur = Number(d.rates[c] || 0);
-          if (!usdToCur) continue;
-          const curToUsd = 1 / usdToCur;
-          const input = document.getElementById(`rate-${c}`);
-          if (input) input.value = String(curToUsd.toFixed(6));
-        }
-        const t = document.getElementById("rateUpdatedAt");
-        if (t) t.textContent = `Updated: ${new Date().toLocaleString()}`;
-      }catch(e){
-        alert(e.message || "Could not fetch rates.");
-      }
+        if(!r.ok) return;
+        const p = d.profile || {};
+        document.getElementById("employeeName").value = p.name || "";
+        document.getElementById("department").value = p.department || "";
+        document.getElementById("employeeId").value = p.employee_id || "";
+        document.getElementById("manager").value = p.manager || "";
+      }catch(_){ }
     }
-    async function openPrecheck(){
-      const dirty = getSelectedDirtyIds();
-      if (dirty.length) return alert(`Unsaved edited rows detected (${dirty.length}). Go back to Step 4 and save.`);
-      const ids = getSelectedIds();
-      if(!ids.length) return alert("No selected receipts. Go back to Step 4.");
-      const detailRows = await Promise.all(ids.map(async id => {
-        const r = await fetch(`/api/inbox/receipts/${id}`);
-        const d = await r.json();
-        return r.ok ? (d.receipt || null) : null;
-      }));
-      const rows = detailRows.filter(Boolean);
-      const risky = rows.filter(x => {
-        const lc = String(x.lifecycle_state || "").toUpperCase();
-        return ["LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE","NEEDS_REVIEW"].includes(lc) || String(x.status || "") === "needs_review";
-      });
-      const total = rows.reduce((s, x) => s + Number(x.amount || 0), 0);
-      document.getElementById("precheckSummary").innerHTML = `
-        <div>Selected receipts: <strong>${rows.length}</strong></div>
-        <div>Risky receipts: <strong>${risky.length}</strong></div>
-        <div>Total amount: <strong>${total.toLocaleString()}</strong></div>
-      `;
-      const blocked = rows.length === 0 || risky.length > 0;
-      document.getElementById("confirmGenerateBtn").disabled = blocked;
-      if (blocked && risky.length > 0) {
-        document.getElementById("precheckSummary").innerHTML += `<div class="text-danger mt-2">Risky receipts exist. Go back to Step 4 and resolve/confirm them first.</div>`;
-      }
-      const modal = new bootstrap.Modal(document.getElementById("precheckModal"));
-      modal.show();
+
+    async function saveProfile(){
+      const body = {
+        name: document.getElementById("employeeName").value.trim(),
+        department: document.getElementById("department").value.trim(),
+        employee_id: document.getElementById("employeeId").value.trim(),
+        manager: document.getElementById("manager").value.trim(),
+      };
+      const r = await fetch("/api/profile", { method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+      const d = await r.json();
+      if(!r.ok) return alert(d.error || "Profile save failed");
+      document.getElementById("msg").innerHTML = `<span class="text-success">Profile saved.</span>`;
     }
-    async function generateAfterConfirm(){
+
+    function loadBasicSettings(){
+      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      document.getElementById("mode").value = s.reportType || "domestic";
+      document.getElementById("currency").value = (s.currency || "USD").toUpperCase();
+      applyModeRules();
+    }
+
+    async function generateReport(){
       const dirty = getSelectedDirtyIds();
-      if (dirty.length) return alert(`Unsaved edited rows detected (${dirty.length}). Go back to Step 4 and save.`);
+      if (dirty.length) return alert(`Unsaved edited rows detected (${dirty.length}). Save rows in Review first.`);
       const ids = getSelectedIds();
-      if(!ids.length) return alert("No selected receipts. Go back to Step 4.");
-      const s = wizardGet(SETTINGS_KEY, wizardGet(LEGACY_SETTINGS_KEY, {})) || {};
+      if (!ids.length) return alert("No selected receipts. Go back to Review.");
+
       const body = {
         mode: document.getElementById("mode").value,
         title: document.getElementById("title").value.trim(),
-        currency: (s.currency || "USD").trim().toUpperCase(),
-        period_mode: (s.periodMode || "auto").trim().toLowerCase(),
+        currency: document.getElementById("currency").value.trim().toUpperCase(),
         exchange_rate: Number(document.getElementById("exchangeRate").value || 1),
-        exchange_rates: collectExchangeRates(),
+        exchange_rates: collectExchangeRatesByDate(),
+        period_mode: document.getElementById("periodMode").value,
         receipt_ids: ids,
-        employee_name: s.employeeName || "",
-        department: s.department || "",
-        employee_id: s.employeeId || "",
-        manager: s.manager || "",
-        project: s.project || "",
-        period_from: s.periodFrom || "",
-        period_to: s.periodTo || "",
-        trip_purpose: (s.expenseContext || "general") === "travel" ? (s.tripPurpose || "") : "",
-        notes: s.notes || ""
+        employee_name: document.getElementById("employeeName").value.trim(),
+        department: document.getElementById("department").value.trim(),
+        employee_id: document.getElementById("employeeId").value.trim(),
+        manager: document.getElementById("manager").value.trim(),
+        project: document.getElementById("project").value.trim(),
+        period_from: document.getElementById("periodFrom").value.trim(),
+        period_to: document.getElementById("periodTo").value.trim(),
+        trip_purpose: document.getElementById("expenseContext").value === "travel" ? document.getElementById("tripPurpose").value.trim() : "",
+        notes: document.getElementById("notes").value.trim(),
       };
       const r = await fetch("/api/inbox/reports/generate", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
       const d = await r.json();
       if(!r.ok) return alert(d.error || "Generate failed");
-      const modalEl = document.getElementById("precheckModal");
-      if (modalEl) {
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        if (modal) modal.hide();
-      }
       localStorage.removeItem(IDS_KEY);
       localStorage.removeItem(DIRTY_KEY);
       document.getElementById("msg").innerHTML = `<span class="text-success">Generated: <a href="${d.download_url}">${esc(d.report.output_filename)}</a></span>`;
     }
-    function getSelectedDirtyIds(){
-      const ids = new Set(getSelectedIds().map(Number));
-      const dirty = wizardGet(DIRTY_KEY, []);
-      return (dirty || []).map(Number).filter(x => x && ids.has(Number(x)));
-    }
-    function buildDirtyBackHref(dirtyIds){
-      const url = new URL("/reports/wizard/review", window.location.origin);
-      const arr = (dirtyIds || []).map(Number).filter(Boolean);
-      if (arr.length) url.searchParams.set("ids", arr.join(","));
-      return `${url.pathname}${url.search}`;
-    }
-    function renderDirtyBanner(){
-      const el = document.getElementById("dirtyBanner");
-      const btn = document.getElementById("confirmGenerateBtn");
-      const back = document.getElementById("dirtyBackLink");
-      const list = document.getElementById("dirtyList");
-      const dirty = getSelectedDirtyIds();
-      if (!el || !btn) return;
-      if (dirty.length) {
-        el.style.display = "";
-        btn.disabled = true;
-        if (back) back.href = buildDirtyBackHref(dirty);
-        if (list) list.textContent = `Unsaved receipt IDs: ${dirty.join(", ")}`;
-      } else {
-        el.style.display = "none";
-        btn.disabled = false;
-        if (back) back.href = "/reports/wizard/review";
-        if (list) list.textContent = "";
-      }
-    }
+
     (async()=>{
-      await loadWizardConfig();
-      loadPreset();
-      renderExpiredNotice();
-      renderReviewStateBadges();
-      syncBackToReviewLink();
-      await loadSelectedProgressSummary();
-      renderDirtyBanner();
+      const dirty = getSelectedDirtyIds();
+      if (dirty.length) {
+        const banner = document.getElementById("dirtyBanner");
+        banner.style.display = "";
+      }
+      loadBasicSettings();
+      await loadProfile();
+      await loadSelectedRows();
+      applyPeriodRules();
     })();
+
+    document.getElementById("mode").addEventListener("change", applyModeRules);
+    document.getElementById("periodMode").addEventListener("change", applyPeriodRules);
   </script>
 </body>
 </html>
-
-
-

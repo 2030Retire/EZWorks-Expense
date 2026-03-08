@@ -113,6 +113,17 @@
       window.location.href = data.redirect_url || next;
     }
 
+    ["email", "name", "password"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          loginLocal();
+        }
+      });
+    });
+
     renderSlides();
   </script>
 </body>
