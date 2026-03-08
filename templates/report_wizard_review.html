@@ -32,7 +32,6 @@
           <tbody id="rows"></tbody>
         </table>
       </div>
-      <datalist id="categoryOptions"></datalist>
       <div class="d-flex justify-content-between mt-2">
         <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
         <button class="btn btn-sm btn-primary" onclick="goNext()">Next: Generate</button>
@@ -44,6 +43,7 @@
     const KEY = "report_wizard_selected_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
     let rowsAll = [];
+    let categoryChoices = [];
 
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
@@ -98,9 +98,34 @@
         const r = await fetch("/api/config");
         const d = await r.json();
         if(!r.ok) return;
-        const arr = (d?.expense_types || []).filter(x => x && x.enabled && x.id).map(x => String(x.id || "").toUpperCase());
-        document.getElementById("categoryOptions").innerHTML = arr.map(c => `<option value="${esc(c)}"></option>`).join("");
+        categoryChoices = (d?.expense_types || []).filter(x => x && x.enabled && x.id).map(x => String(x.id || "").toUpperCase());
+        if (!categoryChoices.length) categoryChoices = ["MISCELLANEOUS"];
       }catch(_){ }
+    }
+    function buildCategoryCell(row){
+      const current = String(row.category || "MISCELLANEOUS").toUpperCase();
+      const useCustom = !categoryChoices.includes(current);
+      const opts = categoryChoices.map((c) => `<option value="${esc(c)}" ${c === current ? "selected" : ""}>${esc(c)}</option>`).join("");
+      return `
+        <div class="d-flex gap-1">
+          <select class="form-select form-select-sm f-category-select" onchange="onCategoryChange(this)">
+            ${opts}
+            <option value="__CUSTOM__" ${useCustom ? "selected" : ""}>Custom...</option>
+          </select>
+          <input class="form-control form-control-sm f-category-custom" placeholder="CUSTOM CATEGORY" value="${useCustom ? esc(current) : ""}" style="${useCustom ? "" : "display:none;"}" oninput="markDirty(this.closest('tr'))">
+        </div>
+      `;
+    }
+    function onCategoryChange(sel){
+      const tr = sel.closest("tr");
+      const custom = tr.querySelector(".f-category-custom");
+      if (sel.value === "__CUSTOM__") {
+        custom.style.display = "";
+      } else {
+        custom.style.display = "none";
+        custom.value = "";
+      }
+      markDirty(tr);
     }
 
     function renderRows(){
@@ -115,7 +140,7 @@
           <td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td>
           <td><input class="form-control form-control-sm f-amount" type="number" min="0" value="${Number(x.amount || 0)}" oninput="markDirty(this.closest('tr'))"></td>
           <td><input class="form-control form-control-sm f-currency" value="${esc(x.currency || "USD")}" oninput="markDirty(this.closest('tr'))"></td>
-          <td><input class="form-control form-control-sm f-category" list="categoryOptions" value="${esc(x.category || "MISCELLANEOUS")}" oninput="markDirty(this.closest('tr'))"></td>
+          <td>${buildCategoryCell(x)}</td>
           <td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td>
           <td>${esc(x.status || "-")}</td>
           <td>${esc(x.lifecycle_state || "-")}</td>
@@ -142,7 +167,13 @@
         merchant: tr.querySelector(".f-merchant").value.trim(),
         amount: Number(tr.querySelector(".f-amount").value || 0),
         currency: tr.querySelector(".f-currency").value.trim().toUpperCase(),
-        category: tr.querySelector(".f-category").value.trim().toUpperCase(),
+        category: (() => {
+          const sel = tr.querySelector(".f-category-select");
+          const custom = tr.querySelector(".f-category-custom");
+          if (!sel) return "MISCELLANEOUS";
+          if (sel.value === "__CUSTOM__") return String(custom?.value || "MISCELLANEOUS").trim().toUpperCase() || "MISCELLANEOUS";
+          return String(sel.value || "MISCELLANEOUS").trim().toUpperCase();
+        })(),
         memo: tr.querySelector(".f-memo").value.trim(),
         status: "processed"
       };
