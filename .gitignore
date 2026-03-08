@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual env
+.venv/
+venv/
+
+# Local env/secrets
+.env
+.env.*
+
+# Runtime data
+uploads/
+outputs/
+*.db
+tmp_check.xlsx
+
+# OS/editor
+.DS_Store
+Thumbs.db

@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: expense-processor-test
+    env: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: LOCAL_LOGIN_ENABLED
+        value: "true"
+      - key: LOCAL_LOGIN_PASSWORD
+        value: "admin123"
+      - key: SSO_ENABLED
+        value: "false"
+      - key: ANTHROPIC_API_KEY
+        sync: false
