@@ -30,7 +30,7 @@
 
       <div class="cardx">
         {% if sso_enabled %}
-        <a class="btn btn-outline-primary w-100 mb-2" href="/auth/login/microsoft?next=/">
+        <a id="msLoginLink" class="btn btn-outline-primary w-100 mb-2" href="/auth/login/microsoft?next=/">
           <i class="fa-brands fa-microsoft me-1"></i>Sign in with Microsoft 365
         </a>
         {% if not sso_configured %}
@@ -125,6 +125,12 @@
         }
       });
     });
+
+    const msLink = document.getElementById("msLoginLink");
+    if (msLink) {
+      const next = new URLSearchParams(window.location.search).get("next") || "/";
+      msLink.href = `/auth/login/microsoft?next=${encodeURIComponent(next)}`;
+    }
 
     renderSlides();
   </script>

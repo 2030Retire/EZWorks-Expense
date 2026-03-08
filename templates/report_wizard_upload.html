@@ -3,30 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Report Wizard - Upload</title>
+  <title>Expense Report Process</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="/static/app_ui.css" rel="stylesheet">
 </head>
 <body class="app-shell">
   <div class="container-fluid py-3 px-3">
     {% include "_module_nav.html" %}
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h4 class="mb-0 page-header-title">Expense Report Process</h4>
       <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
     </div>
     {% set wizard_step = 1 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
-      <h6 class="mb-2">Step 1. Start</h6>
-      <div class="row g-2 mb-3">
-        <div class="col-md-4">
+      <h6 class="mb-2">Step 1. Process Receipts</h6>
+      <div class="row g-2 mb-2">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label small mb-1">Expense Type</label>
           <select id="startReportType" class="form-select form-select-sm" onchange="applyStartRules(); saveStartOptions();">
             <option value="domestic">Domestic</option>
             <option value="international">International</option>
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label small mb-1">Base Currency</label>
           <select id="startCurrency" class="form-select form-select-sm" onchange="saveStartOptions();">
             <option value="USD">USD</option>
@@ -37,61 +37,93 @@
             <option value="GBP">GBP</option>
           </select>
         </div>
-        <div class="col-md-4 d-flex align-items-end">
-          <div id="startMsg" class="small text-muted"></div>
-        </div>
+        <div class="col-lg-6 col-md-12 d-flex align-items-end"><div id="startMsg" class="small text-muted"></div></div>
       </div>
 
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="mb-0">Step 1. Upload + OCR</h6>
+        <div id="progressSummary" class="small text-muted"></div>
         <button class="btn btn-sm btn-outline-primary" onclick="runOcrForPending()">Run OCR for Pending</button>
       </div>
-      <div id="progressSummary" class="small text-muted mb-2"></div>
 
-      <input id="files" type="file" multiple class="form-control mb-2" accept=".jpg,.jpeg,.png,.webp,.heic" onchange="analyzeSelectedFiles()">
-      <div class="d-flex gap-2 mb-2">
-        <button class="btn btn-primary btn-sm" onclick="uploadReceipts()">Upload</button>
-        <button class="btn btn-outline-secondary btn-sm" onclick="refreshRows()">Refresh</button>
+      <div class="row g-2 align-items-end mb-2">
+        <div class="col-lg-8 col-md-7"><input id="files" type="file" multiple class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.webp,.heic" onchange="analyzeSelectedFiles()"></div>
+        <div class="col-lg-4 col-md-5 d-flex gap-2">
+          <button class="btn btn-primary btn-sm" onclick="uploadReceipts()">Upload</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="refreshRows()">Refresh</button>
+        </div>
       </div>
 
-      <div class="progress mb-2" id="uploadProgressWrap" style="display:none; height:18px;">
+      <div class="progress mb-2" id="uploadProgressWrap" style="display:none; height:16px;">
         <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%">0%</div>
       </div>
 
       <div id="qualityHints" class="small mb-2"></div>
       <div id="msg" class="small mt-1 text-muted"></div>
 
-      <div class="table-responsive mt-3">
-        <table class="table table-sm align-middle">
+      <div class="table-responsive mt-2">
+        <table class="table table-sm align-middle mb-1">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Preview</th>
-              <th>File</th>
-              <th>Date</th>
-              <th>Merchant</th>
-              <th>Amount</th>
-              <th>Currency</th>
-              <th>Status</th>
-              <th>Lifecycle</th>
-              <th style="min-width:220px;">Action</th>
+              <th>#</th><th>Preview</th><th>File</th><th>Date</th><th>Merchant</th><th>Amount</th><th>Currency</th><th>Status</th><th>Lifecycle</th><th>Action</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
 
-      <div class="d-flex justify-content-between mt-3">
+      <div class="d-flex justify-content-between mt-2">
         <a href="/reports" class="btn btn-sm btn-outline-secondary">Back</a>
         <a href="/reports/wizard/review" class="btn btn-sm btn-primary">Next: Review</a>
       </div>
     </div>
   </div>
+
   <script>
     const SETTINGS_KEY = "report_wizard_settings_v2";
     let rows = [];
     let uploading = false;
+
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+    function wizardGet(key, fallback){
+      try{ const raw = localStorage.getItem(key); if(!raw) return fallback; const parsed = JSON.parse(raw); if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value")) return parsed.value; return parsed; }catch(_){ return fallback; }
+    }
+    function wizardSet(key, value){ try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){} }
+
+    function applyStartRules(){
+      const mode = String(document.getElementById("startReportType").value || "domestic");
+      const cur = document.getElementById("startCurrency");
+      if (mode === "domestic"){ cur.value = "USD"; cur.disabled = true; } else { cur.disabled = false; }
+    }
+    function saveStartOptions(){
+      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      s.reportType = String(document.getElementById("startReportType").value || "domestic");
+      s.currency = String(document.getElementById("startCurrency").value || "USD").toUpperCase();
+      if (s.reportType === "domestic") s.currency = "USD";
+      wizardSet(SETTINGS_KEY, s);
+      document.getElementById("startMsg").textContent = "Saved.";
+    }
+    async function initStartOptions(){
+      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      document.getElementById("startReportType").value = s.reportType || "domestic";
+      document.getElementById("startCurrency").value = (s.currency || "USD").toUpperCase();
+      try{
+        const r = await fetch("/api/config");
+        const d = await r.json();
+        if(r.ok){
+          const modes = d?.modes || {};
+          const sel = document.getElementById("startReportType");
+          const opts = [];
+          if (modes?.domestic?.enabled !== false) opts.push({v:"domestic",l:modes?.domestic?.label || "Domestic"});
+          if (modes?.international?.enabled !== false) opts.push({v:"international",l:modes?.international?.label || "International"});
+          sel.innerHTML = opts.map(x=>`<option value="${x.v}">${esc(x.l)}</option>`).join("");
+          if ([...sel.options].some(o=>o.value === (s.reportType || ""))) sel.value = s.reportType;
+          else if (opts[0]) sel.value = opts[0].v;
+        }
+      }catch(_){ }
+      applyStartRules();
+      saveStartOptions();
+    }
+
     function summarizeLifecycle(items){
       const out = { total: 0, uploaded: 0, ocr: 0, needs_review: 0, ready: 0, assigned: 0 };
       for (const x of (items || [])) {
@@ -99,7 +131,7 @@
         const lc = String(x.lifecycle_state || "").toUpperCase();
         if (lc === "UPLOADED") out.uploaded += 1;
         if (lc === "OCR_PROCESSING") out.ocr += 1;
-        if (lc === "NEEDS_REVIEW" || lc === "LOW_CONFIDENCE" || lc === "OCR_FAILED" || lc === "IMAGE_UNREADABLE") out.needs_review += 1;
+        if (["NEEDS_REVIEW","LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE"].includes(lc)) out.needs_review += 1;
         if (lc === "READY_FOR_REPORT") out.ready += 1;
         if (lc === "ASSIGNED_TO_REPORT") out.assigned += 1;
       }
@@ -116,72 +148,55 @@
     }
     function renderRows(){
       const body = document.getElementById("rows");
-      if (!rows.length) {
-        body.innerHTML = `<tr><td colspan="10" class="small text-muted">No unassigned receipts yet.</td></tr>`;
-        return;
-      }
+      if (!rows.length) { body.innerHTML = `<tr><td colspan="10" class="small text-muted">No unassigned receipts yet.</td></tr>`; return; }
       body.innerHTML = rows.map((x, i) => {
         const canOcr = canRerunOcr(x);
-        return `
-          <tr>
-            <td>${i + 1}</td>
-            <td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td>
-            <td>${esc(x.orig_filename || "")}</td>
-            <td>${esc(x.date || "-")}</td>
-            <td>${esc(x.merchant || "-")}</td>
-            <td>${Number(x.amount || 0).toLocaleString()}</td>
-            <td>${esc(x.currency || "-")}</td>
-            <td>${esc(x.status || "-")}</td>
-            <td>${esc(x.lifecycle_state || "-")}</td>
-            <td>
-              <button class="btn btn-sm btn-outline-primary" ${canOcr ? "" : "disabled"} onclick="runOcr(${Number(x.id)})">${canOcr ? "OCR" : "Done"}</button>
-              <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteReceipt(${Number(x.id)})">Delete</button>
-            </td>
-          </tr>
-        `;
+        return `<tr>
+          <td>${i + 1}</td>
+          <td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td>
+          <td>${esc(x.orig_filename || "")}</td>
+          <td>${esc(x.date || "-")}</td>
+          <td>${esc(x.merchant || "-")}</td>
+          <td>${Number(x.amount || 0).toLocaleString()}</td>
+          <td>${esc(x.currency || "-")}</td>
+          <td>${esc(x.status || "-")}</td>
+          <td>${esc(x.lifecycle_state || "-")}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" ${canOcr ? "" : "disabled"} onclick="runOcr(${Number(x.id)})">${canOcr ? "OCR" : "Done"}</button>
+            <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteReceipt(${Number(x.id)})">Delete</button>
+          </td>
+        </tr>`;
       }).join("");
     }
     function renderSummary(){
       const s = summarizeLifecycle(rows);
-      const el = document.getElementById("progressSummary");
-      if (el) el.textContent = `Total ${s.total} · Uploaded ${s.uploaded} · OCR ${s.ocr} · Needs Review ${s.needs_review} · Ready ${s.ready} · Assigned ${s.assigned}`;
+      document.getElementById("progressSummary").textContent = `Total ${s.total} · Uploaded ${s.uploaded} · OCR ${s.ocr} · Needs Review ${s.needs_review} · Ready ${s.ready} · Assigned ${s.assigned}`;
     }
     async function refreshRows(){
       const r = await fetch("/api/inbox/receipts?report_status=unassigned&limit=500");
       const d = await r.json();
-      if (!r.ok) {
-        document.getElementById("msg").innerHTML = `<span class="text-danger">${esc(d.error || "Failed to load receipts")}</span>`;
-        return;
-      }
+      if (!r.ok) { document.getElementById("msg").innerHTML = `<span class="text-danger">${esc(d.error || "Failed to load receipts")}</span>`; return; }
       rows = d.receipts || [];
       renderSummary();
       renderRows();
     }
 
-    function showUploadProgress(percent){
-      const wrap = document.getElementById("uploadProgressWrap");
-      const bar = document.getElementById("uploadProgressBar");
-      wrap.style.display = "";
-      bar.style.width = `${percent}%`;
-      bar.textContent = `${percent}%`;
-    }
-    function hideUploadProgress(){
-      const wrap = document.getElementById("uploadProgressWrap");
-      const bar = document.getElementById("uploadProgressBar");
-      bar.style.width = "0%";
-      bar.textContent = "0%";
-      wrap.style.display = "none";
-    }
+    function showUploadProgress(percent){ const wrap = document.getElementById("uploadProgressWrap"); const bar = document.getElementById("uploadProgressBar"); wrap.style.display = ""; bar.style.width = `${percent}%`; bar.textContent = `${percent}%`; }
+    function hideUploadProgress(){ const wrap = document.getElementById("uploadProgressWrap"); const bar = document.getElementById("uploadProgressBar"); bar.style.width = "0%"; bar.textContent = "0%"; wrap.style.display = "none"; }
 
     async function analyzeSelectedFiles(){
       const inp = document.getElementById("files");
       const out = document.getElementById("qualityHints");
       const files = [...inp.files || []];
-      if (!files.length) {
-        out.innerHTML = "";
-        return;
+      if (!files.length) { out.innerHTML = ""; return; }
+      const seen = new Set();
+      const duplicateNames = new Set();
+      for (const f of files) {
+        const key = `${String(f.name || "").toLowerCase()}|${Number(f.size || 0)}`;
+        if (seen.has(key)) duplicateNames.add(f.name || "(unknown)");
+        seen.add(key);
       }
-      const rows = await Promise.all(files.map((f) => new Promise((resolve) => {
+      const results = await Promise.all(files.map((f) => new Promise((resolve) => {
         const url = URL.createObjectURL(f);
         const img = new Image();
         img.onload = () => {
@@ -192,21 +207,17 @@
           const lowRes = (Math.min(w, h) < 900 || mp < 1.0);
           resolve({ name: f.name, w, h, mb: (f.size / (1024*1024)), lowRes });
         };
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
-          resolve({ name: f.name, w: 0, h: 0, mb: (f.size / (1024*1024)), lowRes: true });
-        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve({ name: f.name, w: 0, h: 0, mb: (f.size / (1024*1024)), lowRes: true }); };
         img.src = url;
       })));
-      const warns = rows.filter(x => x.lowRes);
-      out.innerHTML = rows.map(x => {
+      const warns = results.filter(x => x.lowRes);
+      out.innerHTML = results.map(x => {
         const badge = x.lowRes ? '<span class="badge text-bg-warning">Low OCR quality risk</span>' : '<span class="badge text-bg-success">OK</span>';
         return `<div>${badge} <span class="ms-1">${esc(x.name)} (${x.w}x${x.h}, ${x.mb.toFixed(2)}MB)</span></div>`;
       }).join("");
-      out.innerHTML += `<div class="text-muted mt-1">Pre-check complete. Click <strong>Upload</strong> to continue.</div>`;
-      if (warns.length) {
-        out.innerHTML += `<div class="text-warning mt-1">${warns.length} file(s) flagged by pre-check (heuristic only). Upload/OCR is still available.</div>`;
-      }
+      out.innerHTML += `<div class="text-muted mt-1">Pre-check is heuristic only. It does not block upload/OCR.</div>`;
+      if (warns.length) out.innerHTML += `<div class="text-warning mt-1">${warns.length} file(s) flagged by heuristic pre-check.</div>`;
+      if (duplicateNames.size) out.innerHTML += `<div class="text-warning mt-1">Duplicate selection detected in this batch: ${esc([...duplicateNames].join(", "))}</div>`;
     }
 
     function uploadWithProgress(formData){
@@ -221,15 +232,9 @@
         xhr.onload = () => {
           try {
             const data = JSON.parse(xhr.responseText || "{}");
-            if (xhr.status >= 200 && xhr.status < 300) {
-              showUploadProgress(100);
-              resolve(data);
-            } else {
-              reject(new Error(data.error || "Upload failed"));
-            }
-          } catch (_) {
-            reject(new Error("Upload failed"));
-          }
+            if (xhr.status >= 200 && xhr.status < 300) { showUploadProgress(100); resolve(data); }
+            else reject(new Error(data.error || "Upload failed"));
+          } catch (_) { reject(new Error("Upload failed")); }
         };
         xhr.onerror = () => reject(new Error("Network error during upload"));
         xhr.send(formData);
@@ -246,23 +251,17 @@
         uploading = true;
         showUploadProgress(1);
         const d = await uploadWithProgress(fd);
-        document.getElementById("msg").textContent = `Uploaded ${d.count} files`;
+        document.getElementById("msg").textContent = `Uploaded ${d.count} file(s)`;
         inp.value = "";
         document.getElementById("qualityHints").innerHTML = "";
         await refreshRows();
-      } catch (e) {
-        alert(e.message || "Upload failed");
-      } finally {
-        uploading = false;
-        setTimeout(hideUploadProgress, 500);
-      }
+      } catch (e) { alert(e.message || "Upload failed"); }
+      finally { uploading = false; setTimeout(hideUploadProgress, 500); }
     }
+
     async function runOcr(id){
       const target = rows.find(x => Number(x.id) === Number(id));
-      if (target && !canRerunOcr(target)) {
-        alert("Already OCR-processed. Re-run is blocked to prevent unnecessary API cost.");
-        return;
-      }
+      if (target && !canRerunOcr(target)) return alert("Already OCR-processed. Re-run blocked.");
       const r = await fetch(`/api/inbox/ocr/${id}`, { method: "POST" });
       const d = await r.json();
       if (!r.ok) return alert(d.error || "OCR failed");
@@ -271,12 +270,10 @@
     async function runOcrForPending(){
       const targets = rows.filter(x => {
         const lc = String(x.lifecycle_state || "").toUpperCase();
-        return canRerunOcr(x) && (lc === "UPLOADED" || lc === "NEEDS_REVIEW" || lc === "LOW_CONFIDENCE" || lc === "OCR_FAILED" || lc === "IMAGE_UNREADABLE");
+        return canRerunOcr(x) && ["UPLOADED","NEEDS_REVIEW","LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE"].includes(lc);
       }).map(x => Number(x.id));
       if (!targets.length) return alert("No pending receipts for OCR.");
-      for (const id of targets) {
-        await runOcr(id);
-      }
+      for (const id of targets) await runOcr(id);
       await refreshRows();
     }
     async function deleteReceipt(id){
@@ -286,60 +283,8 @@
       if (!r.ok) return alert(d.error || "Delete failed");
       await refreshRows();
     }
-    refreshRows();
-    initStartOptions();
+
+    (async()=>{ await initStartOptions(); await refreshRows(); })();
   </script>
 </body>
 </html>
-    function wizardGet(key, fallback){
-      try{
-        const raw = localStorage.getItem(key);
-        if(!raw) return fallback;
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value")) return parsed.value;
-        return parsed;
-      }catch(_){ return fallback; }
-    }
-    function wizardSet(key, value){
-      try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){}
-    }
-    function saveStartOptions(){
-      const s = wizardGet(SETTINGS_KEY, {}) || {};
-      s.reportType = String(document.getElementById("startReportType").value || "domestic");
-      s.currency = String(document.getElementById("startCurrency").value || "USD").toUpperCase();
-      if (s.reportType === "domestic") s.currency = "USD";
-      wizardSet(SETTINGS_KEY, s);
-      document.getElementById("startMsg").textContent = "Saved.";
-    }
-    function applyStartRules(){
-      const mode = String(document.getElementById("startReportType").value || "domestic");
-      const cur = document.getElementById("startCurrency");
-      if (mode === "domestic"){
-        cur.value = "USD";
-        cur.disabled = true;
-      } else {
-        cur.disabled = false;
-      }
-    }
-    async function initStartOptions(){
-      const s = wizardGet(SETTINGS_KEY, {}) || {};
-      document.getElementById("startReportType").value = s.reportType || "domestic";
-      document.getElementById("startCurrency").value = (s.currency || "USD").toUpperCase();
-      applyStartRules();
-      try{
-        const r = await fetch("/api/config");
-        const d = await r.json();
-        if(r.ok){
-          const modes = d?.modes || {};
-          const sel = document.getElementById("startReportType");
-          const opts = [];
-          if (modes?.domestic?.enabled !== false) opts.push({v:"domestic",l:modes?.domestic?.label || "Domestic"});
-          if (modes?.international?.enabled !== false) opts.push({v:"international",l:modes?.international?.label || "International"});
-          sel.innerHTML = opts.map(x=>`<option value="${x.v}">${esc(x.l)}</option>`).join("");
-          if ([...sel.options].some(o=>o.value === (s.reportType || ""))) sel.value = s.reportType;
-          else if (opts[0]) sel.value = opts[0].v;
-          applyStartRules();
-        }
-      }catch(_){}
-      saveStartOptions();
-    }

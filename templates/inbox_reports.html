@@ -8,34 +8,36 @@
   <link href="/static/app_ui.css" rel="stylesheet">
 </head>
 <body class="app-shell">
-  <div class="container py-4">
+  <div class="container-fluid py-3 px-3">
     {% include "_module_nav.html" %}
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h4 class="mb-0 page-header-title">Reports</h4>
       <div class="d-flex gap-2">
         <a id="adminBackLink" href="/admin" class="btn btn-sm btn-outline-dark" style="display:none;">Back to Admin Monitor</a>
-        <a href="/reports/wizard/settings" class="btn btn-sm btn-primary">Create Report Wizard</a>
+        <a href="/reports/wizard/upload" class="btn btn-sm btn-primary">Create Report</a>
       </div>
     </div>
     <div class="card p-3 mb-3">
       <div class="row g-2">
-        <div class="col-md-3"><input id="q" class="form-control form-control-sm" placeholder="search title/file/employee"></div>
-        <div class="col-md-2">
+        <div class="col-lg-3 col-md-6"><input id="q" class="form-control form-control-sm" placeholder="search title/file/employee"></div>
+        <div class="col-lg-2 col-md-6">
           <select id="mode" class="form-select form-select-sm">
             <option value="">all mode</option>
             <option value="domestic">domestic</option>
             <option value="international">international</option>
           </select>
         </div>
-        <div class="col-md-2"><input id="dateFrom" type="date" class="form-control form-control-sm"></div>
-        <div class="col-md-2"><input id="dateTo" type="date" class="form-control form-control-sm"></div>
-        <div class="col-md-3" id="creatorWrap">
+        <div class="col-lg-2 col-md-6"><input id="dateFrom" type="date" class="form-control form-control-sm"></div>
+        <div class="col-lg-2 col-md-6"><input id="dateTo" type="date" class="form-control form-control-sm"></div>
+        <div class="col-lg-3 col-md-6" id="creatorWrap">
           <select id="creatorEmail" class="form-select form-select-sm">
             <option value="">all creator</option>
           </select>
         </div>
-        <div class="col-md-2"><button class="btn btn-outline-secondary btn-sm w-100" onclick="loadReports()">Search</button></div>
-        <div class="col-md-2"><button class="btn btn-outline-light border btn-sm w-100" onclick="resetFilters()">Reset</button></div>
+      </div>
+      <div class="row g-2 mt-1">
+        <div class="col-lg-2 col-md-6"><button class="btn btn-outline-secondary btn-sm w-100" onclick="loadReports()">Search</button></div>
+        <div class="col-lg-2 col-md-6"><button class="btn btn-outline-light border btn-sm w-100" onclick="resetFilters()">Reset</button></div>
       </div>
       <div id="summary" class="small text-muted mt-2"></div>
     </div>

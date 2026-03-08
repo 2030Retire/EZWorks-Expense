@@ -8,7 +8,7 @@
   <link href="/static/app_ui.css" rel="stylesheet">
 </head>
 <body class="app-shell">
-  <div class="container py-4">
+  <div class="container-fluid py-3 px-3">
     {% include "_module_nav.html" %}
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h4 class="mb-0 page-header-title">Inbox</h4>
@@ -20,10 +20,10 @@
     </div>
     <div class="card p-3 mb-3">
       <div class="row g-2">
-        <div class="col-md-2"><input id="q" class="form-control form-control-sm" placeholder="search (text, id, #id)"></div>
-        <div class="col-md-2"><select id="status" class="form-select form-select-sm"><option value="">all status</option><option>needs_review</option><option>processed</option><option>duplicate</option></select></div>
-        <div class="col-md-2"><select id="reportStatus" class="form-select form-select-sm"><option value="">all report</option><option>unassigned</option><option>assigned</option></select></div>
-        <div class="col-md-3"><select id="lifecycleState" class="form-select form-select-sm">
+        <div class="col-lg-3 col-md-6"><input id="q" class="form-control form-control-sm" placeholder="search (text, id, #id)"></div>
+        <div class="col-lg-2 col-md-6"><select id="status" class="form-select form-select-sm"><option value="">all status</option><option>needs_review</option><option>processed</option><option>duplicate</option></select></div>
+        <div class="col-lg-2 col-md-6"><select id="reportStatus" class="form-select form-select-sm"><option value="">all report</option><option>unassigned</option><option>assigned</option></select></div>
+        <div class="col-lg-3 col-md-6"><select id="lifecycleState" class="form-select form-select-sm">
           <option value="">all lifecycle</option>
           <option value="UPLOADED">UPLOADED</option>
           <option value="OCR_PROCESSING">OCR_PROCESSING</option>
@@ -34,12 +34,11 @@
           <option value="READY_FOR_REPORT">READY_FOR_REPORT</option>
           <option value="ASSIGNED_TO_REPORT">ASSIGNED_TO_REPORT</option>
         </select></div>
-        <div class="col-md-2"><input id="dateFrom" type="date" class="form-control form-control-sm" title="receipt date from"></div>
-        <div class="col-md-2"><input id="dateTo" type="date" class="form-control form-control-sm" title="receipt date to"></div>
-        <div class="col-md-1"><button class="btn btn-outline-secondary btn-sm w-100" onclick="loadReceipts()">Search</button></div>
+        <div class="col-lg-2 col-md-6"><input id="dateFrom" type="date" class="form-control form-control-sm" title="receipt date from"></div>
       </div>
       <div class="row g-2 mt-1">
-        <div class="col-md-2">
+        <div class="col-lg-2 col-md-4"><input id="dateTo" type="date" class="form-control form-control-sm" title="receipt date to"></div>
+        <div class="col-lg-2 col-md-4">
           <select id="quickDateRange" class="form-select form-select-sm" onchange="setQuickDateRange(this.value)">
             <option value="all">all period</option>
             <option value="7">last 7 days</option>
@@ -48,14 +47,11 @@
             <option value="custom">custom</option>
           </select>
         </div>
-        <div class="col-md-2"><button class="btn btn-outline-light border btn-sm w-100" onclick="resetFilters()">Reset Filters</button></div>
-      </div>
-      <div class="row g-2 mt-1">
-        <div class="col-md-3"><input id="merchant" class="form-control form-control-sm" placeholder="merchant contains"></div>
-        <div class="col-md-2"><input id="category" class="form-control form-control-sm" placeholder="category"></div>
-        <div class="col-md-2"><input id="minAmount" type="number" min="0" class="form-control form-control-sm" placeholder="min amount"></div>
-        <div class="col-md-2"><input id="maxAmount" type="number" min="0" class="form-control form-control-sm" placeholder="max amount"></div>
-        <div class="col-md-3">
+        <div class="col-lg-2 col-md-4"><input id="merchant" class="form-control form-control-sm" placeholder="merchant contains"></div>
+        <div class="col-lg-2 col-md-4"><input id="category" class="form-control form-control-sm" placeholder="category"></div>
+        <div class="col-lg-2 col-md-4"><input id="minAmount" type="number" min="0" class="form-control form-control-sm" placeholder="min amount"></div>
+        <div class="col-lg-2 col-md-4"><input id="maxAmount" type="number" min="0" class="form-control form-control-sm" placeholder="max amount"></div>
+        <div class="col-lg-2 col-md-4">
           <select id="sortBy" class="form-select form-select-sm">
             <option value="created_desc">sort: newest upload</option>
             <option value="date_desc">date: newest</option>
@@ -66,14 +62,20 @@
           </select>
         </div>
       </div>
+      <div class="row g-2 mt-1">
+        <div class="col-lg-2 col-md-6"><button class="btn btn-outline-secondary btn-sm w-100" onclick="loadReceipts()">Search</button></div>
+        <div class="col-lg-2 col-md-6"><button class="btn btn-outline-light border btn-sm w-100" onclick="resetFilters()">Reset Filters</button></div>
+      </div>
       <div class="row g-2 mt-2">
-        <div class="col-md-3"><select id="presetSelect" class="form-select form-select-sm"></select></div>
-        <div class="col-md-3"><input id="presetName" class="form-control form-control-sm" placeholder="preset name"></div>
-        <div class="col-md-2" id="presetScopeWrap"><select id="presetScope" class="form-select form-select-sm"><option value="personal">Personal</option><option value="shared">Shared (Tenant)</option></select></div>
-        <div class="col-md-2 d-flex align-items-center" id="presetLockWrap"><label class="small mb-0"><input type="checkbox" id="presetLock" class="form-check-input me-1">Lock shared</label></div>
-        <div class="col-md-2"><button id="btnSavePreset" class="btn btn-outline-primary btn-sm w-100" onclick="savePreset()">Save Preset</button></div>
-        <div class="col-md-2"><button class="btn btn-outline-secondary btn-sm w-100" onclick="applyPreset()">Apply</button></div>
-        <div class="col-md-2"><button id="btnDeletePreset" class="btn btn-outline-danger btn-sm w-100" onclick="deletePreset()">Delete</button></div>
+        <div class="col-lg-3 col-md-6"><select id="presetSelect" class="form-select form-select-sm"></select></div>
+        <div class="col-lg-3 col-md-6"><input id="presetName" class="form-control form-control-sm" placeholder="preset name"></div>
+        <div class="col-lg-2 col-md-6" id="presetScopeWrap"><select id="presetScope" class="form-select form-select-sm"><option value="personal">Personal</option><option value="shared">Shared (Tenant)</option></select></div>
+        <div class="col-lg-2 col-md-6 d-flex align-items-center" id="presetLockWrap"><label class="small mb-0"><input type="checkbox" id="presetLock" class="form-check-input me-1">Lock shared</label></div>
+        <div class="col-lg-2 col-md-6"><button id="btnSavePreset" class="btn btn-outline-primary btn-sm w-100" onclick="savePreset()">Save Preset</button></div>
+      </div>
+      <div class="row g-2 mt-1">
+        <div class="col-lg-2 col-md-6"><button class="btn btn-outline-secondary btn-sm w-100" onclick="applyPreset()">Apply</button></div>
+        <div class="col-lg-2 col-md-6"><button id="btnDeletePreset" class="btn btn-outline-danger btn-sm w-100" onclick="deletePreset()">Delete</button></div>
       </div>
       <div class="small text-muted mt-2" id="presetMeta"></div>
       <div class="small text-primary mt-1" id="userScopeNote" style="display:none;"></div>

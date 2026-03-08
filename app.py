@@ -90,6 +90,7 @@ _load_dotenv()
 
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, Response
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from openpyxl import Workbook, load_workbook
 try:
     from authlib.integrations.flask_client import OAuth
@@ -100,6 +101,7 @@ from ocr import process_receipt_image
 from excel_filler import fill_expense_report, DEFAULT_EXCHANGE_RATE, parse_date
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.secret_key = os.environ.get("SECRET_KEY", "change-this-in-production")
 app.permanent_session_lifetime = timedelta(
     hours=int(os.environ.get("ADMIN_SESSION_HOURS", "12"))

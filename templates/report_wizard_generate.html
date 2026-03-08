@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Report Wizard - Generate</title>
+  <title>Expense Report Process - Finalize</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="/static/app_ui.css" rel="stylesheet">
 </head>
@@ -11,35 +11,43 @@
   <div class="container-fluid py-3 px-3">
     {% include "_module_nav.html" %}
     <div class="d-flex justify-content-between align-items-center mb-2">
-      <h4 class="mb-0 page-header-title">Create Report Wizard</h4>
+      <h4 class="mb-0 page-header-title">Expense Report Process</h4>
       <a href="/reports" class="btn btn-sm btn-outline-secondary">Cancel</a>
     </div>
     {% set wizard_step = 3 %}{% include "_wizard_progress.html" %}
 
     <div class="card p-3">
-      <h6 class="mb-2">Step 3. Generate Report</h6>
+      <h6 class="mb-2">Step 3. Finalize Report</h6>
       <div class="small text-muted mb-2">Selected receipts: <span id="receiptCount">0</span> · <span id="progressSummary"></span></div>
       <div id="dirtyBanner" class="alert alert-warning py-2 px-3 small mb-2" style="display:none;">
         Unsaved edits were detected from Review. Save those rows before generating.
       </div>
 
+      <div class="small fw-semibold mt-1 mb-1">Document Settings</div>
+      <div class="row g-2 mb-2">
+        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Expense Type</label><input id="mode" class="form-control form-control-sm" readonly></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Period Mode</label><select id="periodMode" class="form-select form-select-sm"><option value="auto">auto</option><option value="manual">manual</option></select></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Document Type</label><input id="documentType" class="form-control form-control-sm" placeholder="Expense Report"></div>
+      </div>
+
+      <div class="small fw-semibold mt-2 mb-1">Basic Info</div>
+      <div class="row g-2 mb-2">
+        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Employee Name</label><input id="employeeName" class="form-control form-control-sm"></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Department</label><input id="department" class="form-control form-control-sm"></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label small mb-1">Manager</label><input id="manager" class="form-control form-control-sm"></div>
+      </div>
+
+      <div class="small fw-semibold mt-2 mb-1">Report Details</div>
       <div class="row g-2">
-        <div class="col-md-5"><label class="form-label small mb-1">Title</label><input id="title" class="form-control form-control-sm"></div>
-        <div class="col-md-2"><label class="form-label small mb-1">Expense Type</label><input id="mode" class="form-control form-control-sm" readonly></div>
-        <div class="col-md-2"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
-        <div class="col-md-3"><label class="form-label small mb-1">Period Mode</label><select id="periodMode" class="form-select form-select-sm"><option value="auto">auto</option><option value="manual">manual</option></select></div>
-
-        <div class="col-md-3"><label class="form-label small mb-1">Employee Name</label><input id="employeeName" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small mb-1">Department</label><input id="department" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small mb-1">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small mb-1">Manager</label><input id="manager" class="form-control form-control-sm"></div>
-
-        <div class="col-md-6"><label class="form-label small mb-1">Project</label><input id="project" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small mb-1">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
-        <div class="col-md-3"><label class="form-label small mb-1">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
-
-        <div class="col-md-6"><label class="form-label small mb-1">Trip Purpose</label><input id="tripPurpose" class="form-control form-control-sm"></div>
-        <div class="col-md-6"><label class="form-label small mb-1">Notes</label><input id="notes" class="form-control form-control-sm"></div>
+        <div class="col-lg-8 col-md-12"><label class="form-label small mb-1">Title</label><input id="title" class="form-control form-control-sm"></div>
+        <div class="col-lg-4 col-md-12"><label class="form-label small mb-1">Project</label><input id="project" class="form-control form-control-sm"></div>
+        <div class="col-lg-4 col-md-6"><label class="form-label small mb-1">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
+        <div class="col-lg-4 col-md-6"><label class="form-label small mb-1">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
+        <div class="col-lg-4 col-md-12"><label class="form-label small mb-1">Submission Date</label><input id="submitDate" type="date" class="form-control form-control-sm"></div>
+        <div class="col-12"><label class="form-label small mb-1">Trip Purpose</label><textarea id="tripPurpose" class="form-control form-control-sm" rows="2"></textarea></div>
+        <div class="col-12"><label class="form-label small mb-1">Notes</label><textarea id="notes" class="form-control form-control-sm" rows="2"></textarea></div>
       </div>
 
       <div class="d-flex justify-content-between mt-3">
@@ -156,6 +164,7 @@
       const body = {
         mode: document.getElementById("mode").value,
         title: document.getElementById("title").value.trim(),
+        document_type: document.getElementById("documentType").value.trim(),
         currency: document.getElementById("currency").value.trim().toUpperCase(),
         exchange_rate: Number(fx.default_rate || 1),
         exchange_rates: fx.rates || {},
@@ -168,6 +177,7 @@
         project: document.getElementById("project").value.trim(),
         period_from: document.getElementById("periodFrom").value.trim(),
         period_to: document.getElementById("periodTo").value.trim(),
+        submission_date: document.getElementById("submitDate").value.trim(),
         trip_purpose: document.getElementById("tripPurpose").value.trim(),
         notes: document.getElementById("notes").value.trim(),
       };
@@ -183,6 +193,7 @@
       if (getSelectedDirtyIds().length) {
         document.getElementById("dirtyBanner").style.display = "";
       }
+      document.getElementById("submitDate").value = new Date().toISOString().slice(0, 10);
       loadBasicSettings();
       await loadProfile();
       await loadSelectedSummary();
