@@ -11,6 +11,7 @@ from typing import Optional
 
 import openpyxl
 from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment
 
 # ──────────────────────────────────────────────────────
 # 상수
@@ -249,6 +250,55 @@ def _find_list_account_code_col(ws, start_row: int) -> Optional[int]:
     return None
 
 
+def _split_memo_and_account_code(memo_value: str, account_code_value: str = "") -> tuple[str, str]:
+    memo = str(memo_value or "").strip()
+    account_code = str(account_code_value or "").strip()
+    if "| AC:" in memo:
+        base, _, tail = memo.partition("| AC:")
+        if not account_code:
+            account_code = tail.strip()
+        memo = base.strip()
+    elif " AC:" in memo:
+        base, _, tail = memo.partition(" AC:")
+        if not account_code:
+            account_code = tail.strip()
+        memo = base.strip()
+    return memo, account_code
+
+
+def _format_list_layout(ws, mode: str, start_row: int):
+    # Standard layout guardrails for default templates.
+    ws.column_dimensions["A"].width = max(float(ws.column_dimensions["A"].width or 0), 4.0)
+    ws.column_dimensions["B"].width = max(float(ws.column_dimensions["B"].width or 0), 12.0)
+    ws.column_dimensions["C"].width = max(float(ws.column_dimensions["C"].width or 0), 28.0)
+    ws.column_dimensions["D"].width = max(float(ws.column_dimensions["D"].width or 0), 18.0)
+    if mode == "international":
+        ws.column_dimensions["E"].width = max(float(ws.column_dimensions["E"].width or 0), 10.0)
+        ws.column_dimensions["F"].width = max(float(ws.column_dimensions["F"].width or 0), 14.0)
+        ws.column_dimensions["G"].width = max(float(ws.column_dimensions["G"].width or 0), 12.0)
+        ws.column_dimensions["H"].width = max(float(ws.column_dimensions["H"].width or 0), 14.0)
+        ws.column_dimensions["I"].width = max(float(ws.column_dimensions["I"].width or 0), 36.0)
+    else:
+        ws.column_dimensions["E"].width = max(float(ws.column_dimensions["E"].width or 0), 14.0)
+        ws.column_dimensions["F"].width = max(float(ws.column_dimensions["F"].width or 0), 36.0)
+
+    for row in range(start_row, start_row + 250):
+        ws.cell(row=row, column=2).number_format = "mm/dd/yyyy"
+        ws.cell(row=row, column=2).alignment = Alignment(horizontal="center", vertical="center")
+        if mode == "international":
+            ws.cell(row=row, column=6).number_format = "#,##0.00"
+            ws.cell(row=row, column=6).alignment = Alignment(horizontal="right", vertical="center")
+            ws.cell(row=row, column=7).number_format = "0.000000"
+            ws.cell(row=row, column=7).alignment = Alignment(horizontal="right", vertical="center")
+            ws.cell(row=row, column=8).number_format = "#,##0.00"
+            ws.cell(row=row, column=8).alignment = Alignment(horizontal="right", vertical="center")
+            ws.cell(row=row, column=9).alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        else:
+            ws.cell(row=row, column=5).number_format = "#,##0.00"
+            ws.cell(row=row, column=5).alignment = Alignment(horizontal="right", vertical="center")
+            ws.cell(row=row, column=6).alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+
 def fill_list_sheet_domestic(ws, receipts, start_row: int,
                               exchange_rate: float = 1.0, exchange_rates=None):
     """
@@ -274,13 +324,11 @@ def fill_list_sheet_domestic(ws, receipts, start_row: int,
         ws.cell(row=row, column=3).value = r.get("merchant", "")
         ws.cell(row=row, column=4).value = r.get("category", "MISCELLANEOUS")
         ws.cell(row=row, column=5).value = round(amount_usd, 2)
-        memo = str(r.get("memo", "") or "")
-        account_code = str(r.get("account_code", "") or "").strip()
+        memo, account_code = _split_memo_and_account_code(r.get("memo", ""), r.get("account_code", ""))
         if account_col:
             ws.cell(row=row, column=account_col).value = account_code
-        elif account_code and f"AC:{account_code}" not in memo:
-            memo = f"{memo} | AC:{account_code}".strip(" |")
         ws.cell(row=row, column=6).value = memo
+    _format_list_layout(ws, "domestic", start_row)
 
 
 def fill_list_sheet_international(ws, receipts, start_row: int,
@@ -314,15 +362,13 @@ def fill_list_sheet_international(ws, receipts, start_row: int,
         ws.cell(row=row, column=4).value = r.get("category", "MISCELLANEOUS")
         ws.cell(row=row, column=5).value = currency
         ws.cell(row=row, column=6).value = round(amount_foreign, 2)
-        ws.cell(row=row, column=7).value = round(effective_rate, 4)
+        ws.cell(row=row, column=7).value = round(effective_rate, 6)
         ws.cell(row=row, column=8).value = round(amount_usd, 2)
-        memo = str(r.get("memo", "") or "")
-        account_code = str(r.get("account_code", "") or "").strip()
+        memo, account_code = _split_memo_and_account_code(r.get("memo", ""), r.get("account_code", ""))
         if account_col:
             ws.cell(row=row, column=account_col).value = account_code
-        elif account_code and f"AC:{account_code}" not in memo:
-            memo = f"{memo} | AC:{account_code}".strip(" |")
         ws.cell(row=row, column=9).value = memo
+    _format_list_layout(ws, "international", start_row)
 
 
 # ──────────────────────────────────────────────────────

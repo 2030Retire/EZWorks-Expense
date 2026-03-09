@@ -63,10 +63,7 @@
       <div class="progress mb-1" id="ocrBatchWrap" style="display:none; height:16px;">
         <div id="ocrBatchBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width:0%">0%</div>
       </div>
-      <div class="small text-muted mb-1" id="ocrBatchText" style="display:none;"></div>
-      <div class="progress mb-2" id="ocrCurrentWrap" style="display:none; height:14px;">
-        <div id="ocrCurrentBar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning" style="width:100%">Processing</div>
-      </div>
+      <div class="small text-muted mb-2" id="ocrBatchText" style="display:none;"></div>
 
       <div id="qualityHints" class="small mb-2"></div>
       <div id="msg" class="small mt-1 text-muted"></div>
@@ -172,14 +169,16 @@
           <td>${esc(x.orig_filename || "")}</td>
           <td>${esc(formatDateDisplay(x.date || ""))}</td>
           <td>${esc(x.merchant || "-")}</td>
-          <td>${Number(x.amount || 0).toLocaleString()}</td>
+          <td class="amount-num">${Number(x.amount || 0).toLocaleString()}</td>
           <td>${esc(x.currency || "-")}</td>
           <td>${esc(x.status || "-")}</td>
           <td>${esc(x.lifecycle_state || "-")}</td>
           <td>
-            <button class="btn btn-sm btn-outline-primary" ${(canOcr && !inFlight) ? "" : "disabled"} onclick="runOcr(${Number(x.id)})">${inFlight ? "Processing..." : (canOcr ? "OCR" : "Done")}</button>
+            ${inFlight
+              ? '<div class="progress" style="height:22px; min-width:120px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:100%">Processing</div></div>'
+              : `<button class="btn btn-sm btn-outline-primary" ${canOcr ? "" : "disabled"} onclick="runOcr(${Number(x.id)})">${canOcr ? "OCR" : "Done"}</button>`
+            }
             <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteReceipt(${Number(x.id)})">Delete</button>
-            ${inFlight ? '<div class="progress mt-1" style="height:6px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" style="width:100%"></div></div>' : ''}
           </td>
         </tr>`;
       }).join("");
@@ -231,24 +230,17 @@
       const wrap = document.getElementById("ocrBatchWrap");
       const bar = document.getElementById("ocrBatchBar");
       const text = document.getElementById("ocrBatchText");
-      const cwrap = document.getElementById("ocrCurrentWrap");
-      const cbar = document.getElementById("ocrCurrentBar");
       const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0;
       wrap.style.display = "";
       text.style.display = "";
-      cwrap.style.display = "";
       bar.style.width = `${pct}%`;
       bar.textContent = `${pct}%`;
       text.textContent = `OCR ${done}/${total}${currentLabel ? ` · ${currentLabel}` : ""}`;
-      cbar.style.width = "100%";
-      cbar.textContent = currentLabel ? `Processing: ${currentLabel}` : "Processing...";
     }
     function hideOcrProgress(){
-      ["ocrBatchWrap","ocrBatchText","ocrCurrentWrap"].forEach((id)=>{ const el = document.getElementById(id); if (el) el.style.display = "none"; });
+      ["ocrBatchWrap","ocrBatchText"].forEach((id)=>{ const el = document.getElementById(id); if (el) el.style.display = "none"; });
       const bar = document.getElementById("ocrBatchBar");
-      const cbar = document.getElementById("ocrCurrentBar");
       if (bar){ bar.style.width = "0%"; bar.textContent = "0%"; }
-      if (cbar){ cbar.style.width = "100%"; cbar.textContent = "Processing"; }
       ocrCurrentId = 0;
     }
 

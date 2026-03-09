@@ -122,3 +122,11 @@ body.app-shell .ezw-wizard-card {
 body.app-shell .card.p-3 {
   padding: 1rem 1.05rem !important;
 }
+
+/* Numeric amount alignment rule (all amount/money cells) */
+body.app-shell .amount-num,
+body.app-shell td.amount-num,
+body.app-shell th.amount-num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}

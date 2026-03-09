@@ -92,10 +92,12 @@ from flask import Flask, render_template, request, jsonify, send_file, session, 
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from openpyxl import Workbook, load_workbook
+OAUTH_IMPORT_ERROR = ""
 try:
     from authlib.integrations.flask_client import OAuth
-except Exception:
+except Exception as exc:
     OAuth = None
+    OAUTH_IMPORT_ERROR = f"{type(exc).__name__}: {exc}"
 
 from ocr import process_receipt_image
 from excel_filler import fill_expense_report, DEFAULT_EXCHANGE_RATE, parse_date
@@ -200,6 +202,8 @@ def _sso_missing_reasons() -> list[str]:
     missing = []
     if not oauth:
         missing.append("AUTHLIB_NOT_INSTALLED")
+        if OAUTH_IMPORT_ERROR:
+            missing.append(f"AUTHLIB_IMPORT_ERROR({OAUTH_IMPORT_ERROR})")
     if not MS_CLIENT_ID:
         missing.append("MS_CLIENT_ID")
     if not MS_CLIENT_SECRET:

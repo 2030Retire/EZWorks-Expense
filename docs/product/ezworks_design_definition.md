@@ -69,3 +69,8 @@ If this document conflicts with module-specific workflow architecture, module wo
 - Keep edits user-authoritative (AI suggestions editable).
 - Preserve module boundaries and data ownership boundaries.
 - Prefer predictable, maintainable UI behavior over hidden automation.
+
+## 8. Numeric Formatting Rule
+- All monetary values must be right-aligned across web tables and forms.
+- Use tabular numeric rendering where possible for scanability.
+- Date display standard for US-facing UI/export is `mm/dd/yyyy` unless a tenant explicitly overrides.
