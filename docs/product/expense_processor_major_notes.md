@@ -41,6 +41,7 @@
 - Finalize의 설명 문구와 카드/섹션 간격은 최대한 압축해, 첫 화면에서 핵심 입력 필드가 바로 보이도록 유지한다.
 - Finalize의 저장/생성 액션은 스크롤 중에도 찾기 쉽도록 하단 액션 바를 유지하는 방향이 좋다.
 - Finalize 내부 필드 폭은 같은 섹션 안에서 `핵심 입력은 넓게, 보조 입력은 좁게` 배치해 시선 흐름을 안정적으로 유지한다.
+- Finalize의 `Basic Info`와 `Report Details`는 이름/제목/메모처럼 길게 읽는 필드를 더 넓히고, 부가 필드는 줄여서 한 줄당 의미 밀도를 높이는 방향을 유지한다.
 - Finalize 성공 패널은 하단 액션 바와 시각적으로 이어지게 해, 생성 직후 다음 행동이 자연스럽게 보이도록 유지한다.
 - Review의 `Still missing`과 `Finalize Inputs`는 Finalize 해당 필드로 바로 이동할 수 있어야 한다.
 - Finalize에서 보고서를 만든 뒤 다시 값을 수정하기 시작하면, 이전 성공 상태 배너/강조는 즉시 내려서 `이미 생성된 상태`와 `다시 편집 중인 상태`가 섞여 보이지 않게 유지한다.
@@ -57,6 +58,7 @@
 - `Focus action-needed rows`는 required/fx/retry/dirty 기준으로 예외행만 빠르게 보는 운영 도구다.
 - Review 상단 편집 도구는 `Bulk Currency`와 `View Options`처럼 목적별 그룹으로 묶어, 화면이 넓어져도 흩어져 보이지 않게 유지한다.
 - Review FX 영역도 별도 작업 공간으로 묶어, 정책 선택/기본 환율/날짜별 환율 입력 흐름이 한눈에 보이도록 유지한다.
+- Review의 FX Workspace 앞뒤 안내 문구는 `행 수정 -> FX 확인 -> Finalize 이동` 순서를 짧게 설명해, 테이블과 환율 편집이 끊겨 보이지 않게 유지한다.
 - Review 하단의 다음 단계 액션도 화면 끝에서 다시 찾지 않도록, 테이블 편집 흐름과 이어지는 하단 액션 바 형태를 유지한다.
 - Review 하단 액션 바에는 `Required / FX / Save / Finalize`처럼 다음 단계 진입에 직접 영향을 주는 상태만 pill 형태로 압축 노출해, 사용자가 막히는 이유를 즉시 읽게 유지한다.
 
@@ -80,6 +82,7 @@
 - Template Preview diff 요약은 긴 문장보다 `diff cell 수 / 영향 시트 수 / 상위 변경 시트` 중심으로 압축해 읽게 유지한다.
 - Template Preview compare의 diff 요약은 긴 설명 문장보다 chip과 짧은 상위 변경 시트 목록 중심으로 압축해, override 영향 범위를 빠르게 읽게 유지한다.
 - Template Preview compare의 상위 변경 시트는 `Top changes` 레이블과 chip 조합으로 보여줘, 숫자 목록의 의미를 다시 해석하지 않게 유지한다.
+- Template Preview compare의 요약 chip에는 `Left resolved / Right base` 같은 방향성 힌트도 포함해, 비교 축을 바로 읽게 유지한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.

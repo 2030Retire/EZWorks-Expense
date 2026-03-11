@@ -2133,6 +2133,8 @@ async function loadTemplatePreview() {
       <div class="alert alert-warning py-2 px-3 small mb-3">
         <div class="fw-semibold mb-1">Base comparison summary</div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="template-chip">Left resolved</span>
+          <span class="template-chip">Right base</span>
           <span class="template-chip">Diff cells ${effectivePreview.diffCount}</span>
           <span class="template-chip">Affected sheets ${effectivePreview.sheetDiffs.length || 0}</span>
           <span class="template-chip">Highlight = resolved override change</span>

@@ -430,6 +430,7 @@
       <div class="border-top pt-2 mt-2">
         <div class="review-fx-panel">
           <div class="review-fx-title">FX Workspace</div>
+          <div class="small text-muted mb-2">Use this area after row edits to confirm the FX policy, fill missing rates, and clear anything still blocking Finalize.</div>
           <div class="review-fx-grid">
             <div class="d-grid gap-2">
               <div id="fxPolicyWrap" style="display:none;">
@@ -457,7 +458,7 @@
       </div>
       <div class="review-action-bar">
         <div>
-          <div class="review-action-meta">Complete required fixes and FX preparation here, then continue to Finalize.</div>
+          <div class="review-action-meta" id="reviewActionMeta">Complete required fixes and FX preparation here, then continue to Finalize.</div>
           <div class="review-action-status" id="reviewActionStatus"></div>
         </div>
         <div class="d-flex justify-content-between align-items-center flex-grow-1 gap-2">
@@ -542,6 +543,7 @@
     // 하단 액션 바에는 다음 단계 진입에 영향을 주는 핵심 상태만 압축해서 노출한다.
     function renderReviewActionStatus(overrides = {}){
       const wrap = document.getElementById("reviewActionStatus");
+      const meta = document.getElementById("reviewActionMeta");
       if (!wrap) return;
       const requiredCount = Number(overrides.requiredCount ?? document.querySelectorAll("#rows .req-badge.missing").length ?? 0);
       const fxPending = Number(overrides.fxPending ?? getFxRequirements().length ?? 0);
@@ -553,6 +555,20 @@
         `<span class="review-action-pill ${dirtyCount ? "warn" : "ok"}">Save ${dirtyCount ? `${dirtyCount} dirty` : "clean"}</span>`,
         `<span class="review-action-pill ${finalizePending ? "warn" : "ok"}">Finalize ${finalizePending ? `${finalizePending} remaining` : "ready"}</span>`
       ].join("");
+      // Review 하단 메타 문구도 현재 막히는 이유 순서대로 바꿔, 테이블 -> FX -> Finalize 흐름을 바로 읽게 만든다.
+      if (meta) {
+        if (requiredCount) {
+          meta.textContent = `Fix ${requiredCount} row(s) with missing required values before moving on.`;
+        } else if (dirtyCount) {
+          meta.textContent = `${dirtyCount} row edit(s) are still unsaved. Wait for auto-save or save them before continuing.`;
+        } else if (fxPending) {
+          meta.textContent = `Fill ${fxPending} missing FX rate(s) in the workspace below before Finalize.`;
+        } else if (finalizePending) {
+          meta.textContent = `Review is ready. Step 3 still has ${finalizePending} remaining input(s) to confirm.`;
+        } else {
+          meta.textContent = "Review looks ready. You can continue to Finalize to confirm document details and generate the report.";
+        }
+      }
     }
 
     function normalizeDateInput(v){
