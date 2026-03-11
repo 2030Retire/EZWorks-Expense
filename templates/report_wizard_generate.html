@@ -114,6 +114,18 @@
       background: #f8fafc;
       border: 1px solid #dbe6f3;
     }
+    .field-source-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: .05rem .4rem;
+      font-size: .68rem;
+      margin-left: .35rem;
+      vertical-align: middle;
+      color: #0f766e;
+      background: #ecfeff;
+      border: 1px solid #99f6e4;
+    }
     .finalize-kpi-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -194,11 +206,11 @@
       <div class="finalize-section mb-2">
         <div class="finalize-section-title">Basic Info</div>
         <div class="wizard-grid compact">
-          <div id="wrapEmployeeName" class="wizard-field-span-4"><label class="form-label small mb-1">Employee Name <span class="field-hint-required">Required</span></label><input id="employeeName" class="form-control form-control-sm" required></div>
-          <div id="wrapDepartment" class="wizard-field-span-2"><label class="form-label small mb-1">Department <span class="field-hint-optional">Optional</span></label><input id="department" class="form-control form-control-sm"></div>
-          <div id="wrapEmployeeId" class="wizard-field-span-2"><label class="form-label small mb-1">Employee ID <span class="field-hint-optional">Optional</span></label><input id="employeeId" class="form-control form-control-sm"></div>
-          <div id="wrapManager" class="wizard-field-span-2"><label class="form-label small mb-1">Manager <span class="field-hint-optional">Optional</span></label><input id="manager" class="form-control form-control-sm"></div>
-          <div id="wrapManagerEmail" class="wizard-field-span-2"><label class="form-label small mb-1">Manager Email <span class="field-hint-optional">Optional</span></label><input id="managerEmail" type="email" class="form-control form-control-sm" placeholder="manager@company.com"></div>
+          <div id="wrapEmployeeName" class="wizard-field-span-4"><label class="form-label small mb-1">Employee Name <span class="field-hint-required">Required</span><span id="badgeEmployeeName" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="employeeName" class="form-control form-control-sm" required></div>
+          <div id="wrapDepartment" class="wizard-field-span-2"><label class="form-label small mb-1">Department <span class="field-hint-optional">Optional</span><span id="badgeDepartment" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="department" class="form-control form-control-sm"></div>
+          <div id="wrapEmployeeId" class="wizard-field-span-2"><label class="form-label small mb-1">Employee ID <span class="field-hint-optional">Optional</span><span id="badgeEmployeeId" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="employeeId" class="form-control form-control-sm"></div>
+          <div id="wrapManager" class="wizard-field-span-2"><label class="form-label small mb-1">Manager <span class="field-hint-optional">Optional</span><span id="badgeManager" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="manager" class="form-control form-control-sm"></div>
+          <div id="wrapManagerEmail" class="wizard-field-span-2"><label class="form-label small mb-1">Manager Email <span class="field-hint-optional">Optional</span><span id="badgeManagerEmail" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="managerEmail" type="email" class="form-control form-control-sm" placeholder="manager@company.com"></div>
         </div>
       </div>
 
@@ -232,6 +244,14 @@
     let cfg = {};
     let profileMeta = {};
     let lastPresetApplied = { title: "", tripPurpose: "", notes: "" };
+    let visibleFieldState = {
+      employee_name: true,
+      department: true,
+      employee_id: false,
+      manager: false,
+      project: false,
+      period: true,
+    };
 
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
@@ -451,7 +471,21 @@
         document.getElementById("manager").value = p.manager || "";
         document.getElementById("managerEmail").value = p.manager_email || "";
         renderProfileContext();
+        renderProfileFieldBadges();
       }catch(_){ }
+    }
+    function setBadge(id, visible, text = "Auto-filled"){
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.display = visible ? "" : "none";
+      el.textContent = text;
+    }
+    function renderProfileFieldBadges(){
+      setBadge("badgeEmployeeName", visibleFieldState.employee_name && !!profileMeta.name);
+      setBadge("badgeDepartment", visibleFieldState.department && !!profileMeta.department);
+      setBadge("badgeEmployeeId", visibleFieldState.employee_id && !!profileMeta.employee_id);
+      setBadge("badgeManager", visibleFieldState.manager && !!profileMeta.manager);
+      setBadge("badgeManagerEmail", visibleFieldState.manager && !!profileMeta.manager_email);
     }
     function renderProfileContext(){
       const wrap = document.getElementById("profileContext");
@@ -464,14 +498,14 @@
       if (provider) parts.push(`<span class="profile-chip">Source: ${esc(provider === "microsoft" ? "Microsoft 365" : provider)}</span>`);
       if (orgName) parts.push(`<span class="profile-chip">Organization: ${esc(orgName)}</span>`);
       if (profileMeta.email) parts.push(`<span class="profile-chip">User: ${esc(profileMeta.email)}</span>`);
-      if (profileMeta.name) filled.push("Employee Name");
-      if (profileMeta.department) filled.push("Department");
-      if (profileMeta.employee_id) filled.push("Employee ID");
-      if (profileMeta.manager || profileMeta.manager_email) filled.push("Manager");
+      if (visibleFieldState.employee_name && profileMeta.name) filled.push("Employee Name");
+      if (visibleFieldState.department && profileMeta.department) filled.push("Department");
+      if (visibleFieldState.employee_id && profileMeta.employee_id) filled.push("Employee ID");
+      if (visibleFieldState.manager && (profileMeta.manager || profileMeta.manager_email)) filled.push("Manager");
       if (provider === "microsoft") {
-        if (!profileMeta.department) guidance.push("Department was not returned by Microsoft 365. Review before generating.");
-        if (!profileMeta.employee_id) guidance.push("Employee ID is still empty. Fill it manually if your approval flow needs it.");
-        if (!profileMeta.manager && !profileMeta.manager_email) {
+        if (visibleFieldState.department && !profileMeta.department) guidance.push("Department was not returned by Microsoft 365. Review before generating.");
+        if (visibleFieldState.employee_id && !profileMeta.employee_id) guidance.push("Employee ID is still empty. Fill it manually if your approval flow needs it.");
+        if (visibleFieldState.manager && !profileMeta.manager && !profileMeta.manager_email) {
           guidance.push(profileMeta.manager_sync_enabled
             ? "Manager info was not returned from Microsoft 365. You can enter it manually if needed."
             : "Manager sync is currently disabled on the server, so manager info must be entered manually.");
@@ -544,15 +578,25 @@
         if (Object.prototype.hasOwnProperty.call(fields, key)) return fields[key]?.enabled !== false;
         return fallback;
       };
-      setVisible("wrapEmployeeName", isEnabled("employee_name"));
-      setVisible("wrapDepartment", isEnabled("department"));
-      setVisible("wrapEmployeeId", isEnabled("employee_id", false));
-      setVisible("wrapManager", isEnabled("manager", false));
-      setVisible("wrapManagerEmail", isEnabled("manager", false));
-      setVisible("wrapProject", isEnabled("project", false));
-      const periodEnabled = isEnabled("period");
+      visibleFieldState = {
+        employee_name: isEnabled("employee_name"),
+        department: isEnabled("department"),
+        employee_id: isEnabled("employee_id", false),
+        manager: isEnabled("manager", false),
+        project: isEnabled("project", false),
+        period: isEnabled("period"),
+      };
+      setVisible("wrapEmployeeName", visibleFieldState.employee_name);
+      setVisible("wrapDepartment", visibleFieldState.department);
+      setVisible("wrapEmployeeId", visibleFieldState.employee_id);
+      setVisible("wrapManager", visibleFieldState.manager);
+      setVisible("wrapManagerEmail", visibleFieldState.manager);
+      setVisible("wrapProject", visibleFieldState.project);
+      const periodEnabled = visibleFieldState.period;
       setVisible("wrapPeriodFrom", periodEnabled);
       setVisible("wrapPeriodTo", periodEnabled);
+      renderProfileFieldBadges();
+      renderProfileContext();
     }
 
     function setInvalid(el, flag){
