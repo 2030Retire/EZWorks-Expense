@@ -630,6 +630,7 @@ let authenticated = false;
 let selectedTplFile = null;
 let userTargetHost = "";
 let isOperator = false;
+let templateInfoCache = null;
 let wizardRiskSortable = null;
 let adminPermissions = [];
 let currentAdminTab = localStorage.getItem("admin_tab_v1") || "all";
@@ -1713,6 +1714,7 @@ async function deleteLoginSlide(filename) {
 async function loadTemplateStatus() {
   const res  = await fetch("/admin/template-info");
   const data = await res.json();
+  templateInfoCache = data || {};
   const area = document.getElementById("templateStatusArea");
   const rows = [
     ["Domestic", data.base?.domestic || {}, "Used when receipts resolve to USD-only reporting."],
@@ -1825,10 +1827,18 @@ async function loadTemplatePreview() {
     area.innerHTML = `<div class="small text-muted">No preview rows.</div>`;
     return;
   }
+  let resolutionNote = `Using base template for all document types`;
+  if (documentType && templateInfoCache?.document_templates?.[documentType]) {
+    const slot = templateInfoCache.document_templates[documentType][mode] || {};
+    resolutionNote = slot.exists
+      ? `Resolved to document-type override (${escHtml(slot.scope || "template override")})`
+      : `No override uploaded. Falling back to base ${escHtml(mode)} template`;
+  }
   const previewSummary = `
     <div class="alert alert-light border py-2 px-3 small mb-2">
       <div><span class="fw-semibold">Preview context</span></div>
-      <div>Mode: <b>${escHtml(mode)}</b>${documentType ? ` · Document type override: <b>${escHtml(documentType)}</b>` : ` · Using base template for all document types`}</div>
+      <div>Mode: <b>${escHtml(mode)}</b>${documentType ? ` · Document type override: <b>${escHtml(documentType)}</b>` : ""}</div>
+      <div class="text-muted mt-1">${resolutionNote}</div>
     </div>
   `;
   area.innerHTML = sheets.map(s => {

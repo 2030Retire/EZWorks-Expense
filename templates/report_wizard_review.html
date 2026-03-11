@@ -73,6 +73,26 @@
       min-width: 140px;
       max-width: 190px;
     }
+    .req-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 64px;
+      border-radius: 999px;
+      padding: .15rem .45rem;
+      font-size: .72rem;
+      font-weight: 700;
+    }
+    .req-badge.ok {
+      color: #166534;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+    .req-badge.missing {
+      color: #9a3412;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -137,12 +157,12 @@
               <th>Date</th>
               <th>Merchant</th>
               <th>Amount</th>
-              <th>USD Amount</th>
               <th>Category</th>
+              <th>Required</th>
+              <th>USD Amount</th>
               <th>Memo</th>
               <th class="col-optional">Status</th>
               <th class="col-optional">Lifecycle</th>
-              <th>Required</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
@@ -325,9 +345,9 @@
       tr.classList.remove("table-warning");
       if (missing.length) {
         tr.classList.add("table-warning");
-        if (badge) badge.innerHTML = `<span class="badge text-bg-warning">Required</span>`;
+        if (badge) badge.innerHTML = `<span class="req-badge missing">Fix</span>`;
       } else if (badge) {
-        badge.innerHTML = `<span class="text-success small">ok</span>`;
+        badge.innerHTML = `<span class="req-badge ok">OK</span>`;
       }
       return missing.length;
     }
@@ -487,7 +507,7 @@
       if (autoSelectAll) selected = new Set(rowsAll.map((x)=>Number(x.id)));
       const dirtySet = getDirtySet();
       const body = document.getElementById("rows");
-      body.innerHTML = rowsAll.map((x)=>`<tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}"><td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td><td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td><td>${esc(x.orig_filename || "")}</td><td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td><td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="amount-num">${buildAmountCell(x)}</td><td class="amount-num f-usd">$ 0</td><td>${buildCategoryCell(x)}</td><td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="col-optional">${esc(x.status || "-")}</td><td class="col-optional">${esc(x.lifecycle_state || "-")}</td><td class="f-required"></td></tr>`).join("") || `<tr><td colspan="12" class="text-muted small">No receipts.</td></tr>`;
+      body.innerHTML = rowsAll.map((x)=>`<tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}"><td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td><td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td><td>${esc(x.orig_filename || "")}</td><td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td><td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="amount-num">${buildAmountCell(x)}</td><td>${buildCategoryCell(x)}</td><td class="f-required"></td><td class="amount-num f-usd">$ 0</td><td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="col-optional">${esc(x.status || "-")}</td><td class="col-optional">${esc(x.lifecycle_state || "-")}</td></tr>`).join("") || `<tr><td colspan="12" class="text-muted small">No receipts.</td></tr>`;
       if (autoSelectAll) wizardSet(KEY, [...selected]);
       renderDirtySummary(); updateUsdAmounts(); renderRequiredSummary(); renderSelectionSummary();
     }
