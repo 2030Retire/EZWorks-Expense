@@ -459,16 +459,37 @@
       const provider = String(profileMeta.provider || "").trim().toLowerCase();
       const orgName = String(profileMeta.org_name || "").trim();
       const parts = [];
+      const filled = [];
+      const guidance = [];
       if (provider) parts.push(`<span class="profile-chip">Source: ${esc(provider === "microsoft" ? "Microsoft 365" : provider)}</span>`);
       if (orgName) parts.push(`<span class="profile-chip">Organization: ${esc(orgName)}</span>`);
       if (profileMeta.email) parts.push(`<span class="profile-chip">User: ${esc(profileMeta.email)}</span>`);
+      if (profileMeta.name) filled.push("Employee Name");
+      if (profileMeta.department) filled.push("Department");
+      if (profileMeta.employee_id) filled.push("Employee ID");
+      if (profileMeta.manager || profileMeta.manager_email) filled.push("Manager");
+      if (provider === "microsoft") {
+        if (!profileMeta.department) guidance.push("Department was not returned by Microsoft 365. Review before generating.");
+        if (!profileMeta.employee_id) guidance.push("Employee ID is still empty. Fill it manually if your approval flow needs it.");
+        if (!profileMeta.manager && !profileMeta.manager_email) {
+          guidance.push(profileMeta.manager_sync_enabled
+            ? "Manager info was not returned from Microsoft 365. You can enter it manually if needed."
+            : "Manager sync is currently disabled on the server, so manager info must be entered manually.");
+        }
+      }
       if (!parts.length) {
         wrap.style.display = "none";
         wrap.innerHTML = "";
         return;
       }
       wrap.style.display = "";
-      wrap.innerHTML = `<div class="small fw-semibold mb-1">Profile Context</div><div>${parts.join("")}</div><div class="small text-muted mt-1">These profile values are used to prefill the report and can still be adjusted before generation.</div>`;
+      wrap.innerHTML = `
+        <div class="small fw-semibold mb-1">Profile Context</div>
+        <div>${parts.join("")}</div>
+        <div class="small text-muted mt-1">These profile values are used to prefill the report and can still be adjusted before generation.</div>
+        ${filled.length ? `<div class="small mt-2"><span class="fw-semibold">Auto-filled:</span> ${esc(filled.join(", "))}</div>` : ``}
+        ${guidance.length ? `<div class="small mt-2 text-warning-emphasis">${guidance.map((x) => `<div>${esc(x)}</div>`).join("")}</div>` : ``}
+      `;
     }
 
     async function saveProfile(){
@@ -482,6 +503,8 @@
       const r = await fetch("/api/profile", { method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
       const d = await r.json();
       if(!r.ok) return alert(d.error || "Failed to save profile");
+      profileMeta = d.profile || profileMeta;
+      renderProfileContext();
       document.getElementById("msg").innerHTML = `<span class="text-success">Profile saved.</span>`;
     }
 

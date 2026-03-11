@@ -140,7 +140,7 @@ MS_CLIENT_SECRET = os.environ.get("MS_CLIENT_SECRET", "").strip()
 MS_REDIRECT_URI = os.environ.get("MS_REDIRECT_URI", "").strip()
 SSO_SCOPES = os.environ.get("SSO_SCOPES", "openid profile email User.Read").strip()
 SSO_FETCH_ORG = os.environ.get("SSO_FETCH_ORG", "true").lower() in ("1", "true", "yes", "on")
-SSO_FETCH_MANAGER = os.environ.get("SSO_FETCH_MANAGER", "false").lower() in ("1", "true", "yes", "on")
+SSO_FETCH_MANAGER = os.environ.get("SSO_FETCH_MANAGER", "true").lower() in ("1", "true", "yes", "on")
 SSO_PROMPT = os.environ.get("SSO_PROMPT", "select_account").strip()
 ADMIN_EMAILS = {
     x.strip().lower()
@@ -2654,24 +2654,24 @@ def api_profile():
     uid = int(session.get("user_id") or 0)
     if uid <= 0:
         return jsonify({"error": "Login required."}), 401
+    def _profile_payload(user_row: dict) -> dict:
+        return {
+            "name": str(user_row.get("name") or ""),
+            "department": str(user_row.get("department") or ""),
+            "employee_id": str(user_row.get("employee_code") or ""),
+            "manager": str(user_row.get("manager_name") or ""),
+            "manager_email": str(user_row.get("manager_email") or ""),
+            "email": str(user_row.get("email") or ""),
+            "org_name": str(user_row.get("org_name") or ""),
+            "provider": str(session.get("auth_provider") or ""),
+            "org_sync_enabled": bool(SSO_FETCH_ORG),
+            "manager_sync_enabled": bool(SSO_FETCH_MANAGER),
+        }
     if request.method == "GET":
         user = get_user_by_id(str(USER_DB_PATH), uid)
         if not user:
             return jsonify({"error": "User not found."}), 404
-        return jsonify(
-            {
-                "profile": {
-                    "name": str(user.get("name") or ""),
-                    "department": str(user.get("department") or ""),
-                    "employee_id": str(user.get("employee_code") or ""),
-                    "manager": str(user.get("manager_name") or ""),
-                    "manager_email": str(user.get("manager_email") or ""),
-                    "email": str(user.get("email") or ""),
-                    "org_name": str(user.get("org_name") or ""),
-                    "provider": str(session.get("auth_provider") or ""),
-                }
-            }
-        )
+        return jsonify({"profile": _profile_payload(user)})
     body = request.get_json(silent=True) or {}
     user = update_user_profile(
         db_path=str(USER_DB_PATH),
@@ -2682,21 +2682,7 @@ def api_profile():
         manager_name=body.get("manager"),
         manager_email=body.get("manager_email"),
     )
-    return jsonify(
-        {
-            "status": "ok",
-            "profile": {
-                "name": str(user.get("name") or ""),
-                "department": str(user.get("department") or ""),
-                "employee_id": str(user.get("employee_code") or ""),
-                "manager": str(user.get("manager_name") or ""),
-                "manager_email": str(user.get("manager_email") or ""),
-                "email": str(user.get("email") or ""),
-                "org_name": str(user.get("org_name") or ""),
-                "provider": str(session.get("auth_provider") or ""),
-            },
-        }
-    )
+    return jsonify({"status": "ok", "profile": _profile_payload(user)})
 
 
 @app.route("/auth/logout", methods=["POST"])
