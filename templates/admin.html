@@ -56,6 +56,23 @@
     .template-overview-label { font-size:.75rem; color:#64748b; margin-bottom:.2rem; }
     .template-overview-value { font-weight:700; color:#122033; }
     .template-overview-note { font-size:.78rem; color:#64748b; margin-top:.25rem; }
+    .template-compare-header {
+      display:flex;
+      align-items:center;
+      gap:.45rem;
+      flex-wrap:wrap;
+      margin-bottom:.35rem;
+    }
+    .template-compare-header .template-chip.primary {
+      border-color:#bfdbfe;
+      background:#eff6ff;
+      color:#1d4ed8;
+    }
+    .template-compare-header .template-chip.reference {
+      border-color:#e5e7eb;
+      background:#f8fafc;
+      color:#475569;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -2110,14 +2127,20 @@ async function loadTemplatePreview() {
       <div class="row g-3">
         <div class="col-xl-6">
           <div class="border rounded p-2 h-100">
-            <div class="small fw-semibold mb-1">Resolved template</div>
+            <div class="template-compare-header">
+              <span class="template-chip primary">Primary view</span>
+              <div class="small fw-semibold mb-0">Resolved template</div>
+            </div>
             <div class="small text-muted mb-2">${escHtml(data.filename || "-")} · ${escHtml(data.scope || "-")}</div>
             ${effectiveHtml}
           </div>
         </div>
         <div class="col-xl-6">
           <div class="border rounded p-2 h-100 bg-light-subtle">
-            <div class="small fw-semibold mb-1">Base comparison</div>
+            <div class="template-compare-header">
+              <span class="template-chip reference">Reference view</span>
+              <div class="small fw-semibold mb-0">Base comparison</div>
+            </div>
             <div class="small text-muted mb-2">${escHtml(baseData.filename || "-")} · ${escHtml(baseData.scope || "-")}</div>
             ${renderPreviewSheets(baseData).html}
           </div>

@@ -323,6 +323,23 @@
       border-top-color: #86efac;
       box-shadow: 0 -8px 20px rgba(22, 163, 74, .08);
     }
+    .finalize-jump-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      border: 1px solid #c7d8f2;
+      border-radius: 999px;
+      background: #fff;
+      color: #1d4ed8;
+      padding: .18rem .6rem;
+      font-size: .74rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .finalize-jump-btn:hover {
+      background: #eff6ff;
+      border-color: #93c5fd;
+    }
     .finalize-focus-flash {
       animation: finalizeFocusFlash 1.45s ease;
       box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .16);
@@ -989,16 +1006,20 @@
       ];
       checks.forEach(([key, el, visible]) => {
         if (!required.has(key) || !visible) return;
-        if (!String(el?.value || "").trim()) missing.push({ el, label: requiredFieldLabelMap[key] || key });
+        if (!String(el?.value || "").trim()) missing.push({ key, el, label: requiredFieldLabelMap[key] || key });
       });
       if (required.has("period") && visibleFieldState.period) {
         const fromEl = document.getElementById("periodFrom");
         const toEl = document.getElementById("periodTo");
         if (!String(fromEl?.value || "").trim() || !String(toEl?.value || "").trim()) {
-          missing.push({ el: fromEl, label: requiredFieldLabelMap.period });
+          missing.push({ key: "period", el: fromEl, label: requiredFieldLabelMap.period });
         }
       }
       return missing;
+    }
+    function getFirstMissingRequiredField(){
+      const missing = getMissingRequiredFields();
+      return missing.length ? missing[0] : null;
     }
     function getRequiredChecklistEntries(){
       // readiness 카드는 "막힘 여부"보다 "진행 상태"를 보여주기 위해 별도 메타 문구를 만든다.
@@ -1056,12 +1077,14 @@
       const remaining = entries.length - readyCount;
       const summary = getReceiptSummary();
       const dirtyCount = getSelectedDirtyIds().length;
+      const firstMissing = entries.find((x) => !x.ready);
       wrap.style.display = "";
       wrap.innerHTML = `
         <div class="finalize-checklist-head">
           <div>
             <div class="small fw-semibold">Finalize readiness</div>
             <div class="small text-muted">We are checking the inputs required by the selected document policy.</div>
+            ${firstMissing ? `<button type="button" class="finalize-jump-btn mt-2" data-focus-key="${esc(firstMissing.key)}">Jump to next missing: ${esc(firstMissing.label)}</button>` : ``}
           </div>
           <div class="text-end">
             <div class="small ${remaining ? "text-warning-emphasis" : "text-success"}">
@@ -1110,7 +1133,16 @@
         return true;
       }
       wrap.style.display = "";
-      wrap.innerHTML = `<div class="fw-semibold">Required information is still missing</div><ul>${missing.map((x) => `<li>${esc(x.label)}</li>`).join("")}</ul>`;
+      const firstMissing = missing[0];
+      wrap.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+          <div>
+            <div class="fw-semibold">Required information is still missing</div>
+            <ul class="mb-0">${missing.map((x) => `<li>${esc(x.label)}</li>`).join("")}</ul>
+          </div>
+          ${firstMissing ? `<button type="button" class="finalize-jump-btn" data-focus-key="${esc(firstMissing.key || "")}">Jump to first missing</button>` : ``}
+        </div>
+      `;
       return false;
     }
 
@@ -1237,6 +1269,11 @@
       const card = event.target.closest("[data-focus-key]");
       if (!card) return;
       focusFieldByKey(card.dataset.focusKey || "");
+    });
+    document.getElementById("requiredSummaryPanel")?.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-focus-key]");
+      if (!btn) return;
+      focusFieldByKey(btn.dataset.focusKey || "");
     });
   </script>
 </body>
