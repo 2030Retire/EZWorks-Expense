@@ -189,6 +189,7 @@
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Detected Currencies</div><div class="kpi-value small" id="sumCurrencies">-</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">USD Total</div><div class="kpi-value amount-num" id="sumUsdTotal">$ 0</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Required Fixes</div><div class="kpi-value" id="sumRequiredRows">0 row(s)</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Finalize Inputs</div><div class="kpi-value" id="sumFinalizeInputs">2 field(s)</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">FX Pending</div><div class="kpi-value" id="sumFxPending">0 rate(s)</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Unsaved Edits</div><div class="kpi-value" id="sumDirtyRows">0 row(s)</div></div></div>
         <div class="col-xl-6 col-md-12"><div class="review-kpi-card"><div class="kpi-label">Category Summary</div><div class="review-summary-list" id="sumByCategory">-</div></div></div>
@@ -603,9 +604,13 @@
         title: "Title",
       };
       const fields = rawFields.map((x) => labelMap[String(x || "").trim().toLowerCase()] || String(x || "").trim()).filter(Boolean);
+      const finalizeOnly = rawFields.filter((x) => !["employee_name", "title"].includes(String(x || "").trim().toLowerCase()));
+      const kpi = document.getElementById("sumFinalizeInputs");
+      if (kpi) kpi.textContent = `${fields.length} field(s)`;
       el.innerHTML = `
         <span class="policy-chip">Planned document: ${esc(docLabel)}</span>
         <span class="policy-chip">Finalize required: ${esc(fields.join(", ") || "Employee Name, Title")}</span>
+        ${finalizeOnly.length ? `<span class="policy-chip">Additional step-3 focus: ${esc(finalizeOnly.map((x) => labelMap[String(x || "").trim().toLowerCase()] || x).join(", "))}</span>` : ``}
       `;
     }
     function getSelectedTrs(){
