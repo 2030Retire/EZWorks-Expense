@@ -61,6 +61,7 @@
 - Review의 FX Workspace 앞뒤 안내 문구는 `행 수정 -> FX 확인 -> Finalize 이동` 순서를 짧게 설명해, 테이블과 환율 편집이 끊겨 보이지 않게 유지한다.
 - Review 하단의 다음 단계 액션도 화면 끝에서 다시 찾지 않도록, 테이블 편집 흐름과 이어지는 하단 액션 바 형태를 유지한다.
 - Review 하단 액션 바에는 `Required / FX / Save / Finalize`처럼 다음 단계 진입에 직접 영향을 주는 상태만 pill 형태로 압축 노출해, 사용자가 막히는 이유를 즉시 읽게 유지한다.
+- Review의 Step 2 완료 버튼은 실제 다음 단계 이름과 맞춰 `Finalize`처럼 현재 흐름을 직접 설명하는 문구를 유지한다.
 
 ## Admin 운영 원칙
 - Accounting의 Document Type 카드는 단순 설정폼이 아니라, 템플릿 override 유무와 Finalize 정책 준비상태를 함께 보여주는 운영 카드로 유지한다.

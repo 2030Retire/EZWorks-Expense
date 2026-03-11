@@ -99,7 +99,8 @@
       min-width: 180px;
     }
     #rows .f-merchant {
-      min-width: 170px;
+      min-width: 160px;
+      max-width: 220px;
     }
     #rows .f-date {
       min-width: 136px;
@@ -108,8 +109,18 @@
       white-space: nowrap;
       min-width: 100px;
     }
+    #rows td:nth-child(1), #rows th:nth-child(1) {
+      width: 36px;
+    }
+    #rows td:nth-child(2), #rows th:nth-child(2) {
+      width: 72px;
+    }
+    #rows td:nth-child(3), #rows th:nth-child(3) {
+      min-width: 92px;
+      width: 92px;
+    }
     #rows .input-group {
-      min-width: 220px;
+      min-width: 210px;
     }
     .compact-review #rows .col-optional,
     .compact-review #rows th.col-optional {
@@ -463,7 +474,7 @@
         </div>
         <div class="d-flex justify-content-between align-items-center flex-grow-1 gap-2">
           <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
-          <button id="nextBtn" class="btn btn-sm btn-primary" onclick="goNext()">Next: Generate</button>
+          <button id="nextBtn" class="btn btn-sm btn-primary" onclick="goNext()">Next: Finalize</button>
         </div>
       </div>
       <div id="msg" class="small text-muted mt-2"></div>
