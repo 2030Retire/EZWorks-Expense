@@ -73,6 +73,11 @@
       background:#f8fafc;
       color:#475569;
     }
+    .template-diff-note {
+      font-size:.74rem;
+      color:#64748b;
+      margin-top:.35rem;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -2139,6 +2144,7 @@ async function loadTemplatePreview() {
           <span class="template-chip">Affected sheets ${effectivePreview.sheetDiffs.length || 0}</span>
           <span class="template-chip">Highlight = override change</span>
         </div>
+        <div class="template-diff-note">Read highlighted cells on the left as the effective override result against the base file on the right.</div>
         ${diffSummary}
       </div>
       <div class="row g-3">
