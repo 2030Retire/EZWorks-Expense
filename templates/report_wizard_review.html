@@ -14,6 +14,9 @@
       height: 100%;
       background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
     }
+    .review-kpi-card.readonly {
+      background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    }
     .review-kpi-card .kpi-label {
       font-size: .77rem;
       color: #64748b;
@@ -32,10 +35,29 @@
       box-shadow: 0 10px 22px rgba(59, 130, 246, .10);
       transform: translateY(-1px);
     }
+    .review-kpi-card.clickable[data-state="active"] {
+      border-color: #93c5fd;
+      box-shadow: 0 10px 22px rgba(59, 130, 246, .08);
+    }
+    .review-kpi-card.clickable[data-state="quiet"] {
+      opacity: .9;
+    }
     .review-kpi-hint {
       font-size: .74rem;
       color: #64748b;
       margin-top: .25rem;
+    }
+    .review-kpi-action-tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: .08rem .4rem;
+      font-size: .66rem;
+      font-weight: 700;
+      margin-top: .38rem;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
     }
     .review-summary-list {
       display: grid;
@@ -208,14 +230,14 @@
       <div id="fxPolicyNote" class="small text-muted mb-2"></div>
 
       <div class="row g-2 mb-3" id="reviewSummaryCards">
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Selected Receipts</div><div class="kpi-value" id="sumReceiptCount">0</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Detected Currencies</div><div class="kpi-value small" id="sumCurrencies">-</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">USD Total</div><div class="kpi-value amount-num" id="sumUsdTotal">$ 0</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumRequiredCard" role="button" tabindex="0"><div class="kpi-label">Required Fixes</div><div class="kpi-value" id="sumRequiredRows">0 row(s)</div><div class="review-kpi-hint" id="sumRequiredHint">Show missing required rows</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumFinalizeCard" role="button" tabindex="0"><div class="kpi-label">Finalize Inputs</div><div class="kpi-value" id="sumFinalizeInputs">2 field(s)</div><div class="small text-muted mt-1" id="sumFinalizeHint">Open Step 3</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumFxCard" role="button" tabindex="0"><div class="kpi-label">FX Pending</div><div class="kpi-value" id="sumFxPending">0 rate(s)</div><div class="review-kpi-hint" id="sumFxHint">Open FX editor</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumDirtyCard" role="button" tabindex="0"><div class="kpi-label">Unsaved Edits</div><div class="kpi-value" id="sumDirtyRows">0 row(s)</div><div class="review-kpi-hint" id="sumDirtyHint">Show unsaved rows</div></div></div>
-        <div class="col-xl-6 col-md-12"><div class="review-kpi-card"><div class="kpi-label">Category Summary</div><div class="review-summary-list" id="sumByCategory">-</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card readonly"><div class="kpi-label">Selected Receipts</div><div class="kpi-value" id="sumReceiptCount">0</div><div class="review-kpi-hint">Current review scope</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card readonly"><div class="kpi-label">Detected Currencies</div><div class="kpi-value small" id="sumCurrencies">-</div><div class="review-kpi-hint">OCR and manual currency mix</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card readonly"><div class="kpi-label">USD Total</div><div class="kpi-value amount-num" id="sumUsdTotal">$ 0</div><div class="review-kpi-hint">Selection-based estimate</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumRequiredCard" role="button" tabindex="0"><div class="kpi-label">Required Fixes</div><div class="kpi-value" id="sumRequiredRows">0 row(s)</div><div class="review-kpi-hint" id="sumRequiredHint">Show missing required rows</div><div class="review-kpi-action-tag">Action</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumFinalizeCard" role="button" tabindex="0"><div class="kpi-label">Finalize Inputs</div><div class="kpi-value" id="sumFinalizeInputs">2 field(s)</div><div class="small text-muted mt-1" id="sumFinalizeHint">Open Step 3</div><div class="review-kpi-action-tag">Action</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumFxCard" role="button" tabindex="0"><div class="kpi-label">FX Pending</div><div class="kpi-value" id="sumFxPending">0 rate(s)</div><div class="review-kpi-hint" id="sumFxHint">Open FX editor</div><div class="review-kpi-action-tag">Action</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumDirtyCard" role="button" tabindex="0"><div class="kpi-label">Unsaved Edits</div><div class="kpi-value" id="sumDirtyRows">0 row(s)</div><div class="review-kpi-hint" id="sumDirtyHint">Show unsaved rows</div><div class="review-kpi-action-tag">Action</div></div></div>
+        <div class="col-xl-6 col-md-12"><div class="review-kpi-card readonly"><div class="kpi-label">Category Summary</div><div class="review-summary-list" id="sumByCategory">-</div><div class="review-kpi-hint">Count and amount by category</div></div></div>
       </div>
 
       <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
@@ -362,6 +384,12 @@
       if (reasonSel) reasonSel.value = reason || "all";
       toggleAttentionMode(true);
       document.querySelector(".table-responsive")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    // KPI 카드는 읽기 전용 요약과 즉시 행동 카드가 섞여 있으므로 강조 상태를 분리한다.
+    function setKpiActionState(cardId, active){
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      card.dataset.state = active ? "active" : "quiet";
     }
 
     function normalizeDateInput(v){
@@ -618,6 +646,7 @@
       let missingRows = 0;
       document.querySelectorAll("#rows tr[data-id]").forEach((tr) => { if (updateRequiredState(tr) > 0) missingRows += 1; });
       document.getElementById("sumRequiredRows").textContent = `${missingRows} row(s)`;
+      setKpiActionState("sumRequiredCard", missingRows > 0);
       const hint = document.getElementById("sumRequiredHint");
       if (hint) hint.textContent = missingRows ? `Show ${missingRows} row(s) with missing date/amount/category` : "No required fixes right now";
       document.getElementById("requiredSummary").textContent = missingRows ? `Missing required values in ${missingRows} row(s): date/amount/category` : "";
@@ -678,6 +707,7 @@
       const targetUrl = `/reports/wizard/generate${firstPending ? `?focus=${encodeURIComponent(firstPending)}` : ""}`;
       if (kpiCard) {
         kpiCard.dataset.href = targetUrl;
+        setKpiActionState("sumFinalizeCard", pending.length > 0);
         kpiCard.title = pending.length ? `Open Step 3 and focus ${labelMap[firstPending] || firstPending}` : "Open Step 3";
       }
       if (kpiHint) {
@@ -729,6 +759,7 @@
       if (fxValue) fxValue.textContent = `${fxRequirements.length} rate(s)`;
       if (fxCard) {
         fxCard.dataset.pending = fxRequirements.length ? "1" : "0";
+        setKpiActionState("sumFxCard", fxRequirements.length > 0);
         fxCard.title = fxRequirements.length
           ? `Open FX editor (${fxRequirements.length} rate(s) pending)`
           : "Open FX editor";
@@ -742,6 +773,7 @@
       document.getElementById("sumByCategory").innerHTML = parts.length ? parts.join("") : `<div class="small text-muted">-</div>`;
       const dirtyCount = getDirtySet().size;
       document.getElementById("sumDirtyRows").textContent = `${dirtyCount} row(s)`;
+      setKpiActionState("sumDirtyCard", dirtyCount > 0);
       const dirtyHint = document.getElementById("sumDirtyHint");
       if (dirtyHint) dirtyHint.textContent = dirtyCount ? `Show ${dirtyCount} unsaved row(s)` : "No unsaved edits";
       syncWizardSettingsFromSelection(trs);
