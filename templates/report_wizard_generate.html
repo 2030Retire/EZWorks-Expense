@@ -62,6 +62,11 @@
       color: #64748b;
       margin-bottom: .1rem;
     }
+    .report-success-note {
+      margin-top: .65rem;
+      font-size: .78rem;
+      color: #166534;
+    }
     .profile-context {
       border: 1px solid #dbe6f3;
       background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
@@ -1273,9 +1278,11 @@
       localStorage.removeItem(DIRTY_KEY);
       const banner = document.getElementById("successBanner");
       const actionBar = document.querySelector(".finalize-action-bar");
+      const actionMeta = document.getElementById("finalizeActionMeta");
       banner.style.display = "";
       banner.dataset.generated = "1";
       if (actionBar) actionBar.classList.add("success-linked");
+      if (actionMeta) actionMeta.textContent = "Report generated. Download the file, open Reports, or start the next run.";
       banner.innerHTML = `
         <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
           <div>
@@ -1309,6 +1316,7 @@
           <a class="btn btn-sm btn-outline-success" href="/reports">Open Reports</a>
           <a class="btn btn-sm btn-outline-secondary" href="/reports/wizard/upload">Start another report</a>
         </div>
+        <div class="report-success-note">Selection was cleared for the next run. Editing this page again will automatically reset the success state.</div>
       `;
       banner.scrollIntoView({ behavior: "smooth", block: "nearest" });
       document.getElementById("msg").innerHTML = `<span class="text-success">Generated: <a href="${d.download_url}">${esc(d.report.output_filename)}</a></span>`;

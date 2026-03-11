@@ -65,6 +65,7 @@
 - Review 표는 메모/상점/금액 입력 폭을 조금씩 조정해도, 핵심 편집 열이 한 화면에 더 많이 보이도록 가로 확장을 계속 억제하는 방향을 유지한다.
 - Review 표에서는 `Required / Save / USD Amount`처럼 상태성 열 폭을 고정에 가깝게 관리해, 가변 입력 열이 불필요하게 밀리지 않게 유지한다.
 - Review 표는 입력칸 포커스가 들어온 행을 옅게 강조해, 현재 편집 위치를 빠르게 다시 찾을 수 있게 유지한다.
+- Review 표는 Enter 키로 다음 편집칸으로 이동할 수 있게 유지해, 반복 입력 시 마우스 왕복을 줄이는 방향을 유지한다.
 
 ## Admin 운영 원칙
 - Accounting의 Document Type 카드는 단순 설정폼이 아니라, 템플릿 override 유무와 Finalize 정책 준비상태를 함께 보여주는 운영 카드로 유지한다.
@@ -86,6 +87,7 @@
 - Finalize 상단 안내와 하단 액션 바 문구는 서로 같은 설명을 반복하지 않도록, 상단은 최소 안내만 두고 하단은 현재 상태 문장만 짧게 유지한다.
 - Finalize의 Required/Optional 배지와 Auto-filled 배지는 정보는 유지하되 부피는 줄여, 라벨 줄바꿈 없이 필드 자체가 먼저 읽히게 유지한다.
 - Finalize 섹션 카드와 내부 grid gap은 미세하게 압축해, 첫 화면에 더 많은 입력이 자연스럽게 들어오도록 유지한다.
+- Finalize 생성 성공 후에는 하단 액션 바도 `다운로드 / Reports / 다음 실행` 같은 후속 행동 중심 안내로 바뀌게 유지한다.
 - Template Preview diff 요약은 긴 문장보다 `diff cell 수 / 영향 시트 수 / 상위 변경 시트` 중심으로 압축해 읽게 유지한다.
 - Template Preview compare의 diff 요약은 긴 설명 문장보다 chip과 짧은 상위 변경 시트 목록 중심으로 압축해, override 영향 범위를 빠르게 읽게 유지한다.
 - Template Preview compare의 상위 변경 시트는 `Top changes` 레이블과 chip 조합으로 보여줘, 숫자 목록의 의미를 다시 해석하지 않게 유지한다.

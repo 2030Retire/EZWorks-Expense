@@ -1101,6 +1101,47 @@
     }
     function onCategoryChange(sel){ const tr = sel.closest("tr"); const custom = tr.querySelector(".f-category-custom"); if (sel.value === "__CUSTOM__") custom.style.display = ""; else { custom.style.display = "none"; custom.value = ""; } markDirty(tr); }
 
+    function getEditableFieldsInRow(tr){
+      if (!tr) return [];
+      return [
+        tr.querySelector(".f-date"),
+        tr.querySelector(".f-merchant"),
+        tr.querySelector(".f-amount"),
+        tr.querySelector(".f-currency"),
+        tr.querySelector(".f-category-select"),
+        tr.querySelector(".f-category-custom")?.style.display === "none" ? null : tr.querySelector(".f-category-custom"),
+        tr.querySelector(".f-memo"),
+      ].filter((el) => el && !el.disabled && el.offsetParent !== null);
+    }
+    // Review 입력은 Enter만으로 다음 칸으로 이동할 수 있게 만들어, 반복 편집 속도를 높인다.
+    function handleReviewGridKeydown(e){
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (!target.closest("#rows")) return;
+      if (!(target.matches("input, select"))) return;
+      const tr = target.closest("tr[data-id]");
+      if (!tr) return;
+      const fields = getEditableFieldsInRow(tr);
+      const idx = fields.indexOf(target);
+      if (idx < 0) return;
+      e.preventDefault();
+      const nextInRow = fields[idx + 1];
+      if (nextInRow) {
+        nextInRow.focus();
+        if (typeof nextInRow.select === "function" && nextInRow.tagName === "INPUT") nextInRow.select();
+        return;
+      }
+      const rows = [...document.querySelectorAll("#rows tr[data-id]")];
+      const rowIdx = rows.indexOf(tr);
+      const nextRow = rows[rowIdx + 1];
+      const nextRowField = getEditableFieldsInRow(nextRow)[0];
+      if (nextRowField) {
+        nextRowField.focus();
+        if (typeof nextRowField.select === "function" && nextRowField.tagName === "INPUT") nextRowField.select();
+      }
+    }
+
     function buildAmountCell(row){
       const cur = String(row.currency || "USD").toUpperCase();
       const amount = Number(row.amount || 0);
@@ -1140,6 +1181,7 @@
       const dirtySet = getDirtySet();
       const body = document.getElementById("rows");
       body.innerHTML = rowsAll.map((x)=>`<tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}"><td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td><td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td><td>${esc(x.orig_filename || "")}</td><td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td><td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="amount-num">${buildAmountCell(x)}</td><td>${buildCategoryCell(x)}</td><td class="f-required"></td><td><button type="button" class="save-badge f-save-state" onclick="retryRowSave(this)">${dirtySet.has(Number(x.id)) ? "Pending" : "Saved"}</button></td><td class="amount-num f-usd">$ 0</td><td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="col-optional">${esc(x.status || "-")}</td><td class="col-optional">${esc(x.lifecycle_state || "-")}</td></tr>`).join("") || `<tr><td colspan="13" class="text-muted small">No receipts.</td></tr>`;
+      body.onkeydown = handleReviewGridKeydown;
       if (autoSelectAll) wizardSet(KEY, [...selected]);
       body.querySelectorAll("tr[data-id]").forEach((tr) => setRowSaveState(tr, tr.dataset.dirty === "1" ? "dirty" : "saved"));
       renderDirtySummary(); updateUsdAmounts(); renderRequiredSummary(); renderSelectionSummary();
