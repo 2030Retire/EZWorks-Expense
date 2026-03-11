@@ -62,6 +62,7 @@
 - Review 하단의 다음 단계 액션도 화면 끝에서 다시 찾지 않도록, 테이블 편집 흐름과 이어지는 하단 액션 바 형태를 유지한다.
 - Review 하단 액션 바에는 `Required / FX / Save / Finalize`처럼 다음 단계 진입에 직접 영향을 주는 상태만 pill 형태로 압축 노출해, 사용자가 막히는 이유를 즉시 읽게 유지한다.
 - Review의 Step 2 완료 버튼은 실제 다음 단계 이름과 맞춰 `Finalize`처럼 현재 흐름을 직접 설명하는 문구를 유지한다.
+- Review 표는 메모/상점/금액 입력 폭을 조금씩 조정해도, 핵심 편집 열이 한 화면에 더 많이 보이도록 가로 확장을 계속 억제하는 방향을 유지한다.
 
 ## Admin 운영 원칙
 - Accounting의 Document Type 카드는 단순 설정폼이 아니라, 템플릿 override 유무와 Finalize 정책 준비상태를 함께 보여주는 운영 카드로 유지한다.
@@ -80,10 +81,12 @@
 - Template Preview compare 화면은 `resolved(주요 화면)`과 `base(reference)` 역할을 헤더에서 바로 구분해, 좌우 비교 순서를 한눈에 이해하게 유지한다.
 - Finalize 하단 액션 바에도 `Required / Review sync / Receipts / Period` 상태를 압축 노출해, Review와의 연결 상태를 아래에서도 즉시 읽게 유지한다.
 - Finalize 하단 액션 바의 본문 문구는 상단 카드의 상세 설명을 반복하지 말고, `지금 막히는 이유 / 바로 가능한 행동`만 짧게 안내하는 방향을 유지한다.
+- Finalize 상단 안내와 하단 액션 바 문구는 서로 같은 설명을 반복하지 않도록, 상단은 최소 안내만 두고 하단은 현재 상태 문장만 짧게 유지한다.
 - Template Preview diff 요약은 긴 문장보다 `diff cell 수 / 영향 시트 수 / 상위 변경 시트` 중심으로 압축해 읽게 유지한다.
 - Template Preview compare의 diff 요약은 긴 설명 문장보다 chip과 짧은 상위 변경 시트 목록 중심으로 압축해, override 영향 범위를 빠르게 읽게 유지한다.
 - Template Preview compare의 상위 변경 시트는 `Top changes` 레이블과 chip 조합으로 보여줘, 숫자 목록의 의미를 다시 해석하지 않게 유지한다.
 - Template Preview compare의 요약 chip에는 `Left resolved / Right base` 같은 방향성 힌트도 포함해, 비교 축을 바로 읽게 유지한다.
+- Template Preview compare의 diff 범례는 `override change`처럼 짧은 용어를 우선 써서, 칩이 길어져 비교 요약을 밀어내지 않게 유지한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.

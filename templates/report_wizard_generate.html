@@ -419,7 +419,7 @@
         <span class="finalize-overview-pill" id="progressSummary">No selected receipts</span>
         <span class="finalize-overview-pill" id="requiredStatePill">Required ready</span>
         <span class="finalize-overview-pill" id="reviewSyncPill">Review synced</span>
-        <span class="finalize-inline-guide mb-0">Required fields block generation. Optional fields follow tenant policy.</span>
+        <span class="finalize-inline-guide mb-0">Required fields block generation.</span>
       </div>
       <div id="dirtyBanner" class="alert alert-warning py-2 px-3 small mb-2" style="display:none;">
         There are unsaved edits from Review. Save them first.
@@ -674,15 +674,15 @@
       }
       // 상단 카드가 상세 요약을 담당하므로, 하단 액션 바는 지금 막히는 이유나 바로 가능한 행동만 짧게 안내한다.
       if (missing.length) {
-        meta.textContent = `Generate is blocked until the missing required fields are filled. Next missing: ${missing[0].label}.`;
+        meta.textContent = `Blocked by required fields. Next missing: ${missing[0].label}.`;
       } else if (dirtyCount) {
-        meta.textContent = `${dirtyCount} Review edit(s) still look unsaved. Return to Review or sync them before generating.`;
+        meta.textContent = `${dirtyCount} Review edit(s) still need sync before generate.`;
       } else if (!selectedCount) {
-        meta.textContent = "No receipts are selected yet. Return to Review and choose at least one receipt.";
+        meta.textContent = "No receipts selected yet.";
       } else {
         meta.textContent = summary.datedCount
-          ? `Ready to generate. Review and Finalize are aligned for ${summary.periodText}.`
-          : "Ready to generate. Add the period manually if your document policy requires it.";
+          ? `Ready to generate for ${summary.periodText}.`
+          : "Ready to generate. Add period only if your policy requires it.";
       }
     }
 
