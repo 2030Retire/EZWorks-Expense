@@ -2119,7 +2119,8 @@ async function loadTemplatePreview() {
     const extraDiffSheets = Math.max(effectivePreview.sheetDiffs.length - 3, 0);
     const diffSummary = effectivePreview.sheetDiffs.length
       ? `
-        <div class="d-flex flex-wrap gap-2 mt-2">
+        <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
+          <span class="small text-muted">Top changes</span>
           ${topDiffChips}
           ${extraDiffSheets ? `<span class="template-chip">+${extraDiffSheets} more sheet(s)</span>` : ``}
         </div>

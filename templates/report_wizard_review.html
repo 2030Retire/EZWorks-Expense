@@ -884,7 +884,7 @@
         // Review와 Finalize가 같은 언어를 쓰도록, Step 3 준비 상태를 remaining/ready 기준으로 맞춘다.
         kpiHint.textContent = pending.length
           ? `Open Step 3 · ${pending.length} remaining · first focus: ${labelMap[firstPending] || firstPending}`
-          : "Step 3 looks ready";
+          : "Step 3 looks ready · open to confirm";
       }
       renderReviewActionStatus({ finalizePending: pending.length });
       el.innerHTML = `

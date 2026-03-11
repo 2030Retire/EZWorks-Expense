@@ -45,6 +45,7 @@
 - Review의 `Still missing`과 `Finalize Inputs`는 Finalize 해당 필드로 바로 이동할 수 있어야 한다.
 - Finalize에서 보고서를 만든 뒤 다시 값을 수정하기 시작하면, 이전 성공 상태 배너/강조는 즉시 내려서 `이미 생성된 상태`와 `다시 편집 중인 상태`가 섞여 보이지 않게 유지한다.
 - Finalize 상단은 `Document Settings`와 `Basic Info`를 가능한 한 같은 화면 높이 안에서 소화하도록 압축 배치하고, `Report Details`를 아래 독립 구역으로 두는 방향을 유지한다.
+- Finalize 상단 overview strip에도 `Required / Review sync` 상태를 짧은 pill로 같이 보여줘, Review에서 본 상태 언어가 Step 3 첫 화면에서도 끊기지 않게 유지한다.
 
 ## Review UX 원칙
 - Review 상단 KPI는 단순 통계가 아니라 사용자의 다음 행동을 유도해야 한다.
@@ -78,6 +79,7 @@
 - Finalize 하단 액션 바의 본문 문구는 상단 카드의 상세 설명을 반복하지 말고, `지금 막히는 이유 / 바로 가능한 행동`만 짧게 안내하는 방향을 유지한다.
 - Template Preview diff 요약은 긴 문장보다 `diff cell 수 / 영향 시트 수 / 상위 변경 시트` 중심으로 압축해 읽게 유지한다.
 - Template Preview compare의 diff 요약은 긴 설명 문장보다 chip과 짧은 상위 변경 시트 목록 중심으로 압축해, override 영향 범위를 빠르게 읽게 유지한다.
+- Template Preview compare의 상위 변경 시트는 `Top changes` 레이블과 chip 조합으로 보여줘, 숫자 목록의 의미를 다시 해석하지 않게 유지한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.

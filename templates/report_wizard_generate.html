@@ -417,6 +417,8 @@
       <div class="finalize-overview-strip">
         <span class="finalize-overview-pill">Selected receipts: <span id="receiptCount" class="ms-1">0</span></span>
         <span class="finalize-overview-pill" id="progressSummary">No selected receipts</span>
+        <span class="finalize-overview-pill" id="requiredStatePill">Required ready</span>
+        <span class="finalize-overview-pill" id="reviewSyncPill">Review synced</span>
         <span class="finalize-inline-guide mb-0">Required fields block generation. Optional fields follow tenant and document policy.</span>
       </div>
       <div id="dirtyBanner" class="alert alert-warning py-2 px-3 small mb-2" style="display:none;">
@@ -651,6 +653,8 @@
       // Finalize 하단 액션 바에서도 Review 동기화, 필수 누락, 선택 건수를 한 번에 읽게 만든다.
       const wrap = document.getElementById("finalizeActionStatus");
       const meta = document.getElementById("finalizeActionMeta");
+      const requiredStatePill = document.getElementById("requiredStatePill");
+      const reviewSyncPill = document.getElementById("reviewSyncPill");
       if (!wrap || !meta) return;
       const missing = getMissingRequiredFields();
       const dirtyCount = getSelectedDirtyIds().length;
@@ -662,6 +666,12 @@
         `<span class="finalize-action-pill ${selectedCount ? "ok" : "warn"}">Receipts ${selectedCount ? `${selectedCount} selected` : "none"}</span>`,
         `<span class="finalize-action-pill ${summary.datedCount ? "ok" : "warn"}">Period ${summary.datedCount ? summary.periodText : "waiting"}</span>`
       ].join("");
+      if (requiredStatePill) {
+        requiredStatePill.textContent = missing.length ? `Required ${missing.length} missing` : "Required ready";
+      }
+      if (reviewSyncPill) {
+        reviewSyncPill.textContent = dirtyCount ? `Review ${dirtyCount} unsaved` : "Review synced";
+      }
       // 상단 카드가 상세 요약을 담당하므로, 하단 액션 바는 지금 막히는 이유나 바로 가능한 행동만 짧게 안내한다.
       if (missing.length) {
         meta.textContent = `Generate is blocked until the missing required fields are filled. Next missing: ${missing[0].label}.`;
