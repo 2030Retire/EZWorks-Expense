@@ -48,6 +48,11 @@
     .doc-preset-help { font-size:.78rem; color:#64748b; margin-top:.4rem; }
     .doc-required-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:.35rem .65rem; margin-top:.2rem; }
     .doc-required-item { display:flex; align-items:center; gap:.4rem; font-size:.82rem; color:#334155; }
+    .template-overview-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:16px; }
+    .template-overview-card { border:1px solid #dbe6f3; border-radius:12px; padding:.85rem .95rem; background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%); }
+    .template-overview-label { font-size:.75rem; color:#64748b; margin-bottom:.2rem; }
+    .template-overview-value { font-weight:700; color:#122033; }
+    .template-overview-note { font-size:.78rem; color:#64748b; margin-top:.25rem; }
   </style>
 </head>
 <body class="app-shell">
@@ -1813,6 +1818,48 @@ async function loadTemplateStatus() {
     const scopeTxt = slot.scope === "tenant" ? "tenant custom" : "shared default";
     return `${escHtml(slot.filename || "")}<br><span class="text-muted">${escHtml(String(slot.size_kb || 0))} KB · ${escHtml(slot.modified || "")} · ${scopeTxt}</span>`;
   };
+  const baseReadyCount = rows.filter(([, info]) => info?.exists).length;
+  const docEntries = Object.entries(data.document_templates || {});
+  const docCount = docEntries.length;
+  let overrideSlotCount = 0;
+  let docWithAnyOverride = 0;
+  let policyCount = 0;
+  docEntries.forEach(([docId, info]) => {
+    const hasDomestic = !!info?.domestic?.exists;
+    const hasInternational = !!info?.international?.exists;
+    if (hasDomestic || hasInternational) docWithAnyOverride += 1;
+    if (hasDomestic) overrideSlotCount += 1;
+    if (hasInternational) overrideSlotCount += 1;
+    const required = Array.isArray(presetMap?.[docId]?.required_fields) && presetMap[docId].required_fields.length
+      ? presetMap[docId].required_fields
+      : ["employee_name", "title"];
+    if (required.length) policyCount += 1;
+  });
+  const overviewHtml = `
+    <div class="small fw-semibold mb-2">Template + policy overview</div>
+    <div class="template-overview-grid">
+      <div class="template-overview-card">
+        <div class="template-overview-label">Base Templates</div>
+        <div class="template-overview-value">${baseReadyCount}/${rows.length} ready</div>
+        <div class="template-overview-note">Domestic, International, and Default fallback coverage.</div>
+      </div>
+      <div class="template-overview-card">
+        <div class="template-overview-label">Document Types</div>
+        <div class="template-overview-value">${docCount}</div>
+        <div class="template-overview-note">${docWithAnyOverride} with at least one override template uploaded.</div>
+      </div>
+      <div class="template-overview-card">
+        <div class="template-overview-label">Override Slots</div>
+        <div class="template-overview-value">${overrideSlotCount}/${docCount * 2 || 0} ready</div>
+        <div class="template-overview-note">Each document type can override domestic and international templates.</div>
+      </div>
+      <div class="template-overview-card">
+        <div class="template-overview-label">Finalize Policies</div>
+        <div class="template-overview-value">${policyCount}/${docCount || 0} configured</div>
+        <div class="template-overview-note">Required-field policies currently tracked per document type.</div>
+      </div>
+    </div>
+  `;
   const baseHtml = rows.map(([label, info, desc]) => `
     <div class="template-card">
       <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
@@ -1878,6 +1925,7 @@ async function loadTemplateStatus() {
     </div>
   ` : "";
   area.innerHTML = `
+    ${overviewHtml}
     <div class="small fw-semibold mb-2">Base template library</div>
     <div class="template-grid">${baseHtml}</div>
     ${docHtml ? `<div class="small fw-semibold mt-3 mb-2">Document-type overrides</div><div class="template-grid">${docHtml}</div>${docTable}` : ""}

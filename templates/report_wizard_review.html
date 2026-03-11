@@ -23,6 +23,15 @@
       font-weight: 700;
       color: #122033;
     }
+    .review-kpi-card.clickable {
+      cursor: pointer;
+      transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+    }
+    .review-kpi-card.clickable:hover {
+      border-color: #93c5fd;
+      box-shadow: 0 10px 22px rgba(59, 130, 246, .10);
+      transform: translateY(-1px);
+    }
     .review-summary-list {
       display: grid;
       gap: .25rem;
@@ -198,7 +207,7 @@
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Detected Currencies</div><div class="kpi-value small" id="sumCurrencies">-</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">USD Total</div><div class="kpi-value amount-num" id="sumUsdTotal">$ 0</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Required Fixes</div><div class="kpi-value" id="sumRequiredRows">0 row(s)</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Finalize Inputs</div><div class="kpi-value" id="sumFinalizeInputs">2 field(s)</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumFinalizeCard" role="button" tabindex="0"><div class="kpi-label">Finalize Inputs</div><div class="kpi-value" id="sumFinalizeInputs">2 field(s)</div><div class="small text-muted mt-1" id="sumFinalizeHint">Open Step 3</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">FX Pending</div><div class="kpi-value" id="sumFxPending">0 rate(s)</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Unsaved Edits</div><div class="kpi-value" id="sumDirtyRows">0 row(s)</div></div></div>
         <div class="col-xl-6 col-md-12"><div class="review-kpi-card"><div class="kpi-label">Category Summary</div><div class="review-summary-list" id="sumByCategory">-</div></div></div>
@@ -645,6 +654,17 @@
       }).join("");
       const kpi = document.getElementById("sumFinalizeInputs");
       if (kpi) kpi.textContent = `${pending.length} pending`;
+      const kpiCard = document.getElementById("sumFinalizeCard");
+      const kpiHint = document.getElementById("sumFinalizeHint");
+      const firstPending = String(pending[0] || "").trim().toLowerCase();
+      const targetUrl = `/reports/wizard/generate${firstPending ? `?focus=${encodeURIComponent(firstPending)}` : ""}`;
+      if (kpiCard) {
+        kpiCard.dataset.href = targetUrl;
+        kpiCard.title = pending.length ? `Open Step 3 and focus ${labelMap[firstPending] || firstPending}` : "Open Step 3";
+      }
+      if (kpiHint) {
+        kpiHint.textContent = pending.length ? `Open Step 3 · first focus: ${labelMap[firstPending] || firstPending}` : "Open Step 3";
+      }
       el.innerHTML = `
         <span class="policy-chip">Planned document: ${esc(docLabel)}</span>
         <span class="policy-chip">Finalize required: ${esc(fields.join(", ") || "Employee Name, Title")}</span>
@@ -990,6 +1010,16 @@
       await ensureFxDefaults();
       updateUsdAmounts();
     })();
+    document.getElementById("sumFinalizeCard")?.addEventListener("click", () => {
+      const href = document.getElementById("sumFinalizeCard")?.dataset?.href || "/reports/wizard/generate";
+      window.location.href = href;
+    });
+    document.getElementById("sumFinalizeCard")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      const href = document.getElementById("sumFinalizeCard")?.dataset?.href || "/reports/wizard/generate";
+      window.location.href = href;
+    });
   </script>
 </body>
 </html>
