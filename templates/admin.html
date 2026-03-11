@@ -2079,6 +2079,16 @@ async function loadTemplatePreview() {
   };
   const effectivePreview = renderPreviewSheets(data, baseData);
   const effectiveHtml = effectivePreview.html;
+  // preview 표를 펼쳐 보기 전에 비교 범위와 diff 규모를 먼저 빠르게 읽게 만든다.
+  const previewKpi = `
+    <div class="alert alert-light border py-2 px-3 small mb-3">
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <span class="template-chip">Sheets ${(Array.isArray(data.sheets) ? data.sheets.length : 0)}</span>
+        <span class="template-chip">Rows previewed ${Math.max(...(Array.isArray(data.sheets) ? data.sheets.map((s) => Array.isArray(s.rows) ? Math.min(s.rows.length, 8) : 0) : [0]))}</span>
+        ${documentType && baseData ? `<span class="template-chip">Diff cells ${effectivePreview.diffCount}</span>` : ``}
+      </div>
+    </div>
+  `;
   if (documentType && baseData) {
     const diffSummary = effectivePreview.sheetDiffs.length
       ? `<div class="small text-muted mt-2">Change summary: ${effectivePreview.sheetDiffs.map((x) => `${escHtml(x.name)} ${x.count} cell(s)`).join(" · ")}</div>`
@@ -2086,6 +2096,7 @@ async function loadTemplatePreview() {
     area.innerHTML = `
       ${previewStatusChips}
       ${previewSummary}
+      ${previewKpi}
       <div class="alert alert-warning py-2 px-3 small mb-3">
         <div class="fw-semibold mb-1">Base comparison summary</div>
         <div>${effectivePreview.diffCount} highlighted cell(s) differ from the base ${escHtml(mode)} template.</div>
@@ -2113,6 +2124,7 @@ async function loadTemplatePreview() {
   const compactSummary = `
     ${previewStatusChips}
     ${previewSummary}
+    ${previewKpi}
     <div class="small text-muted mb-2">Showing the first rows only. Use this area to verify layout direction quickly before rollout.</div>
   `;
   area.innerHTML = sheets.map(s => {

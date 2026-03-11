@@ -67,7 +67,7 @@
       background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
       border-radius: 12px;
       padding: .6rem .8rem;
-      margin-bottom: .55rem;
+      margin-bottom: .45rem;
     }
     .profile-chip {
       display: inline-flex;
@@ -85,7 +85,7 @@
     .finalize-section {
       border: 1px solid #e5edf8;
       border-radius: 12px;
-      padding: .65rem .8rem;
+      padding: .58rem .72rem;
       background: #fcfdff;
     }
     .finalize-section-title {
@@ -260,7 +260,31 @@
       background: #f8fbff;
       border-radius: 10px;
       padding: .45rem .6rem;
-      margin-bottom: .55rem;
+      margin-bottom: .45rem;
+    }
+    .finalize-top-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+      gap: .65rem;
+      align-items: start;
+      margin-bottom: .6rem;
+    }
+    .finalize-overview-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      align-items: center;
+      margin-bottom: .45rem;
+    }
+    .finalize-overview-pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #dbe6f3;
+      background: #fff;
+      border-radius: 999px;
+      padding: .12rem .45rem;
+      font-size: .72rem;
+      color: #36507a;
     }
     .finalize-inline-guide {
       display: inline-flex;
@@ -304,6 +328,7 @@
       .finalize-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .finalize-checklist-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .report-success-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .finalize-top-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 768px) {
       .finalize-kpi-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
@@ -323,7 +348,11 @@
 
     <div class="card p-3">
       <h6 class="mb-2">Step 3. Finalize Report</h6>
-      <div class="small text-muted mb-2">Selected receipts: <span id="receiptCount">0</span> · <span id="progressSummary"></span></div>
+      <div class="finalize-overview-strip">
+        <span class="finalize-overview-pill">Selected receipts: <span id="receiptCount" class="ms-1">0</span></span>
+        <span class="finalize-overview-pill" id="progressSummary">No selected receipts</span>
+        <span class="finalize-inline-guide mb-0">Required fields block generation. Optional fields follow tenant and document policy.</span>
+      </div>
       <div id="dirtyBanner" class="alert alert-warning py-2 px-3 small mb-2" style="display:none;">
         There are unsaved edits from Review. Save them first.
       </div>
@@ -331,30 +360,30 @@
       <div id="requiredSummaryPanel" class="required-summary-panel" style="display:none;"></div>
       <div id="finalizeChecklistPanel" class="finalize-checklist-panel" style="display:none;"></div>
       <div id="profileContext" class="profile-context" style="display:none;"></div>
-      <div class="finalize-inline-guide">Required fields block generation. Optional fields follow tenant and document policy.</div>
       <div id="finalizeSummaryCards" class="finalize-kpi-grid mb-2"></div>
       <div id="documentPresetNote" class="document-preset-note small text-muted" style="display:none;"></div>
 
-      <div class="finalize-section mb-1">
-        <div class="finalize-section-title">Document Settings</div>
-        <div class="wizard-grid compact">
-          <div class="wizard-field-span-2"><label class="form-label small mb-1">Expense Type</label><input id="mode" class="form-control form-control-sm" readonly></div>
-          <div class="wizard-field-span-2"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
-          <div class="wizard-field-span-4"><label class="form-label small mb-1">Document Type <span class="field-hint-required">Required</span></label><select id="documentType" class="form-select form-select-sm"></select></div>
-          <div class="wizard-field-span-2"><label class="form-label small mb-1">Period Mode <span class="field-hint-optional">Optional</span></label><select id="periodMode" class="form-select form-select-sm"><option value="auto">Auto (from receipts)</option><option value="manual">Manual</option></select></div>
-          <div id="wrapPeriodFrom" class="wizard-field-span-2"><label class="form-label small mb-1">Expense Period (from) <span class="field-hint-optional">Optional</span></label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
-          <div id="wrapPeriodTo" class="wizard-field-span-2"><label class="form-label small mb-1">Expense Period (to) <span class="field-hint-optional">Optional</span></label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
+      <div class="finalize-top-grid">
+        <div class="finalize-section mb-1">
+          <div class="finalize-section-title">Document Settings</div>
+          <div class="wizard-grid compact">
+            <div class="wizard-field-span-3"><label class="form-label small mb-1">Expense Type</label><input id="mode" class="form-control form-control-sm" readonly></div>
+            <div class="wizard-field-span-3"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
+            <div class="wizard-field-span-6"><label class="form-label small mb-1">Document Type <span class="field-hint-required">Required</span></label><select id="documentType" class="form-select form-select-sm"></select></div>
+            <div class="wizard-field-span-4"><label class="form-label small mb-1">Period Mode <span class="field-hint-optional">Optional</span></label><select id="periodMode" class="form-select form-select-sm"><option value="auto">Auto (from receipts)</option><option value="manual">Manual</option></select></div>
+            <div id="wrapPeriodFrom" class="wizard-field-span-4"><label class="form-label small mb-1">Expense Period (from) <span class="field-hint-optional">Optional</span></label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
+            <div id="wrapPeriodTo" class="wizard-field-span-4"><label class="form-label small mb-1">Expense Period (to) <span class="field-hint-optional">Optional</span></label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
+          </div>
         </div>
-      </div>
-
-      <div class="finalize-section mb-1">
-        <div class="finalize-section-title">Basic Info</div>
-        <div class="wizard-grid compact">
-          <div id="wrapEmployeeName" class="wizard-field-span-3"><label class="form-label small mb-1">Employee Name <span class="field-hint-required">Required</span><span id="badgeEmployeeName" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="employeeName" class="form-control form-control-sm" required></div>
-          <div id="wrapDepartment" class="wizard-field-span-3"><label class="form-label small mb-1">Department <span class="field-hint-optional">Optional</span><span id="badgeDepartment" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="department" class="form-control form-control-sm"></div>
-          <div id="wrapEmployeeId" class="wizard-field-span-2"><label class="form-label small mb-1">Employee ID <span class="field-hint-optional">Optional</span><span id="badgeEmployeeId" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="employeeId" class="form-control form-control-sm"></div>
-          <div id="wrapManager" class="wizard-field-span-2"><label class="form-label small mb-1">Manager <span class="field-hint-optional">Optional</span><span id="badgeManager" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="manager" class="form-control form-control-sm"></div>
-          <div id="wrapManagerEmail" class="wizard-field-span-2"><label class="form-label small mb-1">Manager Email <span class="field-hint-optional">Optional</span><span id="badgeManagerEmail" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="managerEmail" type="email" class="form-control form-control-sm" placeholder="manager@company.com"></div>
+        <div class="finalize-section mb-1">
+          <div class="finalize-section-title">Basic Info</div>
+          <div class="wizard-grid compact">
+            <div id="wrapEmployeeName" class="wizard-field-span-4"><label class="form-label small mb-1">Employee Name <span class="field-hint-required">Required</span><span id="badgeEmployeeName" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="employeeName" class="form-control form-control-sm" required></div>
+            <div id="wrapDepartment" class="wizard-field-span-4"><label class="form-label small mb-1">Department <span class="field-hint-optional">Optional</span><span id="badgeDepartment" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="department" class="form-control form-control-sm"></div>
+            <div id="wrapEmployeeId" class="wizard-field-span-4"><label class="form-label small mb-1">Employee ID <span class="field-hint-optional">Optional</span><span id="badgeEmployeeId" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="employeeId" class="form-control form-control-sm"></div>
+            <div id="wrapManager" class="wizard-field-span-6"><label class="form-label small mb-1">Manager <span class="field-hint-optional">Optional</span><span id="badgeManager" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="manager" class="form-control form-control-sm"></div>
+            <div id="wrapManagerEmail" class="wizard-field-span-6"><label class="form-label small mb-1">Manager Email <span class="field-hint-optional">Optional</span><span id="badgeManagerEmail" class="field-source-badge" style="display:none;">Auto-filled</span></label><input id="managerEmail" type="email" class="form-control form-control-sm" placeholder="manager@company.com"></div>
+          </div>
         </div>
       </div>
 

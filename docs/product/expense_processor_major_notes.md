@@ -44,6 +44,7 @@
 - Finalize 성공 패널은 하단 액션 바와 시각적으로 이어지게 해, 생성 직후 다음 행동이 자연스럽게 보이도록 유지한다.
 - Review의 `Still missing`과 `Finalize Inputs`는 Finalize 해당 필드로 바로 이동할 수 있어야 한다.
 - Finalize에서 보고서를 만든 뒤 다시 값을 수정하기 시작하면, 이전 성공 상태 배너/강조는 즉시 내려서 `이미 생성된 상태`와 `다시 편집 중인 상태`가 섞여 보이지 않게 유지한다.
+- Finalize 상단은 `Document Settings`와 `Basic Info`를 가능한 한 같은 화면 높이 안에서 소화하도록 압축 배치하고, `Report Details`를 아래 독립 구역으로 두는 방향을 유지한다.
 
 ## Review UX 원칙
 - Review 상단 KPI는 단순 통계가 아니라 사용자의 다음 행동을 유도해야 한다.
@@ -65,6 +66,7 @@
 - Templates 탭 overview는 운영 순서를 짧은 체크포인트 형태로 보여줘, 관리자가 어떤 순서로 점검해야 하는지 바로 이해할 수 있게 유지한다.
 - Templates preview는 상세 비교 전에도 `무엇을 보고 있는지`와 `빠른 확인 포인트`를 먼저 보여줘, 긴 표보다 맥락을 먼저 읽게 유지한다.
 - Templates preview에는 현재 `mode / base or document override / scope`를 chip 형태로 먼저 보여줘, 표를 읽기 전에 지금 보고 있는 템플릿의 위치를 바로 이해하게 유지한다.
+- Templates preview 비교 화면은 표 자체보다 먼저 `sheet 수 / preview 범위 / diff cell 규모`를 요약해, 운영자가 롤아웃 전 위험도를 빠르게 판단하게 유지한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.
