@@ -141,6 +141,13 @@
       color: #64748b;
       margin-top: .2rem;
     }
+    .document-preset-note {
+      border: 1px dashed #cbd5e1;
+      background: #f8fbff;
+      border-radius: 10px;
+      padding: .55rem .7rem;
+      margin-bottom: .75rem;
+    }
     @media (max-width: 1200px) {
       .wizard-field-span-8 { grid-column: span 6; }
       .finalize-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -170,6 +177,7 @@
       <div id="profileContext" class="profile-context" style="display:none;"></div>
       <div class="small text-muted mb-2">Fields marked <span class="field-hint-required">Required</span> must be completed before generation. Others are optional and depend on tenant settings.</div>
       <div id="finalizeSummaryCards" class="finalize-kpi-grid mb-3"></div>
+      <div id="documentPresetNote" class="document-preset-note small text-muted" style="display:none;"></div>
 
       <div class="finalize-section mb-2">
         <div class="finalize-section-title">Document Settings</div>
@@ -223,6 +231,7 @@
     let selectedRows = [];
     let cfg = {};
     let profileMeta = {};
+    let lastPresetApplied = { title: "", tripPurpose: "", notes: "" };
 
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
@@ -346,12 +355,50 @@
       sel.innerHTML = opts.map((x)=>`<option value="${esc(x.label)}" data-doc-id="${esc(x.id)}">${esc(x.label)}</option>`).join("");
       applyDocumentTypeSuggestion();
     }
+    function getDocumentPreset(){
+      const sel = document.getElementById("documentType");
+      const docId = String(sel?.selectedOptions?.[0]?.dataset?.docId || "").trim().toLowerCase();
+      const docLabel = String(sel?.value || "").trim();
+      const mode = String(document.getElementById("mode")?.value || "domestic").trim().toLowerCase();
+      const modeLabel = mode === "international" ? "International" : "Domestic";
+      if (docId === "trip_expense") {
+        return {
+          title: `${modeLabel} Trip Expense`,
+          tripPurposePlaceholder: "Destination, business objective, attendees, or trip summary",
+          notesPlaceholder: "Exceptions, reimbursement comments, travel policy notes",
+          hint: "Trip expense reports usually need a clearer trip purpose and travel context before approval.",
+        };
+      }
+      return {
+        title: mode === "international" ? `${modeLabel} Expense Report` : "Expense Report",
+        tripPurposePlaceholder: "Business purpose or expense context",
+        notesPlaceholder: "Additional approval notes or accounting comments",
+        hint: "Standard expense reports focus on accurate categorization and clean approval notes.",
+      };
+    }
     function applyDocumentTypeSuggestion(){
       const docType = String(document.getElementById("documentType")?.value || "").trim();
       const titleEl = document.getElementById("title");
-      if (!titleEl) return;
+      const tripEl = document.getElementById("tripPurpose");
+      const notesEl = document.getElementById("notes");
+      const presetNote = document.getElementById("documentPresetNote");
+      if (!titleEl || !tripEl || !notesEl || !presetNote) return;
+      const preset = getDocumentPreset();
       titleEl.placeholder = docType ? `${docType} title` : "Report title";
-      if (!String(titleEl.value || "").trim()) titleEl.value = docType;
+      tripEl.placeholder = preset.tripPurposePlaceholder;
+      notesEl.placeholder = preset.notesPlaceholder;
+      if (!String(titleEl.value || "").trim() || String(titleEl.value || "").trim() === lastPresetApplied.title) {
+        titleEl.value = preset.title || docType;
+      }
+      if (!String(tripEl.value || "").trim() || String(tripEl.value || "").trim() === lastPresetApplied.tripPurpose) {
+        tripEl.value = "";
+      }
+      if (!String(notesEl.value || "").trim() || String(notesEl.value || "").trim() === lastPresetApplied.notes) {
+        notesEl.value = "";
+      }
+      lastPresetApplied = { title: preset.title || docType, tripPurpose: "", notes: "" };
+      presetNote.style.display = "";
+      presetNote.innerHTML = `<span class="fw-semibold">${esc(docType || "Document type")}</span> preset: ${esc(preset.hint)}<span class="d-block mt-1">Suggested title: <span class="fw-semibold">${esc(preset.title || docType || "Report")}</span></span>`;
     }
 
     async function loadSelectedSummary(){

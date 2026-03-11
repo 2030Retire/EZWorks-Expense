@@ -141,6 +141,9 @@
       font-size: .75rem;
       font-weight: 600;
     }
+    .attention-filter-select {
+      min-width: 180px;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -193,6 +196,16 @@
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" id="attentionToggle" onchange="toggleAttentionMode()">
           <label class="form-check-label small" for="attentionToggle">Focus action-needed rows</label>
+        </div>
+        <div id="attentionReasonWrap" style="display:none;">
+          <label class="form-label small mb-1">Action filter</label>
+          <select id="attentionReason" class="form-select form-select-sm attention-filter-select" onchange="applyAttentionFilter()">
+            <option value="all">All attention rows</option>
+            <option value="required">Missing required</option>
+            <option value="fx">FX pending</option>
+            <option value="retry">Save retry</option>
+            <option value="dirty">Unsaved edits</option>
+          </select>
         </div>
         <div class="form-check form-switch ms-auto">
           <input class="form-check-input" type="checkbox" id="compactToggle" onchange="toggleCompactMode()">
@@ -285,8 +298,11 @@
       const next = typeof forceValue === "boolean" ? forceValue : !!document.getElementById("attentionToggle")?.checked;
       const toggle = document.getElementById("attentionToggle");
       if (toggle) toggle.checked = next;
+      const reasonWrap = document.getElementById("attentionReasonWrap");
+      if (reasonWrap) reasonWrap.style.display = next ? "" : "none";
       const reviewUi = wizardGet(REVIEW_UI_KEY, {}) || {};
       reviewUi.attentionOnly = next;
+      reviewUi.attentionReason = String(document.getElementById("attentionReason")?.value || "all");
       wizardSet(REVIEW_UI_KEY, reviewUi);
       applyAttentionFilter();
     }
@@ -353,15 +369,47 @@
       if (usdText.includes("fx required")) return true;
       return false;
     }
+    function getAttentionReasonCounts(rows){
+      const counts = { all: 0, required: 0, fx: 0, retry: 0, dirty: 0 };
+      rows.forEach((tr) => {
+        const req = String(tr.querySelector(".f-required")?.textContent || "").trim().toLowerCase() === "fix";
+        const fx = String(tr.querySelector(".f-usd")?.textContent || "").trim().toLowerCase().includes("fx required");
+        const retry = tr.dataset.saveError === "1";
+        const dirty = tr.dataset.dirty === "1";
+        const attention = req || fx || retry || dirty;
+        if (attention) counts.all += 1;
+        if (req) counts.required += 1;
+        if (fx) counts.fx += 1;
+        if (retry) counts.retry += 1;
+        if (dirty) counts.dirty += 1;
+      });
+      return counts;
+    }
+    function rowMatchesAttentionReason(tr, reason){
+      const req = String(tr.querySelector(".f-required")?.textContent || "").trim().toLowerCase() === "fix";
+      const fx = String(tr.querySelector(".f-usd")?.textContent || "").trim().toLowerCase().includes("fx required");
+      const retry = tr.dataset.saveError === "1";
+      const dirty = tr.dataset.dirty === "1";
+      if (reason === "required") return req;
+      if (reason === "fx") return fx;
+      if (reason === "retry") return retry;
+      if (reason === "dirty") return dirty;
+      return req || fx || retry || dirty;
+    }
     function applyAttentionFilter(){
       const enabled = !!document.getElementById("attentionToggle")?.checked;
+      const reason = String(document.getElementById("attentionReason")?.value || "all");
       const rows = [...document.querySelectorAll("#rows tr[data-id]")];
+      const counts = getAttentionReasonCounts(rows);
       let visibleCount = 0;
       rows.forEach((tr) => {
-        const show = !enabled || rowNeedsAttention(tr);
+        const show = !enabled || rowMatchesAttentionReason(tr, reason);
         tr.classList.toggle("attention-row-hidden", !show);
         if (show) visibleCount += 1;
       });
+      const reviewUi = wizardGet(REVIEW_UI_KEY, {}) || {};
+      reviewUi.attentionReason = reason;
+      wizardSet(REVIEW_UI_KEY, reviewUi);
       const hint = document.getElementById("attentionFilterHint");
       if (!hint) return;
       if (!enabled) {
@@ -370,7 +418,14 @@
         return;
       }
       hint.style.display = "";
-      hint.innerHTML = `<span class="attention-filter-chip">Showing ${visibleCount} attention row(s)</span><span class="text-muted ms-2">Rows with unsaved edits, save retry, missing required values, or pending FX stay visible.</span>`;
+      const reasonLabel = {
+        all: `All ${counts.all}`,
+        required: `Missing required ${counts.required}`,
+        fx: `FX pending ${counts.fx}`,
+        retry: `Save retry ${counts.retry}`,
+        dirty: `Unsaved ${counts.dirty}`,
+      }[reason] || `All ${counts.all}`;
+      hint.innerHTML = `<span class="attention-filter-chip">Showing ${visibleCount} row(s)</span><span class="text-muted ms-2">Filter: ${esc(reasonLabel)}. Rows with unsaved edits, save retry, missing required values, or pending FX can be isolated here.</span>`;
     }
     async function retryRowSave(btn){
       const tr = btn?.closest("tr[data-id]");
@@ -834,6 +889,8 @@
     (async()=>{
       const reviewUi = wizardGet(REVIEW_UI_KEY, {}) || {};
       toggleCompactMode(!!reviewUi.compact);
+      const reasonSel = document.getElementById("attentionReason");
+      if (reasonSel && reviewUi.attentionReason) reasonSel.value = reviewUi.attentionReason;
       toggleAttentionMode(!!reviewUi.attentionOnly);
       await loadConfig();
       await loadRows();
