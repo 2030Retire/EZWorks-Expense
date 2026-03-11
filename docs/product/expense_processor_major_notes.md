@@ -39,6 +39,7 @@
 - `Finalize readiness`는 문서정책 기준 입력 진행 상태를 보여주는 체크리스트다.
 - Finalize 상단 패널은 길게 늘어지기보다, readiness 요약과 receipt/period/review sync 상태를 압축해서 보여주는 방향을 유지한다.
 - Finalize의 설명 문구와 카드/섹션 간격은 최대한 압축해, 첫 화면에서 핵심 입력 필드가 바로 보이도록 유지한다.
+- Finalize의 저장/생성 액션은 스크롤 중에도 찾기 쉽도록 하단 액션 바를 유지하는 방향이 좋다.
 - Review의 `Still missing`과 `Finalize Inputs`는 Finalize 해당 필드로 바로 이동할 수 있어야 한다.
 
 ## Review UX 원칙
@@ -53,6 +54,7 @@
 - Accounting의 Document Type 카드는 단순 설정폼이 아니라, 템플릿 override 유무와 Finalize 정책 준비상태를 함께 보여주는 운영 카드로 유지한다.
 - Templates 탭의 상세 매핑표를 보기 전에, Accounting 카드 단계에서도 각 문서 타입의 준비 정도를 빠르게 판단할 수 있어야 한다.
 - Accounting는 `quick readiness`, Templates는 `file-level detail and preview` 역할로 구분해, 같은 정보를 두 탭에서 과하게 반복하지 않도록 유지한다.
+- Admin 문구는 `정책 설정 -> 파일 업로드/비교` 순서를 짧게 안내해, 운영자가 탭 역할을 바로 이해하도록 유지한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.

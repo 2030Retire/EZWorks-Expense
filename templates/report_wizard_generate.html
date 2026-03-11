@@ -13,7 +13,7 @@
       gap: .65rem;
     }
     .wizard-field-span-2, .wizard-field-span-3, .wizard-field-span-4, .wizard-field-span-5, .wizard-field-span-6, .wizard-field-span-7, .wizard-field-span-12 {
-      min-width: 160px;
+      min-width: 140px;
     }
     .wizard-field-span-2 { grid-column: span 2; }
     .wizard-field-span-3 { grid-column: span 3; }
@@ -259,6 +259,24 @@
     .finalize-section textarea.form-control-sm {
       min-height: 82px;
     }
+    .finalize-action-bar {
+      position: sticky;
+      bottom: 0;
+      z-index: 5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin-top: .75rem;
+      padding: .7rem .2rem 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.92) 28%, rgba(255,255,255,1) 100%);
+      border-top: 1px solid #e5edf8;
+    }
+    .finalize-action-meta {
+      font-size: .76rem;
+      color: #64748b;
+    }
     @media (max-width: 1200px) {
       .wizard-field-span-8 { grid-column: span 6; }
       .finalize-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -327,11 +345,14 @@
         </div>
       </div>
 
-      <div class="d-flex justify-content-between mt-3">
-        <a href="/reports/wizard/review" class="btn btn-sm btn-outline-secondary">Back</a>
-        <div class="d-flex gap-2">
+      <div class="finalize-action-bar">
+        <div class="finalize-action-meta">Keep this bar visible while you complete Finalize. Required warnings above still block generation.</div>
+        <div class="d-flex justify-content-between align-items-center flex-grow-1 gap-2">
+          <a href="/reports/wizard/review" class="btn btn-sm btn-outline-secondary">Back</a>
+          <div class="d-flex gap-2">
           <button class="btn btn-sm btn-outline-secondary" onclick="saveProfile()">Save Profile</button>
           <button class="btn btn-sm btn-success" onclick="generateReport()">Generate Report</button>
+          </div>
         </div>
       </div>
       <div id="msg" class="small mt-2"></div>
