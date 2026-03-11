@@ -468,6 +468,17 @@
           </div>
         </div>
         <div class="review-toolbox-group">
+          <div class="review-toolbox-label">Bulk Category</div>
+          <div class="review-toolbox-row">
+            <div>
+              <label class="form-label small mb-1">Apply Category</label>
+              <select id="bulkCategory" class="form-select form-select-sm"></select>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applyCategoryBulk('selected')">Apply to selected</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applyCategoryBulk('all')">Apply to all</button>
+          </div>
+        </div>
+        <div class="review-toolbox-group">
           <div class="review-toolbox-label">View Options</div>
           <div class="review-toolbox-row">
             <div class="form-check form-switch">
@@ -707,6 +718,12 @@
     function formatMoneyWithCurrency(currency, amount){
       const code = String(currency || "USD").toUpperCase();
       return `${currencySymbol(code)} ${formatMoney(amount)}`;
+    }
+    function renderBulkCategoryOptions(){
+      const sel = document.getElementById("bulkCategory");
+      if (!sel) return;
+      const options = categoryChoices.length ? categoryChoices : ["MISCELLANEOUS"];
+      sel.innerHTML = options.map((x) => `<option value="${esc(x)}">${esc(x)}</option>`).join("");
     }
     function getSavedSelection(){
       const v = wizardGet(KEY, []);
@@ -1201,6 +1218,7 @@
       try { const r = await fetch("/api/config"); const d = await r.json(); if (r.ok) cfg = d || {}; } catch(_) {}
       categoryChoices = (cfg?.expense_types || []).filter(x => x && x.enabled && x.id).map(x => String(x.id || "").toUpperCase());
       if (!categoryChoices.length) categoryChoices = ["MISCELLANEOUS"];
+      renderBulkCategoryOptions();
       const fx = getFxState();
       const policy = String(cfg?.accounting?.fx_policy || "date_based").toLowerCase();
       if (!fx.rate_mode || policy !== "user_select") fx.rate_mode = policy;
@@ -1473,6 +1491,31 @@
         markDirty(tr);
       });
       document.getElementById("msg").textContent = `Applied ${code} to ${trs.length} row(s).`;
+    }
+    // 카테고리도 반복 수정이 잦아서, 선택/전체 기준으로 한 번에 맞추는 빠른 흐름을 둔다.
+    function applyCategoryBulk(scope){
+      const category = String(document.getElementById("bulkCategory")?.value || "MISCELLANEOUS").trim().toUpperCase();
+      const trs = scope === "all" ? [...document.querySelectorAll("#rows tr[data-id]")] : getSelectedTrs();
+      trs.forEach((tr) => {
+        const sel = tr.querySelector(".f-category-select");
+        const custom = tr.querySelector(".f-category-custom");
+        if (!sel) return;
+        if ([...sel.options].some((opt) => String(opt.value || "").trim().toUpperCase() === category)) {
+          sel.value = category;
+          if (custom) {
+            custom.style.display = "none";
+            custom.value = "";
+          }
+        } else {
+          sel.value = "__CUSTOM__";
+          if (custom) {
+            custom.style.display = "";
+            custom.value = category;
+          }
+        }
+        markDirty(tr);
+      });
+      document.getElementById("msg").textContent = `Applied ${category} to ${trs.length} row(s).`;
     }
 
     function scrollToFxEditor(){

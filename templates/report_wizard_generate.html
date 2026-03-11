@@ -484,7 +484,7 @@
             <div class="wizard-field-span-3"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
             <div class="wizard-field-span-6"><label class="form-label small mb-1">Document Type <span class="field-hint-required">Required</span></label><select id="documentType" class="form-select form-select-sm"></select></div>
             <div class="wizard-field-span-4"><label class="form-label small mb-1">Period Mode <span class="field-hint-optional">Optional</span></label><select id="periodMode" class="form-select form-select-sm"><option value="auto">Auto (from receipts)</option><option value="manual">Manual</option></select></div>
-            <div id="wrapPeriodFrom" class="wizard-field-span-4"><label class="form-label small mb-1">Expense Period (from) <span class="field-hint-optional">Optional</span></label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
+            <div id="wrapPeriodFrom" class="wizard-field-span-4"><label class="form-label small mb-1">Expense Period (from) <span class="field-hint-optional">Optional</span><button type="button" id="applyReceiptPeriodBtn" class="finalize-inline-action ms-2" style="display:none;" onclick="applyReceiptPeriod()">Use receipt period</button></label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
             <div id="wrapPeriodTo" class="wizard-field-span-4"><label class="form-label small mb-1">Expense Period (to) <span class="field-hint-optional">Optional</span></label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
           </div>
         </div>
@@ -808,6 +808,42 @@
       focusFieldByKey("title");
       document.getElementById("msg").innerHTML = `<span class="text-success">Suggested title applied.</span>`;
     }
+    function getSelectedReceiptPeriodRange(){
+      const dated = selectedRows
+        .map((x) => String(x?.date || "").trim())
+        .filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x))
+        .sort();
+      if (!dated.length) return null;
+      return { from: dated[0], to: dated[dated.length - 1] };
+    }
+    // 선택 영수증에 이미 날짜가 있으면 Period를 수동 입력하지 않고 바로 복구할 수 있게 한다.
+    function renderReceiptPeriodAction(){
+      const btn = document.getElementById("applyReceiptPeriodBtn");
+      const fromEl = document.getElementById("periodFrom");
+      const toEl = document.getElementById("periodTo");
+      if (!btn || !fromEl || !toEl) return;
+      const range = getSelectedReceiptPeriodRange();
+      const show = !!range && (String(fromEl.value || "") !== range.from || String(toEl.value || "") !== range.to);
+      btn.style.display = show ? "" : "none";
+      btn.textContent = range ? `Use receipt period: ${formatDateLabel(range.from)} - ${formatDateLabel(range.to)}` : "Use receipt period";
+      btn.title = range ? `${range.from} - ${range.to}` : "";
+    }
+    function applyReceiptPeriod(){
+      const range = getSelectedReceiptPeriodRange();
+      if (!range) return;
+      const fromEl = document.getElementById("periodFrom");
+      const toEl = document.getElementById("periodTo");
+      if (!fromEl || !toEl) return;
+      fromEl.value = range.from;
+      toEl.value = range.to;
+      resetPostGenerateUi();
+      renderRequiredSummary();
+      renderFinalizeSummary();
+      saveFinalizeSettings();
+      renderReceiptPeriodAction();
+      focusFieldByKey("period");
+      document.getElementById("msg").innerHTML = `<span class="text-success">Receipt period applied.</span>`;
+    }
     function applyDocumentTypeSuggestion(){
       // 문서 유형이 바뀌면 추천 제목과 안내 문구, 필수 정책 표시를 함께 갱신한다.
       const docType = String(document.getElementById("documentType")?.value || "").trim();
@@ -863,6 +899,7 @@
       }
       document.getElementById("progressSummary").textContent = `Risky ${out.risky} · Ready ${out.ready} · Assigned ${out.assigned}`;
       renderFinalizeSummary();
+      renderReceiptPeriodAction();
     }
 
     async function loadProfile(){
@@ -1008,6 +1045,7 @@
       if (s.manager) document.getElementById("manager").value = String(s.manager || "");
       if (s.managerEmail) document.getElementById("managerEmail").value = String(s.managerEmail || "");
       renderTitleSuggestionButton();
+      renderReceiptPeriodAction();
     }
     function saveFinalizeSettings(){
       // Step 3 draft를 저장해 Review/Finalize를 오갈 때 입력 상태가 끊기지 않게 유지한다.
@@ -1443,7 +1481,7 @@
       const el = document.getElementById(id);
       if (!el) return;
       const eventName = el.tagName === "SELECT" ? "change" : "input";
-      el.addEventListener(eventName, () => { resetPostGenerateUi(); renderRequiredSummary(); saveFinalizeSettings(); });
+      el.addEventListener(eventName, () => { resetPostGenerateUi(); renderRequiredSummary(); saveFinalizeSettings(); renderReceiptPeriodAction(); });
     });
     document.getElementById("finalizeChecklistPanel")?.addEventListener("click", (event) => {
       const card = event.target.closest("[data-focus-key]");

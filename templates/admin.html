@@ -2112,17 +2112,27 @@ async function loadTemplatePreview() {
     });
     panes[0].scrollIntoView({ behavior: "smooth", block: "start" });
   };
-  const renderPreviewSheets = (previewData, compareData = null) => {
-    const previewSheets = Array.isArray(previewData?.sheets) ? previewData.sheets : [];
+  // compare가 길어질 때는 "바뀐 시트만" 먼저 보게 해, 운영자가 실제 영향 범위부터 빠르게 읽게 만든다.
+  const renderPreviewSheets = (previewData, compareData = null, options = {}) => {
+    const previewSheetsRaw = Array.isArray(previewData?.sheets) ? previewData.sheets : [];
     const compareSheets = Array.isArray(compareData?.sheets) ? compareData.sheets : [];
+    const allowedSheetNames = Array.isArray(options?.sheetNames) && options.sheetNames.length
+      ? new Set(options.sheetNames.map((x) => String(x || "")))
+      : null;
+    const previewSheets = allowedSheetNames
+      ? previewSheetsRaw.filter((x) => allowedSheetNames.has(String(x?.name || "")))
+      : previewSheetsRaw;
     let diffCount = 0;
     const sheetDiffs = [];
+    const renderedSheetNames = [];
     const html = previewSheets.map(s => {
       const rows = Array.isArray(s.rows) ? s.rows : [];
       const compareSheet = compareSheets.find((x) => String(x?.name || "") === String(s?.name || ""));
       const compareRows = Array.isArray(compareSheet?.rows) ? compareSheet.rows : [];
       let sheetDiffCount = 0;
       if (!rows.length) {
+        if (compareData && options?.changedOnly) return "";
+        renderedSheetNames.push(String(s?.name || "Sheet"));
         return `<div class="mb-3" data-preview-anchor="preview-sheet-${toSheetAnchor(s.name || "Sheet")}"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta"><span class="template-chip">No preview rows</span></div></div><div class="small text-muted">No data rows.</div></div>`;
       }
       const cols = rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
@@ -2145,6 +2155,10 @@ async function loadTemplatePreview() {
       if (compareData && sheetDiffCount > 0) {
         sheetDiffs.push({ name: String(s?.name || "Sheet"), count: sheetDiffCount });
       }
+      if (compareData && options?.changedOnly && sheetDiffCount === 0) {
+        return "";
+      }
+      renderedSheetNames.push(String(s?.name || "Sheet"));
       // 시트 제목 가까이에 diff 수를 붙여서, 긴 표를 보기 전에 변화 규모를 먼저 읽게 한다.
       // 시트 단위 diff를 제목 가까이에 붙여, 어떤 시트부터 봐야 할지 바로 판단하게 만든다.
       const metaChips = compareData
@@ -2153,17 +2167,34 @@ async function loadTemplatePreview() {
       return `<div class="mb-3" data-preview-anchor="preview-sheet-${toSheetAnchor(s.name || "Sheet")}"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta">${metaChips}</div></div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
     }).join("");
     const summaryHtml = compareData ? `<div class="small text-muted mt-2">Highlighted cells show differences from the base preview. Compared cells: ${diffCount}</div>` : "";
-    return { html: html + summaryHtml, diffCount, sheetDiffs };
+    if (!renderedSheetNames.length) {
+      return {
+        html: `<div class="small text-muted">No changed sheets in the current preview window.</div>`,
+        diffCount: 0,
+        sheetDiffs: [],
+        sheetNames: [],
+      };
+    }
+    return { html: html + summaryHtml, diffCount, sheetDiffs, sheetNames: renderedSheetNames };
   };
-  const effectivePreview = renderPreviewSheets(data, baseData);
+  const changedOnly = !!document.getElementById("previewChangedOnly")?.checked;
+  const compareOptions = { changedOnly };
+  const effectivePreviewRaw = renderPreviewSheets(data, baseData, compareOptions);
+  const filteredNames = changedOnly
+    ? effectivePreviewRaw.sheetDiffs.map((x) => String(x.name || "")).filter(Boolean)
+    : effectivePreviewRaw.sheetNames;
+  const effectivePreview = changedOnly
+    ? renderPreviewSheets(data, baseData, { sheetNames: filteredNames })
+    : effectivePreviewRaw;
   const effectiveHtml = effectivePreview.html;
   // preview 표를 펼쳐 보기 전에 비교 범위와 diff 규모를 먼저 빠르게 읽게 만든다.
   const previewKpi = `
     <div class="alert alert-light border py-2 px-3 small mb-3">
       <div class="d-flex flex-wrap gap-2 align-items-center">
-        <span class="template-chip">Sheets ${(Array.isArray(data.sheets) ? data.sheets.length : 0)}</span>
+        <span class="template-chip">Sheets ${changedOnly ? effectivePreview.sheetNames.length : (Array.isArray(data.sheets) ? data.sheets.length : 0)}</span>
         <span class="template-chip">Rows previewed ${Math.max(...(Array.isArray(data.sheets) ? data.sheets.map((s) => Array.isArray(s.rows) ? Math.min(s.rows.length, 8) : 0) : [0]))}</span>
         ${documentType && baseData ? `<span class="template-chip">Diff cells ${effectivePreview.diffCount}</span>` : ``}
+        ${documentType && baseData ? `<label class="template-chip mb-0"><input type="checkbox" class="form-check-input me-1 mt-0" id="previewChangedOnly" ${changedOnly ? "checked" : ""} onchange="loadTemplatePreview()">Changed sheets only</label>` : ``}
       </div>
       <div class="small text-muted mt-2">
         ${documentType && baseData
@@ -2221,7 +2252,7 @@ async function loadTemplatePreview() {
               <div class="small fw-semibold mb-0">Base comparison</div>
             </div>
             <div class="small text-muted mb-2">${escHtml(baseData.filename || "-")} · ${escHtml(baseData.scope || "-")}</div>
-            <div class="template-preview-pane">${renderPreviewSheets(baseData).html}</div>
+            <div class="template-preview-pane">${renderPreviewSheets(baseData, null, { sheetNames: filteredNames }).html}</div>
           </div>
         </div>
       </div>
