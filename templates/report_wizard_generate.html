@@ -107,18 +107,18 @@
       align-items: center;
       gap: .75rem;
       flex-wrap: wrap;
-      margin-bottom: .6rem;
+      margin-bottom: .55rem;
     }
     .finalize-checklist-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: .5rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .45rem;
     }
     .finalize-checklist-item {
       border: 1px solid #dbe6f3;
       background: #fff;
       border-radius: 10px;
-      padding: .55rem .65rem;
+      padding: .48rem .58rem;
     }
     .finalize-checklist-item.ready {
       border-color: #bbf7d0;
@@ -197,13 +197,13 @@
     .finalize-kpi-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: .65rem;
-      margin-bottom: .85rem;
+      gap: .55rem;
+      margin-bottom: .75rem;
     }
     .finalize-kpi-card {
       border: 1px solid #dbe6f3;
       border-radius: 12px;
-      padding: .7rem .8rem;
+      padding: .6rem .7rem;
       background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
     }
     .finalize-kpi-label {
@@ -219,7 +219,23 @@
     .finalize-summary-note {
       font-size: .75rem;
       color: #64748b;
-      margin-top: .2rem;
+      margin-top: .15rem;
+    }
+    .finalize-head-pills {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      flex-wrap: wrap;
+    }
+    .finalize-head-pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #dbe6f3;
+      background: #fff;
+      border-radius: 999px;
+      padding: .12rem .45rem;
+      font-size: .72rem;
+      color: #36507a;
     }
     .document-preset-note {
       border: 1px dashed #cbd5e1;
@@ -904,6 +920,8 @@
       }
       const readyCount = entries.filter((x) => x.ready).length;
       const remaining = entries.length - readyCount;
+      const summary = getReceiptSummary();
+      const dirtyCount = getSelectedDirtyIds().length;
       wrap.style.display = "";
       wrap.innerHTML = `
         <div class="finalize-checklist-head">
@@ -911,8 +929,15 @@
             <div class="small fw-semibold">Finalize readiness</div>
             <div class="small text-muted">We are checking the inputs required by the selected document policy.</div>
           </div>
-          <div class="small ${remaining ? "text-warning-emphasis" : "text-success"}">
-            ${readyCount}/${entries.length} ready${remaining ? ` · ${remaining} remaining` : " · Ready to generate"}
+          <div class="text-end">
+            <div class="small ${remaining ? "text-warning-emphasis" : "text-success"}">
+              ${readyCount}/${entries.length} ready${remaining ? ` · ${remaining} remaining` : " · Ready to generate"}
+            </div>
+            <div class="finalize-head-pills mt-1">
+              <span class="finalize-head-pill">${selectedRows.length} receipt(s)</span>
+              <span class="finalize-head-pill">${summary.periodText}</span>
+              <span class="finalize-head-pill">${dirtyCount ? `${dirtyCount} review edit(s) pending` : "Review synced"}</span>
+            </div>
           </div>
         </div>
         <div class="finalize-checklist-grid">

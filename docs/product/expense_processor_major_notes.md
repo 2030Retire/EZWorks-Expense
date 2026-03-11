@@ -37,12 +37,14 @@
 ## Finalize UX 원칙
 - `Required summary`는 현재 생성이 막히는 이유를 보여주는 차단 경고다.
 - `Finalize readiness`는 문서정책 기준 입력 진행 상태를 보여주는 체크리스트다.
+- Finalize 상단 패널은 길게 늘어지기보다, readiness 요약과 receipt/period/review sync 상태를 압축해서 보여주는 방향을 유지한다.
 - Review의 `Still missing`과 `Finalize Inputs`는 Finalize 해당 필드로 바로 이동할 수 있어야 한다.
 
 ## Review UX 원칙
 - Review 상단 KPI는 단순 통계가 아니라 사용자의 다음 행동을 유도해야 한다.
 - `Finalize Inputs`는 Step 3 준비 상태를 뜻하고, 클릭 시 Finalize로 바로 이동한다.
 - `FX Pending`도 단순 카운트가 아니라 FX 편집 영역으로 바로 이동하는 액션 카드로 유지한다.
+- `Required Fixes`, `Unsaved Edits`도 KPI 카드에서 바로 attention filter를 켜는 액션 카드로 유지한다.
 - `Focus action-needed rows`는 required/fx/retry/dirty 기준으로 예외행만 빠르게 보는 운영 도구다.
 
 ## Admin 운영 원칙

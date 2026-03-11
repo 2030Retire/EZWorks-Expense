@@ -211,10 +211,10 @@
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Selected Receipts</div><div class="kpi-value" id="sumReceiptCount">0</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Detected Currencies</div><div class="kpi-value small" id="sumCurrencies">-</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">USD Total</div><div class="kpi-value amount-num" id="sumUsdTotal">$ 0</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Required Fixes</div><div class="kpi-value" id="sumRequiredRows">0 row(s)</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumRequiredCard" role="button" tabindex="0"><div class="kpi-label">Required Fixes</div><div class="kpi-value" id="sumRequiredRows">0 row(s)</div><div class="review-kpi-hint" id="sumRequiredHint">Show missing required rows</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumFinalizeCard" role="button" tabindex="0"><div class="kpi-label">Finalize Inputs</div><div class="kpi-value" id="sumFinalizeInputs">2 field(s)</div><div class="small text-muted mt-1" id="sumFinalizeHint">Open Step 3</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumFxCard" role="button" tabindex="0"><div class="kpi-label">FX Pending</div><div class="kpi-value" id="sumFxPending">0 rate(s)</div><div class="review-kpi-hint" id="sumFxHint">Open FX editor</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Unsaved Edits</div><div class="kpi-value" id="sumDirtyRows">0 row(s)</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumDirtyCard" role="button" tabindex="0"><div class="kpi-label">Unsaved Edits</div><div class="kpi-value" id="sumDirtyRows">0 row(s)</div><div class="review-kpi-hint" id="sumDirtyHint">Show unsaved rows</div></div></div>
         <div class="col-xl-6 col-md-12"><div class="review-kpi-card"><div class="kpi-label">Category Summary</div><div class="review-summary-list" id="sumByCategory">-</div></div></div>
       </div>
 
@@ -353,6 +353,15 @@
       reviewUi.attentionReason = String(document.getElementById("attentionReason")?.value || "all");
       wizardSet(REVIEW_UI_KEY, reviewUi);
       applyAttentionFilter();
+    }
+    // KPI 카드에서 attention filter를 직접 바꿔 예외행만 즉시 보게 한다.
+    function activateAttentionFilter(reason){
+      const toggle = document.getElementById("attentionToggle");
+      const reasonSel = document.getElementById("attentionReason");
+      if (toggle) toggle.checked = true;
+      if (reasonSel) reasonSel.value = reason || "all";
+      toggleAttentionMode(true);
+      document.querySelector(".table-responsive")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     function normalizeDateInput(v){
@@ -609,6 +618,8 @@
       let missingRows = 0;
       document.querySelectorAll("#rows tr[data-id]").forEach((tr) => { if (updateRequiredState(tr) > 0) missingRows += 1; });
       document.getElementById("sumRequiredRows").textContent = `${missingRows} row(s)`;
+      const hint = document.getElementById("sumRequiredHint");
+      if (hint) hint.textContent = missingRows ? `Show ${missingRows} row(s) with missing date/amount/category` : "No required fixes right now";
       document.getElementById("requiredSummary").textContent = missingRows ? `Missing required values in ${missingRows} row(s): date/amount/category` : "";
       applyAttentionFilter();
     }
@@ -729,7 +740,10 @@
       }
       const parts = [...byCategory.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([cat, v]) => `<div class="review-summary-item"><span>${esc(cat)} · ${v.count} item(s)</span><span>${esc(formatMoneyWithCurrency(v.currency, v.amount))}</span></div>`);
       document.getElementById("sumByCategory").innerHTML = parts.length ? parts.join("") : `<div class="small text-muted">-</div>`;
-      document.getElementById("sumDirtyRows").textContent = `${getDirtySet().size} row(s)`;
+      const dirtyCount = getDirtySet().size;
+      document.getElementById("sumDirtyRows").textContent = `${dirtyCount} row(s)`;
+      const dirtyHint = document.getElementById("sumDirtyHint");
+      if (dirtyHint) dirtyHint.textContent = dirtyCount ? `Show ${dirtyCount} unsaved row(s)` : "No unsaved edits";
       syncWizardSettingsFromSelection(trs);
       renderFinalizePolicySummary();
     }
@@ -774,6 +788,8 @@
     function renderDirtySummary(){
       const cnt = getDirtySet().size;
       document.getElementById("sumDirtyRows").textContent = `${cnt} row(s)`;
+      const hint = document.getElementById("sumDirtyHint");
+      if (hint) hint.textContent = cnt ? `Show ${cnt} unsaved row(s)` : "No unsaved edits";
       document.getElementById("dirtySummary").textContent = cnt ? `Unsaved edits: ${cnt}` : "";
       if (!cnt) setAutoSaveSummary("All visible changes are saved.", "success");
     }
@@ -1069,6 +1085,22 @@
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       scrollToFxEditor();
+    });
+    document.getElementById("sumRequiredCard")?.addEventListener("click", () => {
+      activateAttentionFilter("required");
+    });
+    document.getElementById("sumRequiredCard")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      activateAttentionFilter("required");
+    });
+    document.getElementById("sumDirtyCard")?.addEventListener("click", () => {
+      activateAttentionFilter("dirty");
+    });
+    document.getElementById("sumDirtyCard")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      activateAttentionFilter("dirty");
     });
   </script>
 </body>
