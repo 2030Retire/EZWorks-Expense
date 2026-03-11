@@ -84,6 +84,12 @@
       font-size: .72rem;
       color: #166534;
     }
+    .report-success-ops {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      margin-top: .55rem;
+    }
     .profile-context {
       border: 1px solid #dbe6f3;
       background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
@@ -1312,6 +1318,7 @@
       const generatedAt = new Date().toLocaleString();
       const periodLabel = [body.period_from || "", body.period_to || ""].filter(Boolean).join(" - ") || "Not specified";
       const reviewState = getSelectedDirtyIds().length ? "Review needs sync" : "Review synced";
+      const docLabel = String(document.getElementById("documentType")?.selectedOptions?.[0]?.textContent || body.document_type || "-").trim();
       banner.innerHTML = `
         <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
           <div>
@@ -1336,6 +1343,12 @@
               <span class="fw-semibold">Base Currency:</span> ${esc(body.currency || "USD")}
               <span class="mx-2 text-muted">|</span>
               <span class="fw-semibold">Estimated USD:</span> ${esc(formatUsd(summary.usdTotal))}
+            </div>
+            <div class="report-success-ops">
+              <span class="report-success-meta-pill">Document ${esc(docLabel)}</span>
+              <span class="report-success-meta-pill">Receipts ${ids.length}</span>
+              <span class="report-success-meta-pill">Mode ${esc(String(body.mode || "").toLowerCase())}</span>
+              <span class="report-success-meta-pill">USD ${esc(formatUsd(summary.usdTotal))}</span>
             </div>
             <div class="report-success-summary">
               <div class="report-success-chip"><span class="label">Download</span><span>Use the direct file action or Reports history.</span></div>

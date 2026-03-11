@@ -96,6 +96,11 @@
     .template-sheet-jump {
       cursor:pointer;
     }
+    .template-preview-pane {
+      max-height: 72vh;
+      overflow: auto;
+      padding-right: .2rem;
+    }
     .template-diff-cell {
       background:#fff7ed !important;
       border-color:#fb923c !important;
@@ -2194,7 +2199,7 @@ async function loadTemplatePreview() {
               <div class="small fw-semibold mb-0">Resolved template</div>
             </div>
             <div class="small text-muted mb-2">${escHtml(data.filename || "-")} · ${escHtml(data.scope || "-")}</div>
-            ${effectiveHtml}
+            <div class="template-preview-pane">${effectiveHtml}</div>
           </div>
         </div>
         <div class="col-xl-6">
@@ -2204,7 +2209,7 @@ async function loadTemplatePreview() {
               <div class="small fw-semibold mb-0">Base comparison</div>
             </div>
             <div class="small text-muted mb-2">${escHtml(baseData.filename || "-")} · ${escHtml(baseData.scope || "-")}</div>
-            ${renderPreviewSheets(baseData).html}
+            <div class="template-preview-pane">${renderPreviewSheets(baseData).html}</div>
           </div>
         </div>
       </div>

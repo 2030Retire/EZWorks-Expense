@@ -369,6 +369,9 @@
       align-items: center;
       gap: .35rem;
     }
+    .review-action-shortcut .btn {
+      white-space: nowrap;
+    }
     .review-action-pill {
       display: inline-flex;
       align-items: center;
@@ -544,7 +547,8 @@
         <div class="d-flex justify-content-between align-items-center flex-grow-1 gap-2">
           <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
           <div class="review-action-shortcut" id="reviewRetryShortcut">
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="jumpToAttentionRow('retry')">Jump to retry row</button>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="retryAllBtn" onclick="retryAllFailedRows()">Retry failed saves</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="retryJumpBtn" onclick="jumpToAttentionRow('retry')">Jump to retry row</button>
           </div>
           <button id="nextBtn" class="btn btn-sm btn-primary" onclick="goNext()">Next: Finalize</button>
         </div>
@@ -628,6 +632,8 @@
       const wrap = document.getElementById("reviewActionStatus");
       const meta = document.getElementById("reviewActionMeta");
       const retryShortcut = document.getElementById("reviewRetryShortcut");
+      const retryAllBtn = document.getElementById("retryAllBtn");
+      const retryJumpBtn = document.getElementById("retryJumpBtn");
       if (!wrap) return;
       const requiredCount = Number(overrides.requiredCount ?? document.querySelectorAll("#rows .req-badge.missing").length ?? 0);
       const fxPending = Number(overrides.fxPending ?? getFxRequirements().length ?? 0);
@@ -641,6 +647,8 @@
         `<span class="review-action-pill ${finalizePending ? "warn" : "ok"}">Finalize ${finalizePending ? `${finalizePending} remaining` : "ready"}</span>`
       ].join("");
       if (retryShortcut) retryShortcut.style.display = retryCount ? "inline-flex" : "none";
+      if (retryAllBtn) retryAllBtn.textContent = retryCount > 1 ? `Retry ${retryCount} failed saves` : "Retry failed save";
+      if (retryJumpBtn) retryJumpBtn.textContent = retryCount > 1 ? "Jump to first retry row" : "Jump to retry row";
       // Review 하단 메타 문구도 현재 막히는 이유 순서대로 바꿔, 테이블 -> FX -> Finalize 흐름을 바로 읽게 만든다.
       if (meta) {
         if (retryCount) {
@@ -800,6 +808,24 @@
         setRowSaveState(tr, "error", "Retry");
         setAutoSaveSummary(String(err?.message || "Retry failed."), "error");
       }
+    }
+    // 저장 실패가 여러 건일 때는 한 번에 다시 태워서 사용자가 반복 클릭하지 않게 한다.
+    async function retryAllFailedRows(){
+      const rows = [...document.querySelectorAll('#rows tr[data-id][data-save-error="1"]')];
+      if (!rows.length) return;
+      let success = 0;
+      for (const tr of rows) {
+        try {
+          await saveRowByTr(tr);
+          success += 1;
+        } catch (_) {
+          setRowSaveState(tr, "error", "Retry");
+        }
+      }
+      if (success === rows.length) setAutoSaveSummary(`Saved all ${success} failed row(s).`, "success");
+      else setAutoSaveSummary(`Retried ${rows.length} row(s). ${success} saved, ${rows.length - success} still need retry.`, success ? "success" : "error");
+      renderDirtySummary();
+      renderSelectionSummary();
     }
     function scheduleAutoSave(tr){
       const id = Number(tr?.dataset?.id || 0);
