@@ -1789,6 +1789,20 @@ async function loadTemplateStatus() {
   const data = await res.json();
   templateInfoCache = data || {};
   const area = document.getElementById("templateStatusArea");
+  const presetMap = cfg?.document_presets || {};
+  const labelMap = {
+    employee_name: "Employee Name",
+    department: "Department",
+    employee_id: "Employee ID",
+    manager: "Manager",
+    manager_email: "Manager Email",
+    project: "Project / Cost Center",
+    period: "Expense Period",
+    submission_date: "Submission Date",
+    trip_purpose: "Trip Purpose",
+    notes: "Notes",
+    title: "Title",
+  };
   const rows = [
     ["Domestic", data.base?.domestic || {}, "Used when receipts resolve to USD-only reporting."],
     ["International", data.base?.international || {}, "Used when one or more receipts stay in foreign currency."],
@@ -1842,6 +1856,7 @@ async function loadTemplateStatus() {
             <th>Document Type</th>
             <th>Domestic Template</th>
             <th>International Template</th>
+            <th>Finalize Required</th>
           </tr>
         </thead>
         <tbody>
@@ -1850,6 +1865,12 @@ async function loadTemplateStatus() {
               <td><div class="fw-semibold">${escHtml(info.label || docId)}</div><div class="small text-muted">${escHtml(docId)}</div></td>
               <td class="small">${(info?.domestic?.exists ? `${escHtml(info.domestic.filename || "")} <span class="text-muted">(${escHtml(info.domestic.scope || "")})</span>` : `<span class="text-muted">Base Domestic fallback</span>`)}</td>
               <td class="small">${(info?.international?.exists ? `${escHtml(info.international.filename || "")} <span class="text-muted">(${escHtml(info.international.scope || "")})</span>` : `<span class="text-muted">Base International fallback</span>`)}</td>
+              <td class="small">${(() => {
+                const req = Array.isArray(presetMap?.[docId]?.required_fields) && presetMap[docId].required_fields.length
+                  ? presetMap[docId].required_fields
+                  : ["employee_name", "title"];
+                return req.map((x) => `<span class="template-chip me-1 mb-1">${escHtml(labelMap[x] || x)}</span>`).join("");
+              })()}</td>
             </tr>
           `).join("")}
         </tbody>

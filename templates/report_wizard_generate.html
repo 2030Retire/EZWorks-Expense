@@ -753,6 +753,10 @@
         trip_purpose: document.getElementById("tripPurpose").value.trim(),
         notes: document.getElementById("notes").value.trim(),
       };
+      const summary = getReceiptSummary();
+      const periodText = body.period_from && body.period_to
+        ? `${formatDateLabel(body.period_from)} - ${formatDateLabel(body.period_to)}`
+        : summary.periodText;
       const r = await fetch("/api/inbox/reports/generate", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
       const d = await r.json();
       if(!r.ok) return alert(d.error || "Failed to generate report");
@@ -766,6 +770,20 @@
             <div class="fw-semibold mb-1">Report generated successfully</div>
             <div class="small text-muted">The file is ready for download and now appears in Reports history.</div>
             <div class="small mt-1"><span class="fw-semibold">File:</span> <a href="${d.download_url}">${esc(d.report.output_filename)}</a></div>
+            <div class="small mt-2">
+              <span class="fw-semibold">Document:</span> ${esc(body.document_type || "-")}
+              <span class="mx-2 text-muted">|</span>
+              <span class="fw-semibold">Receipts:</span> ${ids.length}
+              <span class="mx-2 text-muted">|</span>
+              <span class="fw-semibold">Period:</span> ${esc(periodText || "-")}
+            </div>
+            <div class="small mt-1">
+              <span class="fw-semibold">Mode:</span> ${esc(String(body.mode || "").toLowerCase())}
+              <span class="mx-2 text-muted">|</span>
+              <span class="fw-semibold">Base Currency:</span> ${esc(body.currency || "USD")}
+              <span class="mx-2 text-muted">|</span>
+              <span class="fw-semibold">Estimated USD:</span> ${esc(formatUsd(summary.usdTotal))}
+            </div>
           </div>
           <span class="badge text-bg-success">Ready</span>
         </div>
