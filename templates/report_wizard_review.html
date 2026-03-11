@@ -108,6 +108,7 @@
     const KEY = "report_wizard_selected_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
     const FX_KEY = "report_wizard_fx_by_date_v1";
+    const SETTINGS_KEY = "report_wizard_settings_v2";
     let rowsAll = [];
     let categoryChoices = [];
     let cfg = {};
@@ -283,6 +284,29 @@
       document.getElementById("sumUsdTotal").textContent = `$ ${formatMoney(usdTotal)}`;
       const parts = [...byCategory.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([cat, v]) => `${cat}: ${v.count} · ${formatMoneyWithCurrency(v.currency, v.amount)}`);
       document.getElementById("sumByCategory").textContent = parts.length ? parts.join(" | ") : "-";
+      syncWizardSettingsFromSelection(trs);
+    }
+    function syncWizardSettingsFromSelection(trs){
+      const rows = Array.isArray(trs) ? trs : getSelectedTrs();
+      const counts = new Map();
+      let hasNonUsd = false;
+      rows.forEach((tr) => {
+        const currency = String(tr.querySelector(".f-currency")?.value || "USD").toUpperCase();
+        counts.set(currency, Number(counts.get(currency) || 0) + 1);
+        if (currency && currency !== "USD") hasNonUsd = true;
+      });
+      let dominant = "USD";
+      let maxCount = -1;
+      [...counts.entries()].forEach(([code, count]) => {
+        if (count > maxCount || (count === maxCount && code !== "USD")) {
+          dominant = code;
+          maxCount = count;
+        }
+      });
+      const settings = wizardGet(SETTINGS_KEY, {}) || {};
+      settings.reportType = hasNonUsd ? "international" : "domestic";
+      settings.currency = settings.reportType === "domestic" ? "USD" : (dominant || "USD");
+      wizardSet(SETTINGS_KEY, settings);
     }
 
     function markDirty(tr){

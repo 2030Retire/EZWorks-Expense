@@ -561,6 +561,9 @@
             <option value="international">International</option>
             <option value="default">Default</option>
           </select>
+          <select class="form-select form-select-sm" id="previewDocumentType" style="max-width:220px;">
+            <option value="">Base template</option>
+          </select>
           <button class="btn btn-sm btn-outline-primary" onclick="loadTemplatePreview()">
             <i class="fa-solid fa-eye me-1"></i>Preview
           </button>
@@ -577,6 +580,11 @@
             <select class="form-select form-select-sm" id="uploadMode">
               <option value="domestic">Domestic</option>
               <option value="international">International</option>
+            </select>
+          </div>
+          <div class="col-auto">
+            <select class="form-select form-select-sm" id="uploadDocumentType" style="min-width:220px;">
+              <option value="">Base template (all document types)</option>
             </select>
           </div>
           <div class="col">
@@ -978,6 +986,17 @@ function renderAccountingPolicy() {
   if (avgEl) avgEl.value = Number(cfg?.accounting?.company_average_fx || 1);
   toggleAccountingFxPolicy();
   renderDocumentTypes();
+  renderTemplateDocumentTypeOptions();
+}
+function renderTemplateDocumentTypeOptions() {
+  const items = (cfg?.document_types || []).filter((x) => x && x.id && x.enabled !== false);
+  const options = [`<option value="">Base template${items.length ? " (all document types)" : ""}</option>`]
+    .concat(items.map((x) => `<option value="${escHtml(x.id)}">${escHtml(x.label || x.id)}</option>`))
+    .join("");
+  const uploadSel = document.getElementById("uploadDocumentType");
+  const previewSel = document.getElementById("previewDocumentType");
+  if (uploadSel) uploadSel.innerHTML = options;
+  if (previewSel) previewSel.innerHTML = `<option value="">Base template</option>` + items.map((x) => `<option value="${escHtml(x.id)}">${escHtml(x.label || x.id)}</option>`).join("");
 }
 async function saveAccountingPolicy() {
   const fx_policy = String(document.getElementById("accountingFxPolicy")?.value || "date_based").toLowerCase();
@@ -1685,10 +1704,10 @@ async function loadTemplateStatus() {
   const data = await res.json();
   const area = document.getElementById("templateStatusArea");
   const rows = [
-    ["domestic",      "🏠 Domestic",      data.domestic],
-    ["international", "🌍 International",  data.international],
+    ["domestic",      "🏠 Domestic",      data.base?.domestic || {}],
+    ["international", "🌍 International",  data.base?.international || {}],
   ];
-  area.innerHTML = rows.map(([key, label, info]) => {
+  const baseHtml = rows.map(([key, label, info]) => {
     if (info.exists) {
       const scopeTxt = info.scope === "tenant" ? "tenant custom" : "shared default";
       return `<div class="tpl-status-ok d-flex align-items-center gap-2 mb-2">
@@ -1703,6 +1722,20 @@ async function loadTemplateStatus() {
       </div>`;
     }
   }).join("");
+  const docTemplates = data.document_templates || {};
+  const docHtml = Object.entries(docTemplates).map(([docId, info]) => {
+    const dom = info?.domestic || {};
+    const intl = info?.international || {};
+    const line = (label, slot) => slot.exists
+      ? `<div class="small"><span class="fw-semibold">${label}</span>: ${escHtml(slot.filename || "")} · ${escHtml(slot.scope || "")}</div>`
+      : `<div class="small text-muted"><span class="fw-semibold">${label}</span>: fallback to base template</div>`;
+    return `<div class="border rounded p-2 mb-2">
+      <div class="fw-semibold small mb-1">${escHtml(info.label || docId)}</div>
+      ${line("Domestic", dom)}
+      ${line("International", intl)}
+    </div>`;
+  }).join("");
+  area.innerHTML = baseHtml + (docHtml ? `<div class="mt-3"><div class="small fw-semibold mb-2">Document-specific templates</div>${docHtml}</div>` : "");
 }
 async function generateTemplates(which) {
   const modes = which === "both" ? ["domestic","international"]
@@ -1723,17 +1756,20 @@ async function generateTemplates(which) {
 }
 async function loadTemplatePreview() {
   const mode = document.getElementById("previewMode").value || "domestic";
+  const documentType = document.getElementById("previewDocumentType")?.value || "";
   const area = document.getElementById("templatePreviewArea");
   const meta = document.getElementById("templatePreviewMeta");
   area.innerHTML = `<div class="small text-muted"><i class="fa-solid fa-spinner fa-spin me-1"></i>Loading preview...</div>`;
-  const res = await fetch(`/admin/template-preview?mode=${encodeURIComponent(mode)}`);
+  const qs = new URLSearchParams({ mode });
+  if (documentType) qs.set("document_type", documentType);
+  const res = await fetch(`/admin/template-preview?${qs.toString()}`);
   const data = await res.json();
   if (!res.ok) {
     meta.innerHTML = "";
     area.innerHTML = `<div class="small text-danger">${data.error || "Preview failed."}</div>`;
     return;
   }
-  meta.innerHTML = `File: <b>${escHtml(data.filename || "-")}</b> · Scope: <b>${escHtml(data.scope || "-")}</b>`;
+  meta.innerHTML = `File: <b>${escHtml(data.filename || "-")}</b> · Scope: <b>${escHtml(data.scope || "-")}</b>${documentType ? ` · Document Type: <b>${escHtml(documentType)}</b>` : ""}`;
   const sheets = Array.isArray(data.sheets) ? data.sheets : [];
   if (!sheets.length) {
     area.innerHTML = `<div class="small text-muted">No preview rows.</div>`;
@@ -1765,6 +1801,7 @@ async function uploadTemplate() {
   const fd = new FormData();
   fd.append("template", selectedTplFile);
   fd.append("mode",     document.getElementById("uploadMode").value);
+  fd.append("document_type", document.getElementById("uploadDocumentType")?.value || "");
   const res = await fetch("/admin/upload-template", { method:"POST", body:fd });
   const data = await res.json();
   const msgEl = document.getElementById("uploadTplMsg");

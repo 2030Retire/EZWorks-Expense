@@ -294,6 +294,7 @@
         mode: document.getElementById("mode").value,
         title: document.getElementById("title").value.trim(),
         document_type: document.getElementById("documentType").value.trim(),
+        document_type_id: document.getElementById("documentType").selectedOptions?.[0]?.dataset?.docId || "",
         currency: document.getElementById("currency").value.trim().toUpperCase(),
         exchange_rate: Number(fx.default_rate || cfg?.accounting?.company_average_fx || 1),
         exchange_rates: rateMode === "date_based" ? (fx.rates || {}) : {},

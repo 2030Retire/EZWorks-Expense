@@ -762,8 +762,17 @@ def _tenant_template_dir(host: str) -> Path:
     return p
 
 
-def _template_filename_for_mode(mode: str) -> str:
+def _normalize_document_type_id(value: str) -> str:
+    raw = str(value or "").strip().lower().replace(" ", "_").replace("-", "_")
+    return "".join(ch for ch in raw if ch.isalnum() or ch == "_")[:40]
+
+
+def _template_filename_for_mode(mode: str, document_type: str | None = None) -> str:
     mode_key = str(mode or "domestic").strip().lower()
+    doc_key = _normalize_document_type_id(document_type or "")
+    prefix = f"template_{mode_key}"
+    if doc_key:
+        return f"{prefix}__{doc_key}.xlsx"
     if mode_key == "international":
         return "template_international.xlsx"
     if mode_key == "domestic":
@@ -771,12 +780,17 @@ def _template_filename_for_mode(mode: str) -> str:
     return "template.xlsx"
 
 
-def get_template_path(mode: str = "domestic", host: str | None = None) -> Path | None:
+def get_template_path(mode: str = "domestic", host: str | None = None, document_type: str | None = None) -> Path | None:
     """Resolve template path in tenant scope first, then shared default fallback."""
     host_key = (host or _get_request_host()).strip().lower()
     mode_key = str(mode or "domestic").strip().lower()
     fname = _template_filename_for_mode(mode_key)
+    doc_fname = _template_filename_for_mode(mode_key, document_type=document_type) if document_type else None
     candidates = [
+        *([
+            _tenant_template_dir(host_key) / doc_fname,
+            DEFAULT_TEMPLATE_DIR / doc_fname,
+        ] if doc_fname else []),
         _tenant_template_dir(host_key) / fname,
         DEFAULT_TEMPLATE_DIR / fname,
     ]
@@ -2113,7 +2127,9 @@ def inbox_generate_report():
         return jsonify({"error": "At least one receipt must have a valid date and amount."}), 400
 
     mode = (body.get("mode") or "domestic").strip().lower()
-    template_path = get_template_path(mode, host=host)
+    document_type = str(body.get("document_type") or "").strip()
+    document_type_id = _normalize_document_type_id(body.get("document_type_id") or document_type)
+    template_path = get_template_path(mode, host=host, document_type=document_type_id)
     if not template_path:
         return jsonify({"error": f"'{mode}' template is missing."}), 400
 
@@ -2153,7 +2169,6 @@ def inbox_generate_report():
         "manager": body.get("manager", ""),
         "project": body.get("project", ""),
     }
-    document_type = str(body.get("document_type") or "").strip()
     trip_title = str(body.get("trip_title") or body.get("title") or document_type or "").strip()
     submission_date = parse_date(body.get("submission_date"))
     settlement_month = body.get("settlement_month")
@@ -3491,7 +3506,8 @@ def admin_upload_template():
         return jsonify({"error": "Only .xlsx files are accepted."}), 400
 
     mode = request.form.get("mode", "domestic")
-    fname = _template_filename_for_mode(mode)
+    document_type = request.form.get("document_type", "")
+    fname = _template_filename_for_mode(mode, document_type=document_type)
     save_path = _tenant_template_dir(host) / fname
     file.save(str(save_path))
     stat = save_path.stat()
@@ -3508,7 +3524,8 @@ def admin_template_info():
     if not _check_admin(request):
         return jsonify({"error": "Admin authentication required."}), 401
     host = _get_request_host()
-    result = {}
+    cfg = load_config(host)
+    result = {"base": {}, "document_templates": {}}
     for mode, fname in [("domestic", "template_domestic.xlsx"),
                          ("international", "template_international.xlsx"),
                          ("default", "template.xlsx")]:
@@ -3517,7 +3534,7 @@ def admin_template_info():
         p = tenant_p if tenant_p.exists() else default_p
         if p.exists():
             stat = p.stat()
-            result[mode] = {
+            result["base"][mode] = {
                 "exists":    True,
                 "filename":  fname,
                 "size_kb":   round(stat.st_size / 1024, 1),
@@ -3525,7 +3542,30 @@ def admin_template_info():
                 "scope":     "tenant" if p == tenant_p else "shared_default",
             }
         else:
-            result[mode] = {"exists": False}
+            result["base"][mode] = {"exists": False}
+    for item in cfg.get("document_types", []):
+        if not item or not item.get("id"):
+            continue
+        doc_id = _normalize_document_type_id(item.get("id"))
+        result["document_templates"][doc_id] = {
+            "label": str(item.get("label") or doc_id),
+            "domestic": {"exists": False},
+            "international": {"exists": False},
+        }
+        for mode in ("domestic", "international"):
+            fname = _template_filename_for_mode(mode, document_type=doc_id)
+            tenant_p = _tenant_template_dir(host) / fname
+            default_p = DEFAULT_TEMPLATE_DIR / fname
+            p = tenant_p if tenant_p.exists() else default_p
+            if p.exists():
+                stat = p.stat()
+                result["document_templates"][doc_id][mode] = {
+                    "exists": True,
+                    "filename": fname,
+                    "size_kb": round(stat.st_size / 1024, 1),
+                    "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
+                    "scope": "tenant" if p == tenant_p else "shared_default",
+                }
     return jsonify(result)
 
 
@@ -3573,9 +3613,10 @@ def admin_template_preview():
     if not ok:
         return jsonify({"error": err}), 403
     mode = (request.args.get("mode") or "domestic").strip().lower()
+    document_type = request.args.get("document_type", "")
     if mode not in {"domestic", "international", "default"}:
         mode = "domestic"
-    p = get_template_path(mode, host=host)
+    p = get_template_path(mode, host=host, document_type=document_type)
     if not p:
         return jsonify({"error": "Template not found."}), 404
     try:
