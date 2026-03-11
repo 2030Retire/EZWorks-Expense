@@ -326,6 +326,23 @@
       border: 1px solid #dbe6f3;
       margin-bottom: .55rem;
     }
+    .finalize-inline-action {
+      display: inline-flex;
+      align-items: center;
+      gap: .28rem;
+      border: 1px solid #c7d8f2;
+      border-radius: 999px;
+      background: #fff;
+      color: #1d4ed8;
+      padding: .08rem .45rem;
+      font-size: .7rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .finalize-inline-action:hover {
+      background: #eff6ff;
+      border-color: #93c5fd;
+    }
     .finalize-section textarea.form-control-sm {
       min-height: 82px;
     }
@@ -486,7 +503,7 @@
       <div class="finalize-section">
         <div class="finalize-section-title">Report Details</div>
         <div class="wizard-grid compact">
-          <div class="wizard-field-span-7"><label class="form-label small mb-1">Title <span class="field-hint-required">Required</span></label><input id="title" class="form-control form-control-sm" required></div>
+          <div class="wizard-field-span-7"><label class="form-label small mb-1">Title <span class="field-hint-required">Required</span><button type="button" id="applySuggestedTitleBtn" class="finalize-inline-action ms-2" style="display:none;" onclick="applySuggestedTitle()">Use suggested title</button></label><input id="title" class="form-control form-control-sm" required></div>
           <div id="wrapProject" class="wizard-field-span-3"><label class="form-label small mb-1">Project <span class="field-hint-optional">Optional</span></label><input id="project" class="form-control form-control-sm"></div>
           <div class="wizard-field-span-2"><label class="form-label small mb-1">Submission Date <span class="field-hint-optional">Optional</span></label><input id="submitDate" type="date" class="form-control form-control-sm"></div>
           <div class="wizard-field-span-5"><label class="form-label small mb-1">Trip Purpose <span class="field-hint-optional">Optional</span></label><textarea id="tripPurpose" class="form-control form-control-sm" rows="3"></textarea></div>
@@ -762,6 +779,35 @@
         hint: "Standard expense reports focus on accurate categorization and clean approval notes.",
       };
     }
+    // 제목은 Finalize에서 가장 자주 빠지는 필수값이라, 문서 preset으로 즉시 복구할 수 있는 보조 액션을 둔다.
+    function renderTitleSuggestionButton(){
+      const btn = document.getElementById("applySuggestedTitleBtn");
+      const titleEl = document.getElementById("title");
+      if (!btn || !titleEl) return;
+      const preset = getDocumentPreset();
+      const suggestedTitle = String(preset.title || "").trim();
+      const currentTitle = String(titleEl.value || "").trim();
+      // 추천 제목 버튼은 "비어 있거나, 현재 문서 프리셋과 다른 제목을 빠르게 되돌리고 싶을 때"만 보이게 한다.
+      const show = !!suggestedTitle && currentTitle !== suggestedTitle;
+      btn.style.display = show ? "" : "none";
+      btn.textContent = currentTitle ? "Use suggested title" : `Use suggested title: ${suggestedTitle}`;
+      btn.title = suggestedTitle ? `Suggested: ${suggestedTitle}` : "";
+    }
+    function applySuggestedTitle(){
+      const titleEl = document.getElementById("title");
+      if (!titleEl) return;
+      const preset = getDocumentPreset();
+      const nextTitle = String(preset.title || "").trim();
+      if (!nextTitle) return;
+      titleEl.value = nextTitle;
+      lastPresetApplied.title = nextTitle;
+      resetPostGenerateUi();
+      renderRequiredSummary();
+      saveFinalizeSettings();
+      renderTitleSuggestionButton();
+      focusFieldByKey("title");
+      document.getElementById("msg").innerHTML = `<span class="text-success">Suggested title applied.</span>`;
+    }
     function applyDocumentTypeSuggestion(){
       // 문서 유형이 바뀌면 추천 제목과 안내 문구, 필수 정책 표시를 함께 갱신한다.
       const docType = String(document.getElementById("documentType")?.value || "").trim();
@@ -787,6 +833,7 @@
       presetNote.style.display = "";
       presetNote.innerHTML = `<span class="fw-semibold">${esc(docType || "Document type")}</span> preset: ${esc(preset.hint)}<span class="d-block mt-1">Suggested title: <span class="fw-semibold">${esc(preset.title || docType || "Report")}</span></span>`;
       syncRequiredBadges();
+      renderTitleSuggestionButton();
       saveFinalizeSettings();
     }
 
@@ -960,6 +1007,7 @@
       if (s.employeeId) document.getElementById("employeeId").value = String(s.employeeId || "");
       if (s.manager) document.getElementById("manager").value = String(s.manager || "");
       if (s.managerEmail) document.getElementById("managerEmail").value = String(s.managerEmail || "");
+      renderTitleSuggestionButton();
     }
     function saveFinalizeSettings(){
       // Step 3 draft를 저장해 Review/Finalize를 오갈 때 입력 상태가 끊기지 않게 유지한다.
@@ -1240,6 +1288,7 @@
         wrap.style.display = "none";
         wrap.innerHTML = "";
         renderFinalizeActionStatus();
+        renderTitleSuggestionButton();
         return true;
       }
       wrap.style.display = "";
@@ -1253,6 +1302,7 @@
           ${firstMissing ? `<button type="button" class="finalize-jump-btn" data-focus-key="${esc(firstMissing.key || "")}">Jump to first missing</button>` : ``}
         </div>
       `;
+      renderTitleSuggestionButton();
       renderFinalizeActionStatus();
       return false;
     }

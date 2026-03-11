@@ -87,6 +87,12 @@
       flex-wrap:wrap;
       margin-bottom:.35rem;
     }
+    .template-sheet-active {
+      border-radius: 10px;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, .22);
+      background: rgba(239, 246, 255, .35);
+      transition: box-shadow .18s ease, background .18s ease;
+    }
     .template-sheet-meta {
       display:inline-flex;
       align-items:center;
@@ -2095,10 +2101,16 @@ async function loadTemplatePreview() {
     </div>
   `;
   const toSheetAnchor = (name) => String(name || "sheet").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "sheet";
+  // 시트 점프는 좌우 compare pane을 같이 강조해, 사용자가 현재 비교 축을 잃지 않게 만든다.
   const jumpToPreviewSheet = (anchor) => {
-    const el = document.getElementById(anchor);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    const panes = [...document.querySelectorAll(`[data-preview-anchor="${anchor}"]`)];
+    if (!panes.length) return;
+    panes.forEach((el) => {
+      el.classList.remove("template-sheet-active");
+      window.setTimeout(() => el.classList.add("template-sheet-active"), 20);
+      window.setTimeout(() => el.classList.remove("template-sheet-active"), 1800);
+    });
+    panes[0].scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const renderPreviewSheets = (previewData, compareData = null) => {
     const previewSheets = Array.isArray(previewData?.sheets) ? previewData.sheets : [];
@@ -2111,7 +2123,7 @@ async function loadTemplatePreview() {
       const compareRows = Array.isArray(compareSheet?.rows) ? compareSheet.rows : [];
       let sheetDiffCount = 0;
       if (!rows.length) {
-        return `<div class="mb-3" id="preview-sheet-${toSheetAnchor(s.name || "Sheet")}"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta"><span class="template-chip">No preview rows</span></div></div><div class="small text-muted">No data rows.</div></div>`;
+        return `<div class="mb-3" data-preview-anchor="preview-sheet-${toSheetAnchor(s.name || "Sheet")}"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta"><span class="template-chip">No preview rows</span></div></div><div class="small text-muted">No data rows.</div></div>`;
       }
       const cols = rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
       const thead = `<tr>${Array.from({length: cols}, (_, i) => `<th class="small">C${i + 1}</th>`).join("")}</tr>`;
@@ -2138,7 +2150,7 @@ async function loadTemplatePreview() {
       const metaChips = compareData
         ? `<button type="button" class="template-chip template-sheet-jump ${sheetDiffCount ? "warn" : ""}" onclick="jumpToPreviewSheet('preview-sheet-${toSheetAnchor(s.name || "Sheet")}')">Diff ${sheetDiffCount}</button><span class="template-chip">Rows ${Math.min(rows.length, 8)}</span>`
         : `<span class="template-chip">Rows ${Math.min(rows.length, 8)}</span>`;
-      return `<div class="mb-3" id="preview-sheet-${toSheetAnchor(s.name || "Sheet")}"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta">${metaChips}</div></div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
+      return `<div class="mb-3" data-preview-anchor="preview-sheet-${toSheetAnchor(s.name || "Sheet")}"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta">${metaChips}</div></div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
     }).join("");
     const summaryHtml = compareData ? `<div class="small text-muted mt-2">Highlighted cells show differences from the base preview. Compared cells: ${diffCount}</div>` : "";
     return { html: html + summaryHtml, diffCount, sheetDiffs };

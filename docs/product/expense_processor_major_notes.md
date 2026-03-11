@@ -94,6 +94,8 @@
 - Finalize 성공 패널에는 생성 시각, selection cleared, review sync 같은 운영 맥락을 짧은 pill로 같이 보여줘, 생성 직후 다음 액션 판단이 바로 가능하게 유지한다.
 - Finalize의 `다음 실행`은 저장된 사용자 프로필은 유지하되, selection/dirty/FX/wizard draft만 비우고 업로드 단계로 돌아가는 흐름을 유지한다.
 - Finalize 성공 패널에는 document/receipt count/mode/USD total 같은 운영 요약도 짧은 pill로 함께 보여줘, 생성 직후 결과 확인이 빠르게 끝나게 유지한다.
+- Review의 대량 작업은 `보이는 행 선택 / attention 행 선택 / 선택 해제` 같은 빠른 선택 버튼을 유지해, 필터 후 체크박스를 다시 일일이 누르지 않게 한다.
+- Finalize 제목은 문서정책 preset과 연결된 `Use suggested title` 보조 액션을 유지해, 문서 유형을 바꾼 뒤 필수 입력을 더 빨리 채우게 한다.
 - Template Preview diff 요약은 긴 문장보다 `diff cell 수 / 영향 시트 수 / 상위 변경 시트` 중심으로 압축해 읽게 유지한다.
 - Template Preview compare의 diff 요약은 긴 설명 문장보다 chip과 짧은 상위 변경 시트 목록 중심으로 압축해, override 영향 범위를 빠르게 읽게 유지한다.
 - Template Preview compare의 상위 변경 시트는 `Top changes` 레이블과 chip 조합으로 보여줘, 숫자 목록의 의미를 다시 해석하지 않게 유지한다.
@@ -104,6 +106,7 @@
 - Template Preview의 각 시트 제목 가까이에도 `Diff n / Rows n` 수준의 짧은 chip을 붙여, 긴 표를 읽기 전에 시트 단위 변화 규모를 먼저 읽게 유지한다.
 - Template Preview의 `Top changes` chip과 시트별 `Diff n` chip은 클릭 시 해당 시트 preview로 바로 이동하게 유지한다.
 - Template compare의 좌우 preview는 같은 높이의 스크롤 pane 안에 넣어, 긴 템플릿도 좌우 기준을 유지한 채 읽게 한다.
+- Template Preview 시트 점프 후에는 좌우 pane 모두 해당 시트를 잠깐 강조해, 현재 비교 위치를 즉시 인지하게 유지한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.

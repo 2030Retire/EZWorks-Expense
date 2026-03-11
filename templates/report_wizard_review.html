@@ -314,6 +314,12 @@
       align-items: end;
       gap: .45rem;
     }
+    .review-toolbox-subrow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .35rem;
+      margin-top: .45rem;
+    }
     .review-fx-panel {
       border: 1px solid #dbe6f3;
       border-radius: 12px;
@@ -482,6 +488,11 @@
               <input class="form-check-input" type="checkbox" id="compactToggle" onchange="toggleCompactMode()">
               <label class="form-check-label small" for="compactToggle">Compact table</label>
             </div>
+          </div>
+          <div class="review-toolbox-subrow">
+            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applySelectionScope('visible')">Select visible rows</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applySelectionScope('attention')">Select attention rows</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applySelectionScope('clear')">Clear selection</button>
           </div>
         </div>
       </div>
@@ -796,6 +807,34 @@
         dirty: `Unsaved ${counts.dirty}`,
       }[reason] || `All ${counts.all}`;
       hint.innerHTML = `<span class="attention-filter-chip">Showing ${visibleCount} row(s)</span><span class="text-muted ms-2">Filter: ${esc(reasonLabel)}. Rows with unsaved edits, save retry, missing required values, or pending FX can be isolated here.</span>`;
+    }
+    // attention filter와 현재 화면에 보이는 행을 그대로 재사용해 대량 선택 전 반복 클릭을 줄인다.
+    async function applySelectionScope(scope){
+      const rows = [...document.querySelectorAll("#rows tr[data-id]")];
+      if (!rows.length) return;
+      if (scope === "clear") {
+        rows.forEach((tr) => {
+          const cb = tr.querySelector(".sel");
+          if (cb) cb.checked = false;
+        });
+        await saveSelection();
+        document.getElementById("msg").textContent = "Selection cleared.";
+        return;
+      }
+      const reason = String(document.getElementById("attentionReason")?.value || "all");
+      let selectedCount = 0;
+      rows.forEach((tr) => {
+        const cb = tr.querySelector(".sel");
+        if (!cb) return;
+        const isVisible = !tr.classList.contains("attention-row-hidden");
+        const shouldCheck = scope === "visible" ? isVisible : rowMatchesAttentionReason(tr, reason);
+        cb.checked = shouldCheck;
+        if (shouldCheck) selectedCount += 1;
+      });
+      await saveSelection();
+      document.getElementById("msg").textContent = scope === "visible"
+        ? `Selected ${selectedCount} visible row(s).`
+        : `Selected ${selectedCount} attention row(s).`;
     }
     async function retryRowSave(btn){
       const tr = btn?.closest("tr[data-id]");
