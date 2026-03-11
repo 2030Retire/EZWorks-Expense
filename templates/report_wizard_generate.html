@@ -387,6 +387,15 @@
       const fromCfg = (cfg.document_types || []).filter((x)=>x && x.enabled !== false && x.id && x.label);
       const opts = fromCfg.length ? fromCfg : [{id:"expense_report", label:"Expense Report", enabled:true}];
       sel.innerHTML = opts.map((x)=>`<option value="${esc(x.label)}" data-doc-id="${esc(x.id)}">${esc(x.label)}</option>`).join("");
+      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      const savedId = String(s.documentTypeId || "").trim().toLowerCase();
+      const savedLabel = String(s.documentType || "").trim();
+      if (savedId) {
+        const savedOpt = [...sel.options].find((opt) => String(opt.dataset.docId || "").trim().toLowerCase() === savedId);
+        if (savedOpt) sel.value = savedOpt.value;
+      } else if (savedLabel && [...sel.options].some((opt) => String(opt.value || "").trim() === savedLabel)) {
+        sel.value = savedLabel;
+      }
       applyDocumentTypeSuggestion();
     }
     function getDocumentPreset(){
@@ -444,6 +453,7 @@
       presetNote.style.display = "";
       presetNote.innerHTML = `<span class="fw-semibold">${esc(docType || "Document type")}</span> preset: ${esc(preset.hint)}<span class="d-block mt-1">Suggested title: <span class="fw-semibold">${esc(preset.title || docType || "Report")}</span></span>`;
       syncRequiredBadges();
+      saveFinalizeSettings();
     }
 
     async function loadSelectedSummary(){
@@ -598,6 +608,15 @@
       const s = wizardGet(SETTINGS_KEY, {}) || {};
       document.getElementById("mode").value = (s.reportType || "domestic").toLowerCase();
       document.getElementById("currency").value = (s.currency || "USD").toUpperCase();
+    }
+    function saveFinalizeSettings(){
+      const s = wizardGet(SETTINGS_KEY, {}) || {};
+      const docSel = document.getElementById("documentType");
+      s.reportType = String(document.getElementById("mode")?.value || "domestic").toLowerCase();
+      s.currency = String(document.getElementById("currency")?.value || "USD").toUpperCase();
+      s.documentType = String(docSel?.value || "").trim();
+      s.documentTypeId = String(docSel?.selectedOptions?.[0]?.dataset?.docId || "").trim().toLowerCase();
+      wizardSet(SETTINGS_KEY, s);
     }
 
     async function loadConfig(){
@@ -812,7 +831,9 @@
 
     document.getElementById("periodMode").addEventListener("change", applyPeriodRules);
     document.getElementById("documentType").addEventListener("change", () => { applyDocumentTypeSuggestion(); renderRequiredSummary(); renderFinalizeSummary(); });
-    document.getElementById("periodMode").addEventListener("change", renderFinalizeSummary);
+    document.getElementById("periodMode").addEventListener("change", () => { renderFinalizeSummary(); saveFinalizeSettings(); });
+    document.getElementById("mode").addEventListener("change", saveFinalizeSettings);
+    document.getElementById("currency").addEventListener("change", saveFinalizeSettings);
     ["employeeName", "title", "documentType"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;

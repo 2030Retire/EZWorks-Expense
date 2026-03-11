@@ -144,6 +144,20 @@
     .attention-filter-select {
       min-width: 180px;
     }
+    .policy-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      border: 1px solid #dbe6f3;
+      background: #f8fbff;
+      color: #36507a;
+      border-radius: 999px;
+      padding: .18rem .55rem;
+      font-size: .75rem;
+      font-weight: 600;
+      margin-right: .35rem;
+      margin-bottom: .35rem;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -167,6 +181,7 @@
       <div id="dirtySummary" class="small text-warning mb-1"></div>
       <div id="autoSaveSummary" class="small text-muted mb-2"></div>
       <div id="requiredSummary" class="small text-danger mb-2"></div>
+      <div id="finalizePolicySummary" class="small text-muted mb-2"></div>
       <div id="fxPolicyNote" class="small text-muted mb-2"></div>
 
       <div class="row g-2 mb-3" id="reviewSummaryCards">
@@ -564,6 +579,35 @@
       document.getElementById("requiredSummary").textContent = missingRows ? `Missing required values in ${missingRows} row(s): date/amount/category` : "";
       applyAttentionFilter();
     }
+    function renderFinalizePolicySummary(){
+      const el = document.getElementById("finalizePolicySummary");
+      if (!el) return;
+      const settings = wizardGet(SETTINGS_KEY, {}) || {};
+      const docId = String(settings.documentTypeId || "").trim().toLowerCase();
+      const docLabel = String(settings.documentType || "").trim() || "Not set yet";
+      const preset = (cfg?.document_presets && docId) ? (cfg.document_presets[docId] || {}) : {};
+      const rawFields = Array.isArray(preset.required_fields) && preset.required_fields.length
+        ? preset.required_fields
+        : ["employee_name", "title"];
+      const labelMap = {
+        employee_name: "Employee Name",
+        department: "Department",
+        employee_id: "Employee ID",
+        manager: "Manager",
+        manager_email: "Manager Email",
+        project: "Project / Cost Center",
+        period: "Expense Period",
+        submission_date: "Submission Date",
+        trip_purpose: "Trip Purpose",
+        notes: "Notes",
+        title: "Title",
+      };
+      const fields = rawFields.map((x) => labelMap[String(x || "").trim().toLowerCase()] || String(x || "").trim()).filter(Boolean);
+      el.innerHTML = `
+        <span class="policy-chip">Planned document: ${esc(docLabel)}</span>
+        <span class="policy-chip">Finalize required: ${esc(fields.join(", ") || "Employee Name, Title")}</span>
+      `;
+    }
     function getSelectedTrs(){
       const checked = [...document.querySelectorAll("#rows .sel:checked")].map((x) => x.closest("tr")).filter(Boolean);
       return checked.length ? checked : [...document.querySelectorAll("#rows tr[data-id]")];
@@ -599,6 +643,7 @@
       document.getElementById("sumByCategory").innerHTML = parts.length ? parts.join("") : `<div class="small text-muted">-</div>`;
       document.getElementById("sumDirtyRows").textContent = `${getDirtySet().size} row(s)`;
       syncWizardSettingsFromSelection(trs);
+      renderFinalizePolicySummary();
     }
     function syncWizardSettingsFromSelection(trs){
       const rows = Array.isArray(trs) ? trs : getSelectedTrs();
@@ -671,6 +716,7 @@
       document.getElementById("defaultFx").value = fx.default_rate;
       document.getElementById("fxPolicyWrap").style.display = policy === "user_select" ? "" : "none";
       syncFxVisibility();
+      renderFinalizePolicySummary();
     }
 
     function buildCategoryCell(row){
