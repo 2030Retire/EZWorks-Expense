@@ -2649,6 +2649,8 @@ def api_profile():
                     "manager": str(user.get("manager_name") or ""),
                     "manager_email": str(user.get("manager_email") or ""),
                     "email": str(user.get("email") or ""),
+                    "org_name": str(user.get("org_name") or ""),
+                    "provider": str(session.get("auth_provider") or ""),
                 }
             }
         )
@@ -2672,6 +2674,8 @@ def api_profile():
                 "manager": str(user.get("manager_name") or ""),
                 "manager_email": str(user.get("manager_email") or ""),
                 "email": str(user.get("email") or ""),
+                "org_name": str(user.get("org_name") or ""),
+                "provider": str(session.get("auth_provider") or ""),
             },
         }
     )

@@ -6,6 +6,40 @@
   <title>Expense Report Process - Review</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="/static/app_ui.css" rel="stylesheet">
+  <style>
+    .review-kpi-card {
+      border: 1px solid #dbe6f3;
+      border-radius: 12px;
+      padding: .8rem .9rem;
+      height: 100%;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+    .review-kpi-card .kpi-label {
+      font-size: .77rem;
+      color: #64748b;
+      margin-bottom: .15rem;
+    }
+    .review-kpi-card .kpi-value {
+      font-weight: 700;
+      color: #122033;
+    }
+    .review-summary-list {
+      display: grid;
+      gap: .25rem;
+    }
+    .review-summary-item {
+      display: flex;
+      justify-content: space-between;
+      gap: .75rem;
+      font-size: .8rem;
+      border-top: 1px dashed #e5edf8;
+      padding-top: .25rem;
+    }
+    .review-summary-item:first-child {
+      border-top: none;
+      padding-top: 0;
+    }
+  </style>
 </head>
 <body class="app-shell">
   <div class="container-fluid py-3 px-3">
@@ -30,10 +64,13 @@
       <div id="fxPolicyNote" class="small text-muted mb-2"></div>
 
       <div class="row g-2 mb-3" id="reviewSummaryCards">
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="border rounded p-2 h-100"><div class="small text-muted">Selected Receipts</div><div class="fw-semibold" id="sumReceiptCount">0</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="border rounded p-2 h-100"><div class="small text-muted">Detected Currencies</div><div class="fw-semibold small" id="sumCurrencies">-</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="border rounded p-2 h-100"><div class="small text-muted">USD Total</div><div class="fw-semibold amount-num" id="sumUsdTotal">$ 0</div></div></div>
-        <div class="col-xl-6 col-md-12"><div class="border rounded p-2 h-100"><div class="small text-muted">Category Summary</div><div class="small" id="sumByCategory">-</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Selected Receipts</div><div class="kpi-value" id="sumReceiptCount">0</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Detected Currencies</div><div class="kpi-value small" id="sumCurrencies">-</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">USD Total</div><div class="kpi-value amount-num" id="sumUsdTotal">$ 0</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Required Fixes</div><div class="kpi-value" id="sumRequiredRows">0 row(s)</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">FX Pending</div><div class="kpi-value" id="sumFxPending">0 rate(s)</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Unsaved Edits</div><div class="kpi-value" id="sumDirtyRows">0 row(s)</div></div></div>
+        <div class="col-xl-6 col-md-12"><div class="review-kpi-card"><div class="kpi-label">Category Summary</div><div class="review-summary-list" id="sumByCategory">-</div></div></div>
       </div>
 
       <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
@@ -204,17 +241,18 @@
       const missing = getFxRequirements();
       const note = document.getElementById("fxPolicyNote");
       const nextBtn = document.getElementById("nextBtn");
+      document.getElementById("sumFxPending").textContent = `${missing.length} rate(s)`;
       if (fx.rate_mode === "company_average") {
-        note.textContent = "Estimated company average FX is prefilled from receipt dates. Final posted rate may vary by accounting policy.";
+        note.innerHTML = `<span class="badge text-bg-info me-1">Company Average</span> Estimated company average FX is prefilled from receipt dates. Final posted rate may vary by accounting policy.`;
         nextBtn.disabled = false;
         return;
       }
       if (missing.length) {
-        note.textContent = `Date-based FX is required before next step. Missing ${missing.length} rate(s).`;
+        note.innerHTML = `<span class="badge text-bg-warning me-1">Action needed</span> Date-based FX is required before next step. Missing ${missing.length} rate(s).`;
         nextBtn.disabled = true;
         return;
       }
-      note.textContent = "Date-based FX is ready.";
+      note.innerHTML = `<span class="badge text-bg-success me-1">Ready</span> Date-based FX is ready.`;
       nextBtn.disabled = false;
     }
 
@@ -249,6 +287,7 @@
     function renderRequiredSummary(){
       let missingRows = 0;
       document.querySelectorAll("#rows tr[data-id]").forEach((tr) => { if (updateRequiredState(tr) > 0) missingRows += 1; });
+      document.getElementById("sumRequiredRows").textContent = `${missingRows} row(s)`;
       document.getElementById("requiredSummary").textContent = missingRows ? `Missing required values in ${missingRows} row(s): date/amount/category` : "";
     }
     function getSelectedTrs(){
@@ -282,8 +321,9 @@
       document.getElementById("sumReceiptCount").textContent = String(trs.length);
       document.getElementById("sumCurrencies").textContent = [...byCurrency.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([code, v]) => `${code} ${v.count} · ${formatMoneyWithCurrency(code, v.amount)}`).join(" | ") || "-";
       document.getElementById("sumUsdTotal").textContent = `$ ${formatMoney(usdTotal)}`;
-      const parts = [...byCategory.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([cat, v]) => `${cat}: ${v.count} · ${formatMoneyWithCurrency(v.currency, v.amount)}`);
-      document.getElementById("sumByCategory").textContent = parts.length ? parts.join(" | ") : "-";
+      const parts = [...byCategory.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([cat, v]) => `<div class="review-summary-item"><span>${esc(cat)} · ${v.count} item(s)</span><span>${esc(formatMoneyWithCurrency(v.currency, v.amount))}</span></div>`);
+      document.getElementById("sumByCategory").innerHTML = parts.length ? parts.join("") : `<div class="small text-muted">-</div>`;
+      document.getElementById("sumDirtyRows").textContent = `${getDirtySet().size} row(s)`;
       syncWizardSettingsFromSelection(trs);
     }
     function syncWizardSettingsFromSelection(trs){
@@ -324,6 +364,7 @@
     }
     function renderDirtySummary(){
       const cnt = getDirtySet().size;
+      document.getElementById("sumDirtyRows").textContent = `${cnt} row(s)`;
       document.getElementById("dirtySummary").textContent = cnt ? `Unsaved edits: ${cnt}` : "";
     }
 

@@ -565,12 +565,12 @@
       <div class="card p-3 mt-3">
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <strong class="small mb-0">Template Preview</strong>
-          <select class="form-select form-select-sm" id="previewMode" style="max-width:170px;">
+          <select class="form-select form-select-sm" id="previewMode" style="max-width:170px;" onchange="loadTemplatePreview()">
             <option value="domestic">Domestic</option>
             <option value="international">International</option>
             <option value="default">Default</option>
           </select>
-          <select class="form-select form-select-sm" id="previewDocumentType" style="max-width:220px;">
+          <select class="form-select form-select-sm" id="previewDocumentType" style="max-width:220px;" onchange="loadTemplatePreview()">
             <option value="">Base template</option>
           </select>
           <button class="btn btn-sm btn-outline-primary" onclick="loadTemplatePreview()">
@@ -1759,10 +1759,32 @@ async function loadTemplateStatus() {
       </div>
     </div>
   `).join("");
+  const docTable = Object.entries(docTemplates).length ? `
+    <div class="table-responsive mt-3">
+      <table class="table table-sm table-bordered align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Document Type</th>
+            <th>Domestic Template</th>
+            <th>International Template</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${Object.entries(docTemplates).map(([docId, info]) => `
+            <tr>
+              <td><div class="fw-semibold">${escHtml(info.label || docId)}</div><div class="small text-muted">${escHtml(docId)}</div></td>
+              <td class="small">${(info?.domestic?.exists ? `${escHtml(info.domestic.filename || "")} <span class="text-muted">(${escHtml(info.domestic.scope || "")})</span>` : `<span class="text-muted">Base Domestic fallback</span>`)}</td>
+              <td class="small">${(info?.international?.exists ? `${escHtml(info.international.filename || "")} <span class="text-muted">(${escHtml(info.international.scope || "")})</span>` : `<span class="text-muted">Base International fallback</span>`)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  ` : "";
   area.innerHTML = `
     <div class="small fw-semibold mb-2">Base template library</div>
     <div class="template-grid">${baseHtml}</div>
-    ${docHtml ? `<div class="small fw-semibold mt-3 mb-2">Document-type overrides</div><div class="template-grid">${docHtml}</div>` : ""}
+    ${docHtml ? `<div class="small fw-semibold mt-3 mb-2">Document-type overrides</div><div class="template-grid">${docHtml}</div>${docTable}` : ""}
   `;
 }
 async function generateTemplates(which) {
