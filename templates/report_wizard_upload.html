@@ -20,14 +20,14 @@
       <h6 class="mb-2">Step 1. Process Receipts</h6>
       <div class="row g-2 mb-2">
         <div class="col-lg-3 col-md-6">
-          <label class="form-label small mb-1">Expense Type</label>
+          <label class="form-label small mb-1">Expense Type (report mode)</label>
           <select id="startReportType" class="form-select form-select-sm" onchange="applyStartRules(); saveStartOptions();">
             <option value="domestic">Domestic</option>
             <option value="international">International</option>
           </select>
         </div>
         <div class="col-lg-3 col-md-6">
-          <label class="form-label small mb-1">Base Currency</label>
+          <label class="form-label small mb-1">Base Currency (default)</label>
           <select id="startCurrency" class="form-select form-select-sm" onchange="saveStartOptions();">
             <option value="USD">USD</option>
             <option value="KRW">KRW</option>
@@ -37,7 +37,7 @@
             <option value="GBP">GBP</option>
           </select>
         </div>
-        <div class="col-lg-6 col-md-12 d-flex align-items-end"><div id="startMsg" class="small text-muted"></div></div>
+        <div class="col-lg-6 col-md-12 d-flex align-items-end"><div id="startMsg" class="small text-muted">OCR may detect receipt currency automatically. You can adjust per item or in bulk during Review.</div></div>
       </div>
 
       <div class="d-flex justify-content-between align-items-center mb-2">

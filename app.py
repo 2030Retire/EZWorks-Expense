@@ -963,7 +963,7 @@ def _exchange_ms_code_directly(code: str, redirect_uri: str) -> dict:
 
 def _fetch_ms_me(access_token: str) -> dict:
     req = urlrequest.Request(
-        "https://graph.microsoft.com/v1.0/me",
+        "https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName,department,employeeId",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     with urlrequest.urlopen(req, timeout=10) as resp:
@@ -2569,6 +2569,17 @@ def auth_callback_microsoft():
         org_name=org_name,
         admin_emails=EFFECTIVE_ADMIN_EMAILS,
     )
+    ms_name = str(user_info.get("displayName") or user_info.get("name") or "").strip()
+    ms_department = str(user_info.get("department") or "").strip()
+    ms_employee_id = str(user_info.get("employeeId") or "").strip()
+    if ms_name or ms_department or ms_employee_id:
+        user = update_user_profile(
+            db_path=str(USER_DB_PATH),
+            user_id=int(user["id"]),
+            name=ms_name if ms_name else None,
+            department=ms_department if ms_department else None,
+            employee_code=ms_employee_id if ms_employee_id else None,
+        )
     mgr_name, mgr_email = _fetch_ms_manager(access_token)
     if mgr_name or mgr_email:
         user = update_user_profile(

@@ -220,13 +220,55 @@
     </div>
   </div>
 
-  <!-- ⑤ User Management -->
-  <div class="card admin-section" id="sectionWizard" data-admin-tab="accounting" style="opacity:.4;pointer-events:none;">
+  <!-- ⑤ Accounting Policy -->
+  <div class="card admin-section" id="sectionAccountingPolicy" data-admin-tab="accounting" style="opacity:.4;pointer-events:none;">
     <div class="card-header">
-      <span class="section-badge">5</span>Wizard Risk Priority
+      <span class="section-badge">5</span>FX Policy & Document Types
     </div>
     <div class="card-body">
-      <div class="small text-muted mb-2">Drag to reorder Step4 risky sorting priority.</div>
+      <div class="row g-3">
+        <div class="col-lg-4 col-md-6">
+          <label class="form-label small fw-semibold mb-1">FX Policy</label>
+          <select id="accountingFxPolicy" class="form-select form-select-sm" onchange="toggleAccountingFxPolicy()">
+            <option value="date_based">Use date-based FX</option>
+            <option value="company_average">Use company average FX</option>
+            <option value="user_select">Let user choose in wizard</option>
+          </select>
+          <div class="small text-muted mt-1">Controls whether Review requires receipt-date FX or uses a tenant default rate.</div>
+        </div>
+        <div class="col-lg-4 col-md-6" id="companyAverageFxWrap">
+          <label class="form-label small fw-semibold mb-1">Company Average FX (to USD)</label>
+          <input type="number" id="companyAverageFx" class="form-control form-control-sm" min="0.000001" step="0.000001" value="1">
+          <div class="small text-muted mt-1">Used when accounting policy is fixed average rate.</div>
+        </div>
+      </div>
+      <hr class="my-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <div class="fw-semibold small">Document Types</div>
+          <div class="small text-muted">These choices appear in Finalize and can be mapped by tenant templates.</div>
+        </div>
+        <button class="btn btn-sm btn-outline-primary" onclick="addDocumentType()">
+          <i class="fa-solid fa-plus me-1"></i>Add Document Type
+        </button>
+      </div>
+      <div id="documentTypesList"></div>
+      <div class="sticky-save">
+        <button class="btn btn-success btn-sm" onclick="saveAccountingPolicy()">
+          <i class="fa-solid fa-floppy-disk me-1"></i>Save Accounting Settings
+        </button>
+        <span id="accountingMsg" class="small"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ Wizard Workflow -->
+  <div class="card admin-section" id="sectionWizard" data-admin-tab="company" style="opacity:.4;pointer-events:none;">
+    <div class="card-header">
+      <span class="section-badge">6</span>Wizard Workflow
+    </div>
+    <div class="card-body">
+      <div class="small text-muted mb-2">Controls draft retention and how risky receipts are prioritized during review.</div>
       <div id="wizardRiskList"></div>
       <div class="row g-2 mt-2" style="max-width:360px;">
         <div class="col-7">
@@ -246,10 +288,10 @@
     </div>
   </div>
 
-  <!-- ⑥ User Management -->
+  <!-- ⑦ User Management -->
   <div class="card admin-section" id="sectionUsers" data-admin-tab="users" style="opacity:.4;pointer-events:none;">
     <div class="card-header">
-      <span class="section-badge">6</span>User Management
+      <span class="section-badge">7</span>User Management
     </div>
     <div class="card-body">
       <div class="d-flex gap-2 flex-wrap mb-3">
@@ -313,7 +355,7 @@
     </div>
   </div>
 
-  <!-- ⑦ Admin Inbox Monitor -->
+  <!-- ⑧ Admin Inbox Monitor -->
   <div class="card admin-section" id="sectionInboxMonitor" data-admin-tab="monitor" style="opacity:.4;pointer-events:none;">
     <div class="card-header">
       <span class="section-badge">8</span>Inbox Monitor (Admin only)
@@ -444,10 +486,10 @@
     </div>
   </div>
 
-  <!-- ⑥ Login Page Visuals -->
+  <!-- ⑩ Login Page Visuals -->
   <div class="card admin-section" id="sectionLoginVisuals" data-admin-tab="templates" style="opacity:.4;pointer-events:none;">
     <div class="card-header">
-      <span class="section-badge">9</span>Login Page Visuals
+      <span class="section-badge">10</span>Login Page Visuals
     </div>
     <div class="card-body">
       <div class="row g-2 align-items-end mb-3">
@@ -481,10 +523,10 @@
     </div>
   </div>
 
-  <!-- ⑦ Templates -->
+  <!-- ⑪ Templates -->
   <div class="card admin-section" id="sectionTemplates" data-admin-tab="templates" style="opacity:.4;pointer-events:none;">
     <div class="card-header">
-      <span class="section-badge">10</span>Report Templates
+      <span class="section-badge">11</span>Report Templates
     </div>
     <div class="card-body">
 
@@ -573,9 +615,9 @@ let wizardRiskSortable = null;
 let adminPermissions = [];
 let currentAdminTab = localStorage.getItem("admin_tab_v1") || "all";
 const ADMIN_TAB_SECTIONS = {
-  all: ["sectionCompany","sectionFields","sectionTypes","sectionModes","sectionWizard","sectionUsers","sectionPerms","sectionInboxMonitor","sectionLoginVisuals","sectionTemplates"],
-  company: ["sectionCompany","sectionFields","sectionModes"],
-  accounting: ["sectionTypes","sectionWizard"],
+  all: ["sectionCompany","sectionFields","sectionTypes","sectionModes","sectionAccountingPolicy","sectionWizard","sectionUsers","sectionPerms","sectionInboxMonitor","sectionLoginVisuals","sectionTemplates"],
+  company: ["sectionCompany","sectionFields","sectionModes","sectionWizard"],
+  accounting: ["sectionTypes","sectionAccountingPolicy"],
   users: ["sectionUsers","sectionPerms"],
   templates: ["sectionLoginVisuals","sectionTemplates"],
   monitor: ["sectionInboxMonitor"],
@@ -665,6 +707,7 @@ function applyAdminSectionVisibility(){
   setSectionVisible("sectionFields", hasAdminPerm("company.manage"));
   setSectionVisible("sectionTypes", hasAdminPerm("category.manage"));
   setSectionVisible("sectionModes", hasAdminPerm("company.manage"));
+  setSectionVisible("sectionAccountingPolicy", hasAdminPerm("policy.manage"));
   setSectionVisible("sectionWizard", hasAdminPerm("policy.manage"));
   setSectionVisible("sectionUsers", hasAdminPerm("user.manage"));
   setSectionVisible("sectionPerms", hasAdminPerm("policy.manage") || hasAdminPerm("user.manage"));
@@ -702,6 +745,7 @@ function renderAll() {
   renderFields();
   renderExpenseTypes();
   renderModes();
+  renderAccountingPolicy();
   renderWizardSettings();
   renderAuthPolicy();
   if (hasAdminPerm("user.manage")) loadUsers();
@@ -894,6 +938,65 @@ async function saveModes() {
   const res = await postJSON("/admin/config", { modes });
   showMsg("modesMsg", res);
   if (res.ok) cfg = res.data.config;
+}
+
+function renderDocumentTypes() {
+  const container = document.getElementById("documentTypesList");
+  if (!container) return;
+  const items = Array.isArray(cfg?.document_types) && cfg.document_types.length
+    ? cfg.document_types
+    : [{ id: "expense_report", label: "Expense Report", enabled: true }];
+  container.innerHTML = items.map((t) => `
+    <div class="type-row">
+      <i class="fa-solid fa-grip-vertical drag-handle" style="opacity:.35;"></i>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input doc-enabled" type="checkbox" ${t.enabled !== false ? "checked" : ""}>
+      </div>
+      <input type="text" class="form-control form-control-sm doc-label" value="${escHtml(t.label || "")}" placeholder="Display label" style="max-width:260px;">
+      <input type="text" class="form-control form-control-sm doc-id" value="${escHtml(t.id || "")}" placeholder="document id" style="max-width:180px;">
+      <button class="del-btn" title="Remove" onclick="this.closest('.type-row').remove()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+  `).join("");
+}
+function addDocumentType() {
+  cfg.document_types = cfg.document_types || [];
+  cfg.document_types.push({ id: `doc_${Date.now()}`, label: "New Document Type", enabled: true });
+  renderDocumentTypes();
+}
+function toggleAccountingFxPolicy() {
+  const policy = String(document.getElementById("accountingFxPolicy")?.value || "date_based").toLowerCase();
+  const wrap = document.getElementById("companyAverageFxWrap");
+  if (wrap) wrap.style.display = policy === "company_average" ? "" : "none";
+}
+function renderAccountingPolicy() {
+  const policy = String(cfg?.accounting?.fx_policy || "date_based").toLowerCase();
+  const fxEl = document.getElementById("accountingFxPolicy");
+  const avgEl = document.getElementById("companyAverageFx");
+  if (fxEl) fxEl.value = policy;
+  if (avgEl) avgEl.value = Number(cfg?.accounting?.company_average_fx || 1);
+  toggleAccountingFxPolicy();
+  renderDocumentTypes();
+}
+async function saveAccountingPolicy() {
+  const fx_policy = String(document.getElementById("accountingFxPolicy")?.value || "date_based").toLowerCase();
+  const company_average_fx = Number(document.getElementById("companyAverageFx")?.value || 1);
+  const document_types = [...document.querySelectorAll("#documentTypesList .type-row")].map((row) => {
+    const id = String(row.querySelector(".doc-id")?.value || "").trim().toLowerCase().replace(/\s+/g, "_");
+    const label = String(row.querySelector(".doc-label")?.value || "").trim();
+    const enabled = !!row.querySelector(".doc-enabled")?.checked;
+    return { id, label, enabled };
+  }).filter((x) => x.id && x.label);
+  const res = await postJSON("/admin/config", {
+    accounting: { fx_policy, company_average_fx },
+    document_types,
+  });
+  showMsg("accountingMsg", res);
+  if (res.ok) {
+    cfg = res.data.config;
+    renderAccountingPolicy();
+  }
 }
 
 function renderWizardSettings() {
