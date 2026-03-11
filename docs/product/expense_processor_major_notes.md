@@ -50,6 +50,7 @@
 - Review 상단 KPI는 단순 통계가 아니라 사용자의 다음 행동을 유도해야 한다.
 - Review 상단 KPI는 `읽기 전용 요약`과 `즉시 행동 카드`를 시각적으로 구분해, 클릭 대상을 헷갈리지 않게 유지한다.
 - `Finalize Inputs`는 Step 3 준비 상태를 뜻하고, 클릭 시 Finalize로 바로 이동한다.
+- Review의 `Finalize Inputs`와 하단 상태 pill은 `remaining / ready` 기준 문구를 함께 써서, Step 3 준비 상태가 다른 말로 보이지 않게 유지한다.
 - `FX Pending`도 단순 카운트가 아니라 FX 편집 영역으로 바로 이동하는 액션 카드로 유지한다.
 - `Required Fixes`, `Unsaved Edits`도 KPI 카드에서 바로 attention filter를 켜는 액션 카드로 유지한다.
 - `Focus action-needed rows`는 required/fx/retry/dirty 기준으로 예외행만 빠르게 보는 운영 도구다.
@@ -74,7 +75,9 @@
 - Finalize 경고/체크리스트에는 `다음으로 채워야 할 첫 필드`로 바로 이동하는 액션을 유지해, 사용자가 목록을 읽고 다시 찾는 비용을 줄인다.
 - Template Preview compare 화면은 `resolved(주요 화면)`과 `base(reference)` 역할을 헤더에서 바로 구분해, 좌우 비교 순서를 한눈에 이해하게 유지한다.
 - Finalize 하단 액션 바에도 `Required / Review sync / Receipts / Period` 상태를 압축 노출해, Review와의 연결 상태를 아래에서도 즉시 읽게 유지한다.
+- Finalize 하단 액션 바의 본문 문구는 상단 카드의 상세 설명을 반복하지 말고, `지금 막히는 이유 / 바로 가능한 행동`만 짧게 안내하는 방향을 유지한다.
 - Template Preview diff 요약은 긴 문장보다 `diff cell 수 / 영향 시트 수 / 상위 변경 시트` 중심으로 압축해 읽게 유지한다.
+- Template Preview compare의 diff 요약은 긴 설명 문장보다 chip과 짧은 상위 변경 시트 목록 중심으로 압축해, override 영향 범위를 빠르게 읽게 유지한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.

@@ -2112,10 +2112,18 @@ async function loadTemplatePreview() {
     </div>
   `;
   if (documentType && baseData) {
-    const topSheetDiffs = effectivePreview.sheetDiffs.slice(0, 3).map((x) => `${escHtml(x.name)} ${x.count}`).join(" · ");
+    // 비교 요약은 긴 문장보다 chip 중심으로 압축해서, 어떤 시트가 가장 많이 달라졌는지 먼저 읽게 만든다.
+    const topDiffChips = effectivePreview.sheetDiffs.slice(0, 3)
+      .map((x) => `<span class="template-chip">${escHtml(x.name)} ${x.count}</span>`)
+      .join("");
     const extraDiffSheets = Math.max(effectivePreview.sheetDiffs.length - 3, 0);
     const diffSummary = effectivePreview.sheetDiffs.length
-      ? `<div class="small text-muted mt-2">Top changes: ${topSheetDiffs}${extraDiffSheets ? ` · +${extraDiffSheets} more sheet(s)` : ""}</div>`
+      ? `
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          ${topDiffChips}
+          ${extraDiffSheets ? `<span class="template-chip">+${extraDiffSheets} more sheet(s)</span>` : ``}
+        </div>
+      `
       : `<div class="small text-muted mt-2">No visible cell changes in the preview window.</div>`;
     area.innerHTML = `
       ${previewStatusChips}
@@ -2123,7 +2131,11 @@ async function loadTemplatePreview() {
       ${previewKpi}
       <div class="alert alert-warning py-2 px-3 small mb-3">
         <div class="fw-semibold mb-1">Base comparison summary</div>
-        <div>${effectivePreview.diffCount} highlighted cell(s) across ${effectivePreview.sheetDiffs.length || 0} sheet(s) differ from the base ${escHtml(mode)} template.</div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="template-chip">Diff cells ${effectivePreview.diffCount}</span>
+          <span class="template-chip">Affected sheets ${effectivePreview.sheetDiffs.length || 0}</span>
+          <span class="template-chip">Highlight = resolved override change</span>
+        </div>
         ${diffSummary}
       </div>
       <div class="row g-3">
