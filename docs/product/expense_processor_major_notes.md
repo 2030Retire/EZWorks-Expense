@@ -1,0 +1,57 @@
+# EZWorks Expense Major Notes
+
+## 목적
+- 이 파일은 최근 구현하면서 누적된 핵심 정책, UX 결정, 운영 포인트를 빠르게 다시 보기 위한 기록이다.
+- 세부 구현은 코드와 기존 문서에 남기고, 여기에는 "왜 이렇게 했는지"와 "어디를 먼저 봐야 하는지"를 남긴다.
+
+## Wizard 구조
+- Step 1은 업로드/OCR 중심으로 정리하고, 실제 리포트 성격은 영수증 통화와 OCR 결과를 기준으로 추정한다.
+- Step 2 Review는 단순 검토 화면이 아니라, OCR 결과 보정 + FX 준비 + Finalize 사전점검 역할을 맡는다.
+- Step 3 Finalize는 문서정책에 따라 필요한 메타데이터를 채우는 단계이며, 현재는 문서별 required field 정책을 따른다.
+
+## FX 정책
+- 테넌트별 FX 정책은 `date_based`, `company_average`, `user_select`를 지원한다.
+- `date_based`일 때는 Review에서 날짜별 환율이 준비되지 않으면 다음 단계로 진행하지 못하게 막는다.
+- `company_average`일 때는 예상 환율로 동작하며, 실제 회계 반영값과 차이가 있을 수 있다는 안내를 유지한다.
+
+## Document Type 정책
+- Document Type은 단순 표시값이 아니라 아래 항목들과 연결된다.
+  - Finalize 추천 제목
+  - Trip Purpose/Notes placeholder
+  - Finalize guidance 문구
+  - Required field 정책
+  - 템플릿 override 선택
+- Admin에서 문서별 preset과 required fields를 직접 관리한다.
+
+## Template 관리 원칙
+- Base template는 모든 문서의 기본 fallback이다.
+- Document-type override template는 해당 문서 종류와 mode에만 적용된다.
+- Template Preview는 resolved template와 base template를 비교해서 차이를 보여준다.
+- Admin Templates 화면에는 현재 준비 상태를 빠르게 읽을 수 있도록 overview 카드와 매핑 표를 같이 둔다.
+
+## Profile / MS365
+- Microsoft 365 로그인 시 사용자 프로필에서 Employee Name, Department, Employee ID, Manager 정보를 최대한 자동으로 채운다.
+- Finalize 상단의 Profile Context는 값의 출처와 누락 이유를 설명하는 보조 패널이다.
+- tenant field visibility가 꺼진 항목은 Profile Context와 Finalize readiness에서도 제외한다.
+
+## Finalize UX 원칙
+- `Required summary`는 현재 생성이 막히는 이유를 보여주는 차단 경고다.
+- `Finalize readiness`는 문서정책 기준 입력 진행 상태를 보여주는 체크리스트다.
+- Review의 `Still missing`과 `Finalize Inputs`는 Finalize 해당 필드로 바로 이동할 수 있어야 한다.
+
+## Review UX 원칙
+- Review 상단 KPI는 단순 통계가 아니라 사용자의 다음 행동을 유도해야 한다.
+- `Finalize Inputs`는 Step 3 준비 상태를 뜻하고, 클릭 시 Finalize로 바로 이동한다.
+- `Focus action-needed rows`는 required/fx/retry/dirty 기준으로 예외행만 빠르게 보는 운영 도구다.
+
+## 주의할 점
+- wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.
+- 테넌트가 이미 커스텀 템플릿을 올려둔 경우 기본 템플릿 변경만으로는 바로 결과가 바뀌지 않을 수 있다.
+- Finalize required field 정책과 field visibility 정책이 서로 충돌하지 않도록 항상 함께 확인해야 한다.
+
+## 다음에 우선 보기 좋은 파일
+- `templates/report_wizard_upload.html`
+- `templates/report_wizard_review.html`
+- `templates/report_wizard_generate.html`
+- `templates/admin.html`
+- `app.py`

@@ -307,6 +307,7 @@
     </div>
   </div>
   <script>
+    // 위저드 전 단계에서 이어받는 로컬 상태 키를 한 곳에 모아둔다.
     const SETTINGS_KEY = "report_wizard_settings_v2";
     const IDS_KEY = "report_wizard_selected_ids_v1";
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
@@ -315,6 +316,7 @@
     let cfg = {};
     let profileMeta = {};
     let lastPresetApplied = { title: "", tripPurpose: "", notes: "" };
+    // 문서정책 키와 실제 UI 표시명을 연결해 Finalize/Review가 같은 기준으로 동작하게 한다.
     const requiredFieldLabelMap = {
       employee_name: "Employee Name",
       department: "Department",
@@ -387,6 +389,7 @@
     }
 
     function applyPeriodRules(){
+      // Auto 모드일 때는 선택된 영수증 날짜를 기준으로 기간을 잠그고, Manual일 때만 직접 수정하게 한다.
       const mode = String(document.getElementById("periodMode").value || "auto");
       const fromEl = document.getElementById("periodFrom");
       const toEl = document.getElementById("periodTo");
@@ -415,6 +418,7 @@
       return `${m}/${d}/${y}`;
     }
     function getReceiptSummary(){
+      // Finalize 상단 KPI와 생성 완료 요약에 재사용할 요약값을 여기서 만든다.
       const currencies = new Map();
       let usdTotal = 0;
       const dated = selectedRows
@@ -445,6 +449,7 @@
       };
     }
     function renderFinalizeSummary(){
+      // 사용자가 지금 어떤 보고서를 만들고 있는지 상단 카드에서 즉시 읽을 수 있게 정리한다.
       const wrap = document.getElementById("finalizeSummaryCards");
       if (!wrap) return;
       const fx = wizardGet(FX_KEY, {}) || {};
@@ -484,6 +489,7 @@
       applyDocumentTypeSuggestion();
     }
     function getDocumentPreset(){
+      // 문서 유형별 제목/placeholder/guidance는 Admin preset을 우선 사용하고, 없으면 안전한 기본값으로 떨어진다.
       const sel = document.getElementById("documentType");
       const docId = String(sel?.selectedOptions?.[0]?.dataset?.docId || "").trim().toLowerCase();
       const docLabel = String(sel?.value || "").trim();
@@ -515,6 +521,7 @@
       };
     }
     function applyDocumentTypeSuggestion(){
+      // 문서 유형이 바뀌면 추천 제목과 안내 문구, 필수 정책 표시를 함께 갱신한다.
       const docType = String(document.getElementById("documentType")?.value || "").trim();
       const titleEl = document.getElementById("title");
       const tripEl = document.getElementById("tripPurpose");
@@ -542,6 +549,7 @@
     }
 
     async function loadSelectedSummary(){
+      // 선택 영수증을 다시 읽어 Finalize에서 바로 요약/기간/FX 상태를 계산할 수 있게 한다.
       const ids = getSelectedIds();
       document.getElementById("receiptCount").textContent = ids.length;
       if (!ids.length) {
@@ -569,6 +577,7 @@
     }
 
     async function loadProfile(){
+      // 로그인 사용자 프로필을 불러와 Finalize 기본 입력값과 출처 배지를 채운다.
       try{
         const r = await fetch("/api/profile");
         const d = await r.json();
@@ -635,6 +644,7 @@
       setBadge("badgeManagerEmail", visibleFieldState.manager && !!profileMeta.manager_email);
     }
     function renderProfileContext(){
+      // 자동 채움 값의 출처와, Microsoft 연동 시 비어 있는 항목의 이유를 한 패널에 보여준다.
       const wrap = document.getElementById("profileContext");
       if (!wrap) return;
       const provider = String(profileMeta.provider || "").trim().toLowerCase();
@@ -674,6 +684,7 @@
     }
 
     async function saveProfile(){
+      // 사용자가 수정한 프로필은 저장 직후 컨텍스트/체크리스트까지 다시 계산해 어색한 지연을 없앤다.
       const body = {
         name: document.getElementById("employeeName").value.trim(),
         department: document.getElementById("department").value.trim(),
@@ -709,6 +720,7 @@
       if (s.managerEmail) document.getElementById("managerEmail").value = String(s.managerEmail || "");
     }
     function saveFinalizeSettings(){
+      // Step 3 draft를 저장해 Review/Finalize를 오갈 때 입력 상태가 끊기지 않게 유지한다.
       const s = wizardGet(SETTINGS_KEY, {}) || {};
       const docSel = document.getElementById("documentType");
       s.reportType = String(document.getElementById("mode")?.value || "domestic").toLowerCase();
@@ -731,6 +743,7 @@
     }
 
     async function loadConfig(){
+      // tenant 설정을 로드한 뒤 field visibility, FX 정책, 문서 옵션을 한 번에 초기화한다.
       try {
         const r = await fetch("/api/config");
         const d = await r.json();
@@ -755,6 +768,7 @@
       el.style.display = visible ? "" : "none";
     }
     function applyFieldVisibility(){
+      // Admin에서 숨긴 필드는 Finalize 입력, 프로필 안내, readiness 계산에서 모두 제외한다.
       const fields = cfg?.fields || {};
       const isEnabled = (key, fallback = true) => {
         if (Object.prototype.hasOwnProperty.call(fields, key)) return fields[key]?.enabled !== false;
@@ -789,6 +803,7 @@
       else el.classList.remove("is-invalid");
     }
     function focusFieldByKey(key){
+      // Review나 checklist에서 들어온 focus 요청을 실제 입력칸으로 연결한다.
       const targetId = finalizeFieldTargetMap[String(key || "").trim().toLowerCase()];
       if (!targetId) return false;
       const el = document.getElementById(targetId);
@@ -806,6 +821,7 @@
       } catch(_) {}
     }
     function getMissingRequiredFields(){
+      // 현재 문서정책 기준으로 생성 차단 사유가 되는 누락값만 모은다.
       const missing = [];
       const required = getActiveRequiredKeys();
       const checks = [
@@ -835,6 +851,7 @@
       return missing;
     }
     function getRequiredChecklistEntries(){
+      // readiness 카드는 "막힘 여부"보다 "진행 상태"를 보여주기 위해 별도 메타 문구를 만든다.
       const required = [...getActiveRequiredKeys()];
       const missingLabels = new Set(getMissingRequiredFields().map((x) => x.label));
       const periodReady = String(document.getElementById("periodFrom")?.value || "").trim()
@@ -876,6 +893,7 @@
         });
     }
     function renderRequiredChecklist(){
+      // Finalize readiness는 경고 패널과 별개로, 사용자가 무엇이 남았는지 시각적으로 확인하는 보조 카드다.
       const wrap = document.getElementById("finalizeChecklistPanel");
       if (!wrap) return;
       const entries = getRequiredChecklistEntries();
@@ -909,6 +927,7 @@
       `;
     }
     function renderRequiredSummary(){
+      // 생성 차단에 직접 연결되는 필드만 is-invalid 처리하고 상단 경고 패널에 묶어 보여준다.
       const wrap = document.getElementById("requiredSummaryPanel");
       if (!wrap) return;
       const missing = getMissingRequiredFields();
@@ -946,6 +965,7 @@
     }
 
     async function generateReport(){
+      // 최종 생성 직전에는 Review dirty 상태와 Finalize 필수값을 다시 확인해 잘못된 생성 요청을 막는다.
       const dirty = getSelectedDirtyIds();
       if (dirty.length) return alert(`There are ${dirty.length} unsaved edits. Save in Review first.`);
       const ids = getSelectedIds();
@@ -1021,6 +1041,7 @@
     }
 
     (async()=>{
+      // 초기 진입 시에는 설정, 프로필, 선택 영수증, 자동 focus를 순서대로 복원한다.
       if (getSelectedDirtyIds().length) {
         document.getElementById("dirtyBanner").style.display = "";
       }
