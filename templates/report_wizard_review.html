@@ -187,6 +187,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      gap: .3rem;
       min-width: 76px;
       border-radius: 999px;
       padding: .18rem .5rem;
@@ -196,6 +197,15 @@
       background: #f8fbff;
       color: #4b6385;
       white-space: nowrap;
+      transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+    }
+    .save-badge::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: currentColor;
+      opacity: .6;
     }
     .save-badge.clickable {
       cursor: pointer;
@@ -204,6 +214,8 @@
       background: #eff6ff;
       color: #1d4ed8;
       border-color: #bfdbfe;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
+      animation: savePulse 1s ease-in-out infinite;
     }
     .save-badge.saved {
       background: #f0fdf4;
@@ -214,6 +226,26 @@
       background: #fef2f2;
       color: #b91c1c;
       border-color: #fecaca;
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, .10);
+    }
+    .save-badge.dirty {
+      background: #fff7ed;
+      color: #9a3412;
+      border-color: #fed7aa;
+    }
+    .save-badge.saved::before {
+      opacity: .85;
+    }
+    .save-badge.saving::before {
+      opacity: 1;
+    }
+    .save-badge.error::before,
+    .save-badge.dirty::before {
+      opacity: .95;
+    }
+    @keyframes savePulse {
+      0%, 100% { transform: translateY(0); box-shadow: 0 0 0 0 rgba(59, 130, 246, .12); }
+      50% { transform: translateY(-1px); box-shadow: 0 0 0 4px rgba(59, 130, 246, .08); }
     }
     .attention-row-hidden {
       display: none;
@@ -661,7 +693,8 @@
         error: { cls: "error", text: text || "Retry" },
       };
       const info = states[state] || { cls: "", text: text || "-" };
-      el.className = `save-badge ${info.cls} ${state === "error" ? "clickable" : ""}`.trim();
+      // 저장 상태는 색만 바꾸지 않고 배지 자체가 눈에 띄게 반응하도록 유지한다.
+      el.className = `save-badge ${state === "dirty" ? "dirty" : ""} ${info.cls} ${state === "error" ? "clickable" : ""}`.trim();
       el.textContent = info.text;
       el.title = state === "error" ? "Click to retry save" : "";
       applyAttentionFilter();

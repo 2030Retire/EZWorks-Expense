@@ -67,6 +67,23 @@
       font-size: .78rem;
       color: #166534;
     }
+    .report-success-meta-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      margin-top: .55rem;
+    }
+    .report-success-meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      border: 1px solid #bbf7d0;
+      background: rgba(255,255,255,.88);
+      border-radius: 999px;
+      padding: .16rem .48rem;
+      font-size: .72rem;
+      color: #166534;
+    }
     .profile-context {
       border: 1px solid #dbe6f3;
       background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
@@ -1282,13 +1299,22 @@
       banner.style.display = "";
       banner.dataset.generated = "1";
       if (actionBar) actionBar.classList.add("success-linked");
-      if (actionMeta) actionMeta.textContent = "Report generated. Download the file, open Reports, or start the next run.";
+      if (actionMeta) actionMeta.textContent = "Generated successfully. Download now, open Reports, or start the next run.";
+      // 성공 패널에는 생성 직후 운영자가 바로 확인할 요약만 짧게 남긴다.
+      const generatedAt = new Date().toLocaleString();
+      const periodLabel = [body.period_from || "", body.period_to || ""].filter(Boolean).join(" - ") || "Not specified";
+      const reviewState = getSelectedDirtyIds().length ? "Review needs sync" : "Review synced";
       banner.innerHTML = `
         <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
           <div>
             <div class="fw-semibold mb-1">Report generated successfully</div>
             <div class="small text-muted">The file is ready for download and now appears in Reports history.</div>
             <div class="small mt-1"><span class="fw-semibold">File:</span> <a href="${d.download_url}">${esc(d.report.output_filename)}</a></div>
+            <div class="report-success-meta-strip">
+              <span class="report-success-meta-pill">Generated ${esc(generatedAt)}</span>
+              <span class="report-success-meta-pill">Selection cleared</span>
+              <span class="report-success-meta-pill">${esc(reviewState)}</span>
+            </div>
             <div class="small mt-2">
               <span class="fw-semibold">Document:</span> ${esc(body.document_type || "-")}
               <span class="mx-2 text-muted">|</span>
@@ -1305,8 +1331,8 @@
             </div>
             <div class="report-success-summary">
               <div class="report-success-chip"><span class="label">Download</span><span>Use the direct file action or Reports history.</span></div>
-              <div class="report-success-chip"><span class="label">Next step</span><span>Check the exported template before sharing or submitting.</span></div>
-              <div class="report-success-chip"><span class="label">Workflow</span><span>The sticky action bar stays visible if you want one more draft edit.</span></div>
+              <div class="report-success-chip"><span class="label">Finalize period</span><span>${esc(periodLabel)}</span></div>
+              <div class="report-success-chip"><span class="label">Workflow</span><span>Selection was cleared. Editing again resets this success state.</span></div>
             </div>
           </div>
           <span class="badge text-bg-success">Ready</span>

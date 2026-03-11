@@ -36,6 +36,7 @@
     .template-card { border:1px solid #dbe6f3; border-radius:12px; padding:1rem; background:#fff; box-shadow:0 6px 16px rgba(15,47,87,.05); }
     .template-card h6 { margin:0 0 .35rem; font-size:.95rem; }
     .template-chip { display:inline-flex; align-items:center; gap:.3rem; border:1px solid #dbe6f3; background:#f8fbff; border-radius:999px; padding:.18rem .55rem; font-size:.75rem; font-weight:600; color:#36507a; }
+    .template-chip.warn { border-color:#fed7aa; background:#fff7ed; color:#9a3412; }
     .template-line { display:flex; justify-content:space-between; gap:.75rem; padding:.35rem 0; border-top:1px dashed #e6edf7; }
     .template-line:first-of-type { border-top:none; padding-top:0; }
     .template-line-label { font-weight:600; color:#334155; }
@@ -77,6 +78,20 @@
       font-size:.74rem;
       color:#64748b;
       margin-top:.35rem;
+    }
+    .template-sheet-head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.5rem;
+      flex-wrap:wrap;
+      margin-bottom:.35rem;
+    }
+    .template-sheet-meta {
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      flex-wrap:wrap;
     }
     .template-diff-cell {
       background:#fff7ed !important;
@@ -2082,7 +2097,7 @@ async function loadTemplatePreview() {
       const compareRows = Array.isArray(compareSheet?.rows) ? compareSheet.rows : [];
       let sheetDiffCount = 0;
       if (!rows.length) {
-        return `<div class="mb-3"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="small text-muted">No data rows.</div></div>`;
+        return `<div class="mb-3"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta"><span class="template-chip">No preview rows</span></div></div><div class="small text-muted">No data rows.</div></div>`;
       }
       const cols = rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
       const thead = `<tr>${Array.from({length: cols}, (_, i) => `<th class="small">C${i + 1}</th>`).join("")}</tr>`;
@@ -2104,7 +2119,12 @@ async function loadTemplatePreview() {
       if (compareData && sheetDiffCount > 0) {
         sheetDiffs.push({ name: String(s?.name || "Sheet"), count: sheetDiffCount });
       }
-      return `<div class="mb-3"><div class="small fw-semibold mb-1">${escHtml(s.name || "Sheet")}</div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
+      // 시트 제목 가까이에 diff 수를 붙여서, 긴 표를 보기 전에 변화 규모를 먼저 읽게 한다.
+      // 시트 단위 diff를 제목 가까이에 붙여, 어떤 시트부터 봐야 할지 바로 판단하게 만든다.
+      const metaChips = compareData
+        ? `<span class="template-chip ${sheetDiffCount ? "warn" : ""}">Diff ${sheetDiffCount}</span><span class="template-chip">Rows ${Math.min(rows.length, 8)}</span>`
+        : `<span class="template-chip">Rows ${Math.min(rows.length, 8)}</span>`;
+      return `<div class="mb-3"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta">${metaChips}</div></div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
     }).join("");
     const summaryHtml = compareData ? `<div class="small text-muted mt-2">Highlighted cells show differences from the base preview. Compared cells: ${diffCount}</div>` : "";
     return { html: html + summaryHtml, diffCount, sheetDiffs };
