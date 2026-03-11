@@ -93,6 +93,35 @@
       background: #fff7ed;
       border: 1px solid #fed7aa;
     }
+    .save-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 76px;
+      border-radius: 999px;
+      padding: .18rem .5rem;
+      font-size: .7rem;
+      font-weight: 700;
+      border: 1px solid #dbe6f3;
+      background: #f8fbff;
+      color: #4b6385;
+      white-space: nowrap;
+    }
+    .save-badge.saving {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+    .save-badge.saved {
+      background: #f0fdf4;
+      color: #166534;
+      border-color: #bbf7d0;
+    }
+    .save-badge.error {
+      background: #fef2f2;
+      color: #b91c1c;
+      border-color: #fecaca;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -114,6 +143,7 @@
       </div>
       <div id="progressSummary" class="small text-muted mb-1"></div>
       <div id="dirtySummary" class="small text-warning mb-1"></div>
+      <div id="autoSaveSummary" class="small text-muted mb-2"></div>
       <div id="requiredSummary" class="small text-danger mb-2"></div>
       <div id="fxPolicyNote" class="small text-muted mb-2"></div>
 
@@ -159,6 +189,7 @@
               <th>Amount</th>
               <th>Category</th>
               <th>Required</th>
+              <th>Save</th>
               <th>USD Amount</th>
               <th>Memo</th>
               <th class="col-optional">Status</th>
@@ -209,6 +240,7 @@
     let categoryChoices = [];
     let cfg = {};
     let rateFetchInFlight = false;
+    const rowSaveTimers = new Map();
 
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
@@ -251,6 +283,46 @@
     }
     function getDirtySet(){
       return new Set((wizardGet(DIRTY_KEY, []) || []).map(Number).filter(Boolean));
+    }
+    function setAutoSaveSummary(text, tone){
+      const el = document.getElementById("autoSaveSummary");
+      if (!el) return;
+      el.textContent = text || "";
+      el.className = `small mb-2 ${tone === "error" ? "text-danger" : tone === "success" ? "text-success" : "text-muted"}`;
+    }
+    function setRowSaveState(tr, state, text){
+      if (!tr) return;
+      tr.dataset.saveState = state || "";
+      const el = tr.querySelector(".f-save-state");
+      if (!el) return;
+      const states = {
+        dirty: { cls: "", text: text || "Pending" },
+        saving: { cls: "saving", text: text || "Saving..." },
+        saved: { cls: "saved", text: text || "Saved" },
+        error: { cls: "error", text: text || "Retry" },
+      };
+      const info = states[state] || { cls: "", text: text || "-" };
+      el.className = `save-badge ${info.cls}`.trim();
+      el.textContent = info.text;
+    }
+    function scheduleAutoSave(tr){
+      const id = Number(tr?.dataset?.id || 0);
+      if (!id) return;
+      if (rowSaveTimers.has(id)) clearTimeout(rowSaveTimers.get(id));
+      setRowSaveState(tr, "dirty", "Pending");
+      const timer = setTimeout(async () => {
+        rowSaveTimers.delete(id);
+        if (tr.dataset.dirty !== "1") return;
+        try {
+          await saveRowByTr(tr);
+          const fileName = String(tr.querySelector("td:nth-child(3)")?.textContent || `row ${id}`).trim();
+          setAutoSaveSummary(`Auto-saved ${fileName}.`, "success");
+        } catch (err) {
+          setRowSaveState(tr, "error", "Retry");
+          setAutoSaveSummary(String(err?.message || "Auto-save failed."), "error");
+        }
+      }, 800);
+      rowSaveTimers.set(id, timer);
     }
 
     function getFxState(){
@@ -424,15 +496,18 @@
       const set = getDirtySet();
       set.add(id);
       wizardSet(DIRTY_KEY, [...set]);
+      setRowSaveState(tr, "dirty", "Pending");
       renderDirtySummary();
       updateUsdAmountForRow(tr);
       renderRequiredSummary();
       renderSelectionSummary();
+      scheduleAutoSave(tr);
     }
     function renderDirtySummary(){
       const cnt = getDirtySet().size;
       document.getElementById("sumDirtyRows").textContent = `${cnt} row(s)`;
       document.getElementById("dirtySummary").textContent = cnt ? `Unsaved edits: ${cnt}` : "";
+      if (!cnt) setAutoSaveSummary("All visible changes are saved.", "success");
     }
 
     function renderProgressSummary(){
@@ -507,8 +582,9 @@
       if (autoSelectAll) selected = new Set(rowsAll.map((x)=>Number(x.id)));
       const dirtySet = getDirtySet();
       const body = document.getElementById("rows");
-      body.innerHTML = rowsAll.map((x)=>`<tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}"><td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td><td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td><td>${esc(x.orig_filename || "")}</td><td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td><td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="amount-num">${buildAmountCell(x)}</td><td>${buildCategoryCell(x)}</td><td class="f-required"></td><td class="amount-num f-usd">$ 0</td><td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="col-optional">${esc(x.status || "-")}</td><td class="col-optional">${esc(x.lifecycle_state || "-")}</td></tr>`).join("") || `<tr><td colspan="12" class="text-muted small">No receipts.</td></tr>`;
+      body.innerHTML = rowsAll.map((x)=>`<tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}"><td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td><td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td><td>${esc(x.orig_filename || "")}</td><td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td><td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="amount-num">${buildAmountCell(x)}</td><td>${buildCategoryCell(x)}</td><td class="f-required"></td><td><span class="save-badge f-save-state">${dirtySet.has(Number(x.id)) ? "Pending" : "Saved"}</span></td><td class="amount-num f-usd">$ 0</td><td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="col-optional">${esc(x.status || "-")}</td><td class="col-optional">${esc(x.lifecycle_state || "-")}</td></tr>`).join("") || `<tr><td colspan="13" class="text-muted small">No receipts.</td></tr>`;
       if (autoSelectAll) wizardSet(KEY, [...selected]);
+      body.querySelectorAll("tr[data-id]").forEach((tr) => setRowSaveState(tr, tr.dataset.dirty === "1" ? "dirty" : "saved"));
       renderDirtySummary(); updateUsdAmounts(); renderRequiredSummary(); renderSelectionSummary();
     }
 
@@ -516,13 +592,18 @@
 
     async function saveRowByTr(tr){
       const id = Number(tr.dataset.id || 0); if (!id) return;
+      setRowSaveState(tr, "saving", "Saving...");
       const body = { date: normalizeDateInput(tr.querySelector(".f-date").value.trim()), merchant: tr.querySelector(".f-merchant").value.trim(), amount: Number(tr.querySelector(".f-amount").value || 0), currency: tr.querySelector(".f-currency").value.trim().toUpperCase(), category: (() => { const sel = tr.querySelector(".f-category-select"); const custom = tr.querySelector(".f-category-custom"); if (!sel) return "MISCELLANEOUS"; if (sel.value === "__CUSTOM__") return String(custom?.value || "MISCELLANEOUS").trim().toUpperCase() || "MISCELLANEOUS"; return String(sel.value || "MISCELLANEOUS").trim().toUpperCase(); })(), memo: tr.querySelector(".f-memo").value.trim(), status: "processed" };
       const r = await fetch(`/api/inbox/receipts/${id}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
       const d = await r.json(); if(!r.ok) throw new Error(d.error || "Save failed");
       tr.dataset.dirty = "0"; tr.classList.remove("table-active"); const set = getDirtySet(); set.delete(id); wizardSet(DIRTY_KEY, [...set]);
+      setRowSaveState(tr, "saved", "Saved");
+      renderDirtySummary();
+      renderRequiredSummary();
+      renderSelectionSummary();
     }
 
-    async function saveAllDirty(){ const dirtyRows = [...document.querySelectorAll("#rows tr[data-dirty='1']")]; if (!dirtyRows.length) { document.getElementById("msg").textContent = "No dirty rows."; return; } for (const tr of dirtyRows) await saveRowByTr(tr); document.getElementById("msg").textContent = `Saved ${dirtyRows.length} row(s).`; await loadRows(); }
+    async function saveAllDirty(){ const dirtyRows = [...document.querySelectorAll("#rows tr[data-dirty='1']")]; if (!dirtyRows.length) { document.getElementById("msg").textContent = "No dirty rows."; return; } setAutoSaveSummary(`Saving ${dirtyRows.length} row(s)...`); for (const tr of dirtyRows) await saveRowByTr(tr); document.getElementById("msg").textContent = `Saved ${dirtyRows.length} row(s).`; setAutoSaveSummary(`Saved ${dirtyRows.length} row(s).`, "success"); await loadRows(); }
 
     function toggleAll(cb){ document.querySelectorAll(".sel").forEach(x=>x.checked=cb.checked); saveSelection(); }
     async function saveSelection(){ const ids = [...document.querySelectorAll(".sel:checked")].map(x=>Number(x.value)); wizardSet(KEY, ids); renderFxEditor(); saveFxState(); await ensureFxDefaults(); updateUsdAmounts(); document.getElementById("msg").textContent = "Selection saved."; }

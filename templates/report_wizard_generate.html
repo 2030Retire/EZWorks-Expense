@@ -80,6 +80,18 @@
       gap: .55rem;
     }
     .wizard-field-span-8 { grid-column: span 8; min-width: 240px; }
+    .required-summary-panel {
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      color: #9a3412;
+      border-radius: 12px;
+      padding: .75rem .9rem;
+      margin-bottom: .75rem;
+    }
+    .required-summary-panel ul {
+      margin: .35rem 0 0 1rem;
+      padding: 0;
+    }
     .field-hint-required,
     .field-hint-optional {
       display: inline-flex;
@@ -121,6 +133,7 @@
         There are unsaved edits from Review. Save them first.
       </div>
       <div id="successBanner" class="report-success-panel py-3 px-3 mb-3" style="display:none;"></div>
+      <div id="requiredSummaryPanel" class="required-summary-panel" style="display:none;"></div>
       <div id="profileContext" class="profile-context" style="display:none;"></div>
       <div class="small text-muted mb-2">Fields marked <span class="field-hint-required">Required</span> must be completed before generation. Others are optional and depend on tenant settings.</div>
 
@@ -366,20 +379,42 @@
       if (flag) el.classList.add("is-invalid");
       else el.classList.remove("is-invalid");
     }
-
-    function validateRequiredFields(){
+    function getMissingRequiredFields(){
+      const missing = [];
+      const employeeWrap = document.getElementById("wrapEmployeeName");
       const employeeEl = document.getElementById("employeeName");
       const titleEl = document.getElementById("title");
-      const employeeVisible = document.getElementById("wrapEmployeeName")?.style.display !== "none";
-      const employeeOk = !employeeVisible || !!String(employeeEl.value || "").trim();
-      const titleOk = !!String(titleEl.value || "").trim();
-      setInvalid(employeeEl, !employeeOk);
-      setInvalid(titleEl, !titleOk);
-      if (!employeeOk || !titleOk) {
-        alert("Employee Name and Title are required.");
-        return false;
+      const documentTypeEl = document.getElementById("documentType");
+      const employeeVisible = employeeWrap?.style.display !== "none";
+      if (employeeVisible && !String(employeeEl?.value || "").trim()) missing.push({ el: employeeEl, label: "Employee Name" });
+      if (!String(titleEl?.value || "").trim()) missing.push({ el: titleEl, label: "Title" });
+      if (!String(documentTypeEl?.value || "").trim()) missing.push({ el: documentTypeEl, label: "Document Type" });
+      return missing;
+    }
+    function renderRequiredSummary(){
+      const wrap = document.getElementById("requiredSummaryPanel");
+      if (!wrap) return;
+      const missing = getMissingRequiredFields();
+      setInvalid(document.getElementById("employeeName"), missing.some((x) => x.label === "Employee Name"));
+      setInvalid(document.getElementById("title"), missing.some((x) => x.label === "Title"));
+      setInvalid(document.getElementById("documentType"), missing.some((x) => x.label === "Document Type"));
+      if (!missing.length) {
+        wrap.style.display = "none";
+        wrap.innerHTML = "";
+        return true;
       }
-      return true;
+      wrap.style.display = "";
+      wrap.innerHTML = `<div class="fw-semibold">Required information is still missing</div><ul>${missing.map((x) => `<li>${esc(x.label)}</li>`).join("")}</ul>`;
+      return false;
+    }
+
+    function validateRequiredFields(){
+      const ok = renderRequiredSummary();
+      if (!ok) {
+        document.getElementById("requiredSummaryPanel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        alert("Please fill in the required fields before generating.");
+      }
+      return ok;
     }
 
     async function generateReport(){
@@ -449,14 +484,16 @@
       await loadProfile();
       await loadSelectedSummary();
       applyPeriodRules();
+      renderRequiredSummary();
     })();
 
     document.getElementById("periodMode").addEventListener("change", applyPeriodRules);
     document.getElementById("documentType").addEventListener("change", applyDocumentTypeSuggestion);
-    ["employeeName", "title"].forEach((id) => {
+    ["employeeName", "title", "documentType"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
-      el.addEventListener("input", () => setInvalid(el, !String(el.value || "").trim()));
+      const eventName = el.tagName === "SELECT" ? "change" : "input";
+      el.addEventListener(eventName, () => renderRequiredSummary());
     });
   </script>
 </body>

@@ -1812,14 +1812,22 @@ async function loadTemplatePreview() {
   const area = document.getElementById("templatePreviewArea");
   const meta = document.getElementById("templatePreviewMeta");
   area.innerHTML = `<div class="small text-muted"><i class="fa-solid fa-spinner fa-spin me-1"></i>Loading preview...</div>`;
-  const qs = new URLSearchParams({ mode });
-  if (documentType) qs.set("document_type", documentType);
-  const res = await fetch(`/admin/template-preview?${qs.toString()}`);
+  const effectiveQs = new URLSearchParams({ mode });
+  if (documentType) effectiveQs.set("document_type", documentType);
+  const res = await fetch(`/admin/template-preview?${effectiveQs.toString()}`);
   const data = await res.json();
   if (!res.ok) {
     meta.innerHTML = "";
     area.innerHTML = `<div class="small text-danger">${data.error || "Preview failed."}</div>`;
     return;
+  }
+  let baseData = null;
+  if (documentType) {
+    try {
+      const baseRes = await fetch(`/admin/template-preview?${new URLSearchParams({ mode }).toString()}`);
+      const rawBase = await baseRes.json();
+      if (baseRes.ok) baseData = rawBase;
+    } catch(_) {}
   }
   meta.innerHTML = `File: <b>${escHtml(data.filename || "-")}</b> · Scope: <b>${escHtml(data.scope || "-")}</b>${documentType ? ` · Document Type: <b>${escHtml(documentType)}</b>` : ""}`;
   const sheets = Array.isArray(data.sheets) ? data.sheets : [];
@@ -1841,6 +1849,42 @@ async function loadTemplatePreview() {
       <div class="text-muted mt-1">${resolutionNote}</div>
     </div>
   `;
+  const renderPreviewSheets = (previewData) => {
+    const previewSheets = Array.isArray(previewData?.sheets) ? previewData.sheets : [];
+    return previewSheets.map(s => {
+      const rows = Array.isArray(s.rows) ? s.rows : [];
+      if (!rows.length) {
+        return `<div class="mb-3"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="small text-muted">No data rows.</div></div>`;
+      }
+      const cols = rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
+      const thead = `<tr>${Array.from({length: cols}, (_, i) => `<th class="small">C${i + 1}</th>`).join("")}</tr>`;
+      const tbody = rows.slice(0, 8).map(r => `<tr>${Array.from({length: cols}, (_, i) => `<td class="small">${escHtml((r && r[i]) || "")}</td>`).join("")}</tr>`).join("");
+      return `<div class="mb-3"><div class="small fw-semibold mb-1">${escHtml(s.name || "Sheet")}</div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
+    }).join("");
+  };
+  const effectiveHtml = renderPreviewSheets(data);
+  if (documentType && baseData) {
+    area.innerHTML = `
+      ${previewSummary}
+      <div class="row g-3">
+        <div class="col-xl-6">
+          <div class="border rounded p-2 h-100">
+            <div class="small fw-semibold mb-1">Resolved template</div>
+            <div class="small text-muted mb-2">${escHtml(data.filename || "-")} · ${escHtml(data.scope || "-")}</div>
+            ${effectiveHtml}
+          </div>
+        </div>
+        <div class="col-xl-6">
+          <div class="border rounded p-2 h-100 bg-light-subtle">
+            <div class="small fw-semibold mb-1">Base comparison</div>
+            <div class="small text-muted mb-2">${escHtml(baseData.filename || "-")} · ${escHtml(baseData.scope || "-")}</div>
+            ${renderPreviewSheets(baseData)}
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
   area.innerHTML = sheets.map(s => {
     const rows = Array.isArray(s.rows) ? s.rows : [];
     if (!rows.length) {
