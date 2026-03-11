@@ -608,6 +608,18 @@
       const s = wizardGet(SETTINGS_KEY, {}) || {};
       document.getElementById("mode").value = (s.reportType || "domestic").toLowerCase();
       document.getElementById("currency").value = (s.currency || "USD").toUpperCase();
+      if (s.title) document.getElementById("title").value = String(s.title || "");
+      if (s.tripPurpose) document.getElementById("tripPurpose").value = String(s.tripPurpose || "");
+      if (s.notes) document.getElementById("notes").value = String(s.notes || "");
+      if (s.project) document.getElementById("project").value = String(s.project || "");
+      if (s.periodFrom) document.getElementById("periodFrom").value = String(s.periodFrom || "");
+      if (s.periodTo) document.getElementById("periodTo").value = String(s.periodTo || "");
+      if (s.submissionDate) document.getElementById("submitDate").value = String(s.submissionDate || "");
+      if (s.employeeName) document.getElementById("employeeName").value = String(s.employeeName || "");
+      if (s.department) document.getElementById("department").value = String(s.department || "");
+      if (s.employeeId) document.getElementById("employeeId").value = String(s.employeeId || "");
+      if (s.manager) document.getElementById("manager").value = String(s.manager || "");
+      if (s.managerEmail) document.getElementById("managerEmail").value = String(s.managerEmail || "");
     }
     function saveFinalizeSettings(){
       const s = wizardGet(SETTINGS_KEY, {}) || {};
@@ -616,6 +628,18 @@
       s.currency = String(document.getElementById("currency")?.value || "USD").toUpperCase();
       s.documentType = String(docSel?.value || "").trim();
       s.documentTypeId = String(docSel?.selectedOptions?.[0]?.dataset?.docId || "").trim().toLowerCase();
+      s.title = String(document.getElementById("title")?.value || "").trim();
+      s.tripPurpose = String(document.getElementById("tripPurpose")?.value || "").trim();
+      s.notes = String(document.getElementById("notes")?.value || "").trim();
+      s.project = String(document.getElementById("project")?.value || "").trim();
+      s.periodFrom = String(document.getElementById("periodFrom")?.value || "").trim();
+      s.periodTo = String(document.getElementById("periodTo")?.value || "").trim();
+      s.submissionDate = String(document.getElementById("submitDate")?.value || "").trim();
+      s.employeeName = String(document.getElementById("employeeName")?.value || "").trim();
+      s.department = String(document.getElementById("department")?.value || "").trim();
+      s.employeeId = String(document.getElementById("employeeId")?.value || "").trim();
+      s.manager = String(document.getElementById("manager")?.value || "").trim();
+      s.managerEmail = String(document.getElementById("managerEmail")?.value || "").trim();
       wizardSet(SETTINGS_KEY, s);
     }
 
@@ -834,11 +858,11 @@
     document.getElementById("periodMode").addEventListener("change", () => { renderFinalizeSummary(); saveFinalizeSettings(); });
     document.getElementById("mode").addEventListener("change", saveFinalizeSettings);
     document.getElementById("currency").addEventListener("change", saveFinalizeSettings);
-    ["employeeName", "title", "documentType"].forEach((id) => {
+    ["employeeName", "department", "employeeId", "manager", "managerEmail", "title", "documentType", "project", "submitDate", "tripPurpose", "notes", "periodFrom", "periodTo"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       const eventName = el.tagName === "SELECT" ? "change" : "input";
-      el.addEventListener(eventName, () => renderRequiredSummary());
+      el.addEventListener(eventName, () => { renderRequiredSummary(); saveFinalizeSettings(); });
     });
   </script>
 </body>

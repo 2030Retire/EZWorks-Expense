@@ -292,6 +292,7 @@
     let rowsAll = [];
     let categoryChoices = [];
     let cfg = {};
+    let profileCache = {};
     let rateFetchInFlight = false;
     const rowSaveTimers = new Map();
 
@@ -300,6 +301,13 @@
       try{ const raw = localStorage.getItem(key); if(!raw) return fallback; const parsed = JSON.parse(raw); if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value")) return parsed.value; return parsed; }catch(_){ return fallback; }
     }
     function wizardSet(key, value){ try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){ } }
+    async function loadProfileCache(){
+      try {
+        const r = await fetch("/api/profile");
+        const d = await r.json();
+        if (r.ok) profileCache = d.profile || {};
+      } catch(_) {}
+    }
     function toggleCompactMode(forceValue){
       const body = document.body;
       const next = typeof forceValue === "boolean" ? forceValue : !!document.getElementById("compactToggle")?.checked;
@@ -605,12 +613,29 @@
       };
       const fields = rawFields.map((x) => labelMap[String(x || "").trim().toLowerCase()] || String(x || "").trim()).filter(Boolean);
       const finalizeOnly = rawFields.filter((x) => !["employee_name", "title"].includes(String(x || "").trim().toLowerCase()));
+      const periodMissing = !rowsAll.some((row) => normalizeDateInput(row.date || ""));
+      const pending = rawFields.filter((x) => {
+        const key = String(x || "").trim().toLowerCase();
+        if (key === "employee_name") return !(settings.employeeName || profileCache.name);
+        if (key === "department") return !(settings.department || profileCache.department);
+        if (key === "employee_id") return !(settings.employeeId || profileCache.employee_id);
+        if (key === "manager") return !(settings.manager || profileCache.manager);
+        if (key === "manager_email") return !(settings.managerEmail || profileCache.manager_email);
+        if (key === "project") return !settings.project;
+        if (key === "submission_date") return !settings.submissionDate;
+        if (key === "trip_purpose") return !settings.tripPurpose;
+        if (key === "notes") return !settings.notes;
+        if (key === "title") return !settings.title;
+        if (key === "period") return periodMissing && !(settings.periodFrom && settings.periodTo);
+        return false;
+      });
       const kpi = document.getElementById("sumFinalizeInputs");
-      if (kpi) kpi.textContent = `${fields.length} field(s)`;
+      if (kpi) kpi.textContent = `${pending.length} pending`;
       el.innerHTML = `
         <span class="policy-chip">Planned document: ${esc(docLabel)}</span>
         <span class="policy-chip">Finalize required: ${esc(fields.join(", ") || "Employee Name, Title")}</span>
         ${finalizeOnly.length ? `<span class="policy-chip">Additional step-3 focus: ${esc(finalizeOnly.map((x) => labelMap[String(x || "").trim().toLowerCase()] || x).join(", "))}</span>` : ``}
+        ${pending.length ? `<span class="policy-chip">Still missing: ${esc(pending.map((x) => labelMap[String(x || "").trim().toLowerCase()] || x).join(", "))}</span>` : `<span class="policy-chip">Step 3 prep looks ready</span>`}
       `;
     }
     function getSelectedTrs(){
@@ -943,6 +968,7 @@
       const reasonSel = document.getElementById("attentionReason");
       if (reasonSel && reviewUi.attentionReason) reasonSel.value = reviewUi.attentionReason;
       toggleAttentionMode(!!reviewUi.attentionOnly);
+      await loadProfileCache();
       await loadConfig();
       await loadRows();
       renderFxEditor();
