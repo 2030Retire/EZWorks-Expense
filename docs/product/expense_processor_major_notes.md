@@ -43,6 +43,7 @@
 - Finalize 내부 필드 폭은 같은 섹션 안에서 `핵심 입력은 넓게, 보조 입력은 좁게` 배치해 시선 흐름을 안정적으로 유지한다.
 - Finalize 성공 패널은 하단 액션 바와 시각적으로 이어지게 해, 생성 직후 다음 행동이 자연스럽게 보이도록 유지한다.
 - Review의 `Still missing`과 `Finalize Inputs`는 Finalize 해당 필드로 바로 이동할 수 있어야 한다.
+- Finalize에서 보고서를 만든 뒤 다시 값을 수정하기 시작하면, 이전 성공 상태 배너/강조는 즉시 내려서 `이미 생성된 상태`와 `다시 편집 중인 상태`가 섞여 보이지 않게 유지한다.
 
 ## Review UX 원칙
 - Review 상단 KPI는 단순 통계가 아니라 사용자의 다음 행동을 유도해야 한다.
@@ -53,6 +54,7 @@
 - `Focus action-needed rows`는 required/fx/retry/dirty 기준으로 예외행만 빠르게 보는 운영 도구다.
 - Review 상단 편집 도구는 `Bulk Currency`와 `View Options`처럼 목적별 그룹으로 묶어, 화면이 넓어져도 흩어져 보이지 않게 유지한다.
 - Review FX 영역도 별도 작업 공간으로 묶어, 정책 선택/기본 환율/날짜별 환율 입력 흐름이 한눈에 보이도록 유지한다.
+- Review 하단의 다음 단계 액션도 화면 끝에서 다시 찾지 않도록, 테이블 편집 흐름과 이어지는 하단 액션 바 형태를 유지한다.
 
 ## Admin 운영 원칙
 - Accounting의 Document Type 카드는 단순 설정폼이 아니라, 템플릿 override 유무와 Finalize 정책 준비상태를 함께 보여주는 운영 카드로 유지한다.

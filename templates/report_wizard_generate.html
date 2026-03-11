@@ -817,6 +817,17 @@
       s.managerEmail = String(document.getElementById("managerEmail")?.value || "").trim();
       wizardSet(SETTINGS_KEY, s);
     }
+    // 생성 성공 후 다시 편집을 시작하면 성공 상태 강조를 풀어 현재 편집 맥락으로 되돌린다.
+    function resetPostGenerateUi(){
+      const banner = document.getElementById("successBanner");
+      const actionBar = document.querySelector(".finalize-action-bar");
+      if (actionBar) actionBar.classList.remove("success-linked");
+      if (banner && banner.dataset.generated === "1") {
+        banner.style.display = "none";
+        banner.innerHTML = "";
+        banner.dataset.generated = "0";
+      }
+    }
 
     async function loadConfig(){
       // tenant 설정을 로드한 뒤 field visibility, FX 정책, 문서 옵션을 한 번에 초기화한다.
@@ -1093,6 +1104,7 @@
       const banner = document.getElementById("successBanner");
       const actionBar = document.querySelector(".finalize-action-bar");
       banner.style.display = "";
+      banner.dataset.generated = "1";
       if (actionBar) actionBar.classList.add("success-linked");
       banner.innerHTML = `
         <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
@@ -1149,14 +1161,14 @@
 
     document.getElementById("periodMode").addEventListener("change", applyPeriodRules);
     document.getElementById("documentType").addEventListener("change", () => { applyDocumentTypeSuggestion(); renderRequiredSummary(); renderFinalizeSummary(); });
-    document.getElementById("periodMode").addEventListener("change", () => { renderFinalizeSummary(); saveFinalizeSettings(); });
-    document.getElementById("mode").addEventListener("change", saveFinalizeSettings);
-    document.getElementById("currency").addEventListener("change", saveFinalizeSettings);
+    document.getElementById("periodMode").addEventListener("change", () => { resetPostGenerateUi(); renderFinalizeSummary(); saveFinalizeSettings(); });
+    document.getElementById("mode").addEventListener("change", () => { resetPostGenerateUi(); saveFinalizeSettings(); });
+    document.getElementById("currency").addEventListener("change", () => { resetPostGenerateUi(); saveFinalizeSettings(); });
     ["employeeName", "department", "employeeId", "manager", "managerEmail", "title", "documentType", "project", "submitDate", "tripPurpose", "notes", "periodFrom", "periodTo"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       const eventName = el.tagName === "SELECT" ? "change" : "input";
-      el.addEventListener(eventName, () => { renderRequiredSummary(); saveFinalizeSettings(); });
+      el.addEventListener(eventName, () => { resetPostGenerateUi(); renderRequiredSummary(); saveFinalizeSettings(); });
     });
     document.getElementById("finalizeChecklistPanel")?.addEventListener("click", (event) => {
       const card = event.target.closest("[data-focus-key]");
