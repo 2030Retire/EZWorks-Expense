@@ -114,8 +114,39 @@
       background: #f8fafc;
       border: 1px solid #dbe6f3;
     }
+    .finalize-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .65rem;
+      margin-bottom: .85rem;
+    }
+    .finalize-kpi-card {
+      border: 1px solid #dbe6f3;
+      border-radius: 12px;
+      padding: .7rem .8rem;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+    .finalize-kpi-label {
+      font-size: .75rem;
+      color: #64748b;
+      margin-bottom: .2rem;
+    }
+    .finalize-kpi-value {
+      font-weight: 700;
+      color: #122033;
+      line-height: 1.35;
+    }
+    .finalize-summary-note {
+      font-size: .75rem;
+      color: #64748b;
+      margin-top: .2rem;
+    }
     @media (max-width: 1200px) {
       .wizard-field-span-8 { grid-column: span 6; }
+      .finalize-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 768px) {
+      .finalize-kpi-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
     }
   </style>
 </head>
@@ -138,6 +169,7 @@
       <div id="requiredSummaryPanel" class="required-summary-panel" style="display:none;"></div>
       <div id="profileContext" class="profile-context" style="display:none;"></div>
       <div class="small text-muted mb-2">Fields marked <span class="field-hint-required">Required</span> must be completed before generation. Others are optional and depend on tenant settings.</div>
+      <div id="finalizeSummaryCards" class="finalize-kpi-grid mb-3"></div>
 
       <div class="finalize-section mb-2">
         <div class="finalize-section-title">Document Settings</div>
@@ -241,6 +273,71 @@
         toEl.readOnly = false;
       }
     }
+    function formatMoney(v){
+      const n = Number(v || 0);
+      return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0";
+    }
+    function formatUsd(v){
+      return `$ ${formatMoney(v)}`;
+    }
+    function formatDateLabel(value){
+      const iso = normalizeDateInput(value || "");
+      if (!iso) return "-";
+      const [y, m, d] = iso.split("-");
+      return `${m}/${d}/${y}`;
+    }
+    function getReceiptSummary(){
+      const currencies = new Map();
+      let usdTotal = 0;
+      const dated = selectedRows
+        .map((row) => ({ row, dateIso: normalizeDateInput(row.date || "") }))
+        .filter((item) => item.dateIso)
+        .sort((a, b) => String(a.dateIso).localeCompare(String(b.dateIso)));
+      selectedRows.forEach((row) => {
+        const currency = String(row.currency || "USD").toUpperCase();
+        currencies.set(currency, Number(currencies.get(currency) || 0) + 1);
+        const amount = Number(row.amount || 0);
+        const dateIso = normalizeDateInput(row.date || "");
+        if (currency === "USD") {
+          usdTotal += amount;
+          return;
+        }
+        const fx = wizardGet(FX_KEY, {}) || {};
+        const rateMode = String(fx.rate_mode || cfg?.accounting?.fx_policy || "date_based").toLowerCase();
+        let rate = null;
+        if (rateMode === "company_average") rate = Number(fx.default_rate || cfg?.accounting?.company_average_fx || 0);
+        else rate = Number((fx.rates || {})?.[dateIso]?.[currency] || 0);
+        if (rate > 0) usdTotal += amount * rate;
+      });
+      return {
+        currencyText: [...currencies.entries()].map(([code, count]) => `${code} ${count}`).join(" | ") || "-",
+        usdTotal,
+        periodText: dated.length ? `${formatDateLabel(dated[0].dateIso)} - ${formatDateLabel(dated[dated.length - 1].dateIso)}` : "Waiting for receipt dates",
+        datedCount: dated.length,
+      };
+    }
+    function renderFinalizeSummary(){
+      const wrap = document.getElementById("finalizeSummaryCards");
+      if (!wrap) return;
+      const fx = wizardGet(FX_KEY, {}) || {};
+      const rateMode = String(fx.rate_mode || cfg?.accounting?.fx_policy || "date_based").toLowerCase();
+      const summary = getReceiptSummary();
+      const reportMode = String(document.getElementById("mode")?.value || "domestic").toLowerCase();
+      const baseCurrency = String(document.getElementById("currency")?.value || "USD").toUpperCase();
+      const cards = [
+        { label: "Receipt scope", value: `${selectedRows.length} selected`, note: `${summary.datedCount} with detected dates` },
+        { label: "Detected currencies", value: summary.currencyText, note: `Report mode: ${reportMode}` },
+        { label: "Estimated USD total", value: formatUsd(summary.usdTotal), note: `Base currency: ${baseCurrency}` },
+        { label: "Period + FX", value: summary.periodText, note: `FX mode: ${rateMode.replace("_", " ")}` },
+      ];
+      wrap.innerHTML = cards.map((card) => `
+        <div class="finalize-kpi-card">
+          <div class="finalize-kpi-label">${esc(card.label)}</div>
+          <div class="finalize-kpi-value">${esc(card.value)}</div>
+          <div class="finalize-summary-note">${esc(card.note)}</div>
+        </div>
+      `).join("");
+    }
 
     function loadDocumentTypeOptions(){
       const sel = document.getElementById("documentType");
@@ -281,6 +378,7 @@
         if (["LOW_CONFIDENCE","OCR_FAILED","IMAGE_UNREADABLE","NEEDS_REVIEW"].includes(lc) || String(x.status || "") === "needs_review") out.risky += 1;
       }
       document.getElementById("progressSummary").textContent = `Risky ${out.risky} · Ready ${out.ready} · Assigned ${out.assigned}`;
+      renderFinalizeSummary();
     }
 
     async function loadProfile(){
@@ -353,6 +451,7 @@
       }
       try { localStorage.setItem(FX_KEY, JSON.stringify({ ts: Date.now(), value: fx })); } catch(_) {}
       applyFieldVisibility();
+      renderFinalizeSummary();
     }
     function setVisible(id, visible){
       const el = document.getElementById(id);
@@ -490,7 +589,8 @@
     })();
 
     document.getElementById("periodMode").addEventListener("change", applyPeriodRules);
-    document.getElementById("documentType").addEventListener("change", applyDocumentTypeSuggestion);
+    document.getElementById("documentType").addEventListener("change", () => { applyDocumentTypeSuggestion(); renderRequiredSummary(); renderFinalizeSummary(); });
+    document.getElementById("periodMode").addEventListener("change", renderFinalizeSummary);
     ["employeeName", "title", "documentType"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;

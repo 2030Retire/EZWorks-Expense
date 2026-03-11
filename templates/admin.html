@@ -1853,10 +1853,12 @@ async function loadTemplatePreview() {
     const previewSheets = Array.isArray(previewData?.sheets) ? previewData.sheets : [];
     const compareSheets = Array.isArray(compareData?.sheets) ? compareData.sheets : [];
     let diffCount = 0;
-    return previewSheets.map(s => {
+    const sheetDiffs = [];
+    const html = previewSheets.map(s => {
       const rows = Array.isArray(s.rows) ? s.rows : [];
       const compareSheet = compareSheets.find((x) => String(x?.name || "") === String(s?.name || ""));
       const compareRows = Array.isArray(compareSheet?.rows) ? compareSheet.rows : [];
+      let sheetDiffCount = 0;
       if (!rows.length) {
         return `<div class="mb-3"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="small text-muted">No data rows.</div></div>`;
       }
@@ -1868,19 +1870,36 @@ async function loadTemplatePreview() {
           const value = (r && r[i]) || "";
           const compareValue = compareRow[i] || "";
           const changed = compareData && String(value) !== String(compareValue);
-          if (changed) diffCount += 1;
+          if (changed) {
+            diffCount += 1;
+            sheetDiffCount += 1;
+          }
           const style = changed ? ` style="background:#fff7ed;border-color:#fdba74;"` : "";
           const badge = changed ? ` <span class="text-warning-emphasis">•</span>` : "";
           return `<td class="small"${style}>${escHtml(value)}${badge}</td>`;
         }).join("")}</tr>`;
       }).join("");
+      if (compareData && sheetDiffCount > 0) {
+        sheetDiffs.push({ name: String(s?.name || "Sheet"), count: sheetDiffCount });
+      }
       return `<div class="mb-3"><div class="small fw-semibold mb-1">${escHtml(s.name || "Sheet")}</div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
-    }).join("") + (compareData ? `<div class="small text-muted mt-2">Highlighted cells show differences from the base preview. Compared cells: ${diffCount}</div>` : "");
+    }).join("");
+    const summaryHtml = compareData ? `<div class="small text-muted mt-2">Highlighted cells show differences from the base preview. Compared cells: ${diffCount}</div>` : "";
+    return { html: html + summaryHtml, diffCount, sheetDiffs };
   };
-  const effectiveHtml = renderPreviewSheets(data, baseData);
+  const effectivePreview = renderPreviewSheets(data, baseData);
+  const effectiveHtml = effectivePreview.html;
   if (documentType && baseData) {
+    const diffSummary = effectivePreview.sheetDiffs.length
+      ? `<div class="small text-muted mt-2">Change summary: ${effectivePreview.sheetDiffs.map((x) => `${escHtml(x.name)} ${x.count} cell(s)`).join(" · ")}</div>`
+      : `<div class="small text-muted mt-2">No visible cell changes in the preview window.</div>`;
     area.innerHTML = `
       ${previewSummary}
+      <div class="alert alert-warning py-2 px-3 small mb-3">
+        <div class="fw-semibold mb-1">Base comparison summary</div>
+        <div>${effectivePreview.diffCount} highlighted cell(s) differ from the base ${escHtml(mode)} template.</div>
+        ${diffSummary}
+      </div>
       <div class="row g-3">
         <div class="col-xl-6">
           <div class="border rounded p-2 h-100">
@@ -1893,7 +1912,7 @@ async function loadTemplatePreview() {
           <div class="border rounded p-2 h-100 bg-light-subtle">
             <div class="small fw-semibold mb-1">Base comparison</div>
             <div class="small text-muted mb-2">${escHtml(baseData.filename || "-")} · ${escHtml(baseData.scope || "-")}</div>
-            ${renderPreviewSheets(baseData)}
+            ${renderPreviewSheets(baseData).html}
           </div>
         </div>
       </div>

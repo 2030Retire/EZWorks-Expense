@@ -126,6 +126,21 @@
       color: #b91c1c;
       border-color: #fecaca;
     }
+    .attention-row-hidden {
+      display: none;
+    }
+    .attention-filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      color: #9a3412;
+      border-radius: 999px;
+      padding: .18rem .55rem;
+      font-size: .75rem;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -175,11 +190,16 @@
         </div>
         <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applyCurrencyBulk('selected')">Apply to selected</button>
         <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applyCurrencyBulk('all')">Apply to all</button>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="attentionToggle" onchange="toggleAttentionMode()">
+          <label class="form-check-label small" for="attentionToggle">Focus action-needed rows</label>
+        </div>
         <div class="form-check form-switch ms-auto">
           <input class="form-check-input" type="checkbox" id="compactToggle" onchange="toggleCompactMode()">
           <label class="form-check-label small" for="compactToggle">Compact table</label>
         </div>
       </div>
+      <div id="attentionFilterHint" class="small mb-2" style="display:none;"></div>
 
       <div class="table-responsive">
         <table class="table table-sm align-middle">
@@ -257,7 +277,18 @@
       body.classList.toggle("compact-review", next);
       const toggle = document.getElementById("compactToggle");
       if (toggle) toggle.checked = next;
-      wizardSet(REVIEW_UI_KEY, { compact: next });
+      const reviewUi = wizardGet(REVIEW_UI_KEY, {}) || {};
+      reviewUi.compact = next;
+      wizardSet(REVIEW_UI_KEY, reviewUi);
+    }
+    function toggleAttentionMode(forceValue){
+      const next = typeof forceValue === "boolean" ? forceValue : !!document.getElementById("attentionToggle")?.checked;
+      const toggle = document.getElementById("attentionToggle");
+      if (toggle) toggle.checked = next;
+      const reviewUi = wizardGet(REVIEW_UI_KEY, {}) || {};
+      reviewUi.attentionOnly = next;
+      wizardSet(REVIEW_UI_KEY, reviewUi);
+      applyAttentionFilter();
     }
 
     function normalizeDateInput(v){
@@ -310,6 +341,36 @@
       el.className = `save-badge ${info.cls} ${state === "error" ? "clickable" : ""}`.trim();
       el.textContent = info.text;
       el.title = state === "error" ? "Click to retry save" : "";
+      applyAttentionFilter();
+    }
+    function rowNeedsAttention(tr){
+      if (!tr) return false;
+      if (tr.dataset.saveError === "1") return true;
+      if (tr.dataset.dirty === "1") return true;
+      const reqText = String(tr.querySelector(".f-required")?.textContent || "").trim().toLowerCase();
+      if (reqText === "fix") return true;
+      const usdText = String(tr.querySelector(".f-usd")?.textContent || "").trim().toLowerCase();
+      if (usdText.includes("fx required")) return true;
+      return false;
+    }
+    function applyAttentionFilter(){
+      const enabled = !!document.getElementById("attentionToggle")?.checked;
+      const rows = [...document.querySelectorAll("#rows tr[data-id]")];
+      let visibleCount = 0;
+      rows.forEach((tr) => {
+        const show = !enabled || rowNeedsAttention(tr);
+        tr.classList.toggle("attention-row-hidden", !show);
+        if (show) visibleCount += 1;
+      });
+      const hint = document.getElementById("attentionFilterHint");
+      if (!hint) return;
+      if (!enabled) {
+        hint.style.display = "none";
+        hint.innerHTML = "";
+        return;
+      }
+      hint.style.display = "";
+      hint.innerHTML = `<span class="attention-filter-chip">Showing ${visibleCount} attention row(s)</span><span class="text-muted ms-2">Rows with unsaved edits, save retry, missing required values, or pending FX stay visible.</span>`;
     }
     async function retryRowSave(btn){
       const tr = btn?.closest("tr[data-id]");
@@ -446,6 +507,7 @@
       document.querySelectorAll("#rows tr[data-id]").forEach((tr) => { if (updateRequiredState(tr) > 0) missingRows += 1; });
       document.getElementById("sumRequiredRows").textContent = `${missingRows} row(s)`;
       document.getElementById("requiredSummary").textContent = missingRows ? `Missing required values in ${missingRows} row(s): date/amount/category` : "";
+      applyAttentionFilter();
     }
     function getSelectedTrs(){
       const checked = [...document.querySelectorAll("#rows .sel:checked")].map((x) => x.closest("tr")).filter(Boolean);
@@ -604,6 +666,7 @@
       if (autoSelectAll) wizardSet(KEY, [...selected]);
       body.querySelectorAll("tr[data-id]").forEach((tr) => setRowSaveState(tr, tr.dataset.dirty === "1" ? "dirty" : "saved"));
       renderDirtySummary(); updateUsdAmounts(); renderRequiredSummary(); renderSelectionSummary();
+      applyAttentionFilter();
     }
 
     async function loadRows(){ const r = await fetch("/api/inbox/receipts?report_status=unassigned&limit=300"); const d = await r.json(); if(!r.ok) return alert(d.error||"Failed"); rowsAll = d.receipts || []; renderProgressSummary(); renderRows(); }
@@ -771,6 +834,7 @@
     (async()=>{
       const reviewUi = wizardGet(REVIEW_UI_KEY, {}) || {};
       toggleCompactMode(!!reviewUi.compact);
+      toggleAttentionMode(!!reviewUi.attentionOnly);
       await loadConfig();
       await loadRows();
       renderFxEditor();
