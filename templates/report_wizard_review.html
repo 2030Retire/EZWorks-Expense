@@ -90,10 +90,21 @@
       padding-bottom: .35rem;
       vertical-align: middle;
     }
+    #rows tr {
+      transition: background-color .15s ease, box-shadow .15s ease;
+    }
+    #rows tr:focus-within {
+      background: #f8fbff;
+      box-shadow: inset 0 0 0 1px #bfdbfe;
+    }
     #rows .form-control-sm, #rows .form-select-sm {
       min-height: 30px;
       padding-top: .2rem;
       padding-bottom: .2rem;
+    }
+    #rows .form-control-sm:focus, #rows .form-select-sm:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 .14rem rgba(59, 130, 246, .12);
     }
     #rows .f-memo {
       min-width: 160px;
