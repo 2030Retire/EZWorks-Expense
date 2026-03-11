@@ -158,6 +158,15 @@
       margin-right: .35rem;
       margin-bottom: .35rem;
     }
+    .policy-chip-link {
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .policy-chip-link:hover {
+      border-color: #93c5fd;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -629,13 +638,18 @@
         if (key === "period") return periodMissing && !(settings.periodFrom && settings.periodTo);
         return false;
       });
+      const missingLinks = pending.map((x) => {
+        const key = String(x || "").trim().toLowerCase();
+        const label = labelMap[key] || x;
+        return `<a class="policy-chip policy-chip-link" href="/reports/wizard/generate?focus=${encodeURIComponent(key)}">${esc(label)}</a>`;
+      }).join("");
       const kpi = document.getElementById("sumFinalizeInputs");
       if (kpi) kpi.textContent = `${pending.length} pending`;
       el.innerHTML = `
         <span class="policy-chip">Planned document: ${esc(docLabel)}</span>
         <span class="policy-chip">Finalize required: ${esc(fields.join(", ") || "Employee Name, Title")}</span>
         ${finalizeOnly.length ? `<span class="policy-chip">Additional step-3 focus: ${esc(finalizeOnly.map((x) => labelMap[String(x || "").trim().toLowerCase()] || x).join(", "))}</span>` : ``}
-        ${pending.length ? `<span class="policy-chip">Still missing: ${esc(pending.map((x) => labelMap[String(x || "").trim().toLowerCase()] || x).join(", "))}</span>` : `<span class="policy-chip">Step 3 prep looks ready</span>`}
+        ${pending.length ? `<span class="policy-chip">Still missing:</span>${missingLinks}` : `<span class="policy-chip">Step 3 prep looks ready</span>`}
       `;
     }
     function getSelectedTrs(){

@@ -127,6 +127,11 @@
     .finalize-checklist-item.missing {
       border-color: #fed7aa;
       background: #fff7ed;
+      cursor: pointer;
+    }
+    .finalize-checklist-item.missing:hover {
+      border-color: #fb923c;
+      box-shadow: 0 0 0 3px rgba(251, 146, 60, .12);
     }
     .finalize-checklist-label {
       font-size: .78rem;
@@ -323,6 +328,20 @@
       notes: "Notes",
       title: "Title",
       document_type: "Document Type",
+    };
+    const finalizeFieldTargetMap = {
+      employee_name: "employeeName",
+      department: "department",
+      employee_id: "employeeId",
+      manager: "manager",
+      manager_email: "managerEmail",
+      project: "project",
+      period: "periodFrom",
+      submission_date: "submitDate",
+      trip_purpose: "tripPurpose",
+      notes: "notes",
+      title: "title",
+      document_type: "documentType",
     };
     let visibleFieldState = {
       employee_name: true,
@@ -769,6 +788,23 @@
       if (flag) el.classList.add("is-invalid");
       else el.classList.remove("is-invalid");
     }
+    function focusFieldByKey(key){
+      const targetId = finalizeFieldTargetMap[String(key || "").trim().toLowerCase()];
+      if (!targetId) return false;
+      const el = document.getElementById(targetId);
+      if (!el || el.closest('[style*="display:none"]')) return false;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      try { el.focus({ preventScroll: true }); } catch(_) { try { el.focus(); } catch(__){} }
+      return true;
+    }
+    function applyRequestedFocus(){
+      try {
+        const params = new URLSearchParams(window.location.search || "");
+        const focusKey = String(params.get("focus") || "").trim().toLowerCase();
+        if (!focusKey) return;
+        window.setTimeout(() => { focusFieldByKey(focusKey); }, 180);
+      } catch(_) {}
+    }
     function getMissingRequiredFields(){
       const missing = [];
       const required = getActiveRequiredKeys();
@@ -863,9 +899,9 @@
         </div>
         <div class="finalize-checklist-grid">
           ${entries.map((item) => `
-            <div class="finalize-checklist-item ${item.ready ? "ready" : "missing"}">
+            <div class="finalize-checklist-item ${item.ready ? "ready" : "missing"}" ${item.ready ? "" : `data-focus-key="${esc(item.key)}" title="Open field"`}>
               <div class="finalize-checklist-label">${esc(item.label)}</div>
-              <div class="finalize-checklist-meta">${esc(item.detail)}</div>
+              <div class="finalize-checklist-meta">${esc(item.detail)}${item.ready ? "" : " · Click to open field"}</div>
               <span class="finalize-checklist-state ${item.ready ? "ready" : "missing"}">${item.ready ? "Ready" : "Missing"}</span>
             </div>
           `).join("")}
@@ -995,6 +1031,7 @@
       await loadSelectedSummary();
       applyPeriodRules();
       renderRequiredSummary();
+      applyRequestedFocus();
     })();
 
     document.getElementById("periodMode").addEventListener("change", applyPeriodRules);
@@ -1007,6 +1044,11 @@
       if (!el) return;
       const eventName = el.tagName === "SELECT" ? "change" : "input";
       el.addEventListener(eventName, () => { renderRequiredSummary(); saveFinalizeSettings(); });
+    });
+    document.getElementById("finalizeChecklistPanel")?.addEventListener("click", (event) => {
+      const card = event.target.closest("[data-focus-key]");
+      if (!card) return;
+      focusFieldByKey(card.dataset.focusKey || "");
     });
   </script>
 </body>
