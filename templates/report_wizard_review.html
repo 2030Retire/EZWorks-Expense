@@ -32,6 +32,11 @@
       box-shadow: 0 10px 22px rgba(59, 130, 246, .10);
       transform: translateY(-1px);
     }
+    .review-kpi-hint {
+      font-size: .74rem;
+      color: #64748b;
+      margin-top: .25rem;
+    }
     .review-summary-list {
       display: grid;
       gap: .25rem;
@@ -208,7 +213,7 @@
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">USD Total</div><div class="kpi-value amount-num" id="sumUsdTotal">$ 0</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Required Fixes</div><div class="kpi-value" id="sumRequiredRows">0 row(s)</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumFinalizeCard" role="button" tabindex="0"><div class="kpi-label">Finalize Inputs</div><div class="kpi-value" id="sumFinalizeInputs">2 field(s)</div><div class="small text-muted mt-1" id="sumFinalizeHint">Open Step 3</div></div></div>
-        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">FX Pending</div><div class="kpi-value" id="sumFxPending">0 rate(s)</div></div></div>
+        <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card clickable" id="sumFxCard" role="button" tabindex="0"><div class="kpi-label">FX Pending</div><div class="kpi-value" id="sumFxPending">0 rate(s)</div><div class="review-kpi-hint" id="sumFxHint">Open FX editor</div></div></div>
         <div class="col-xl-2 col-md-4 col-sm-6"><div class="review-kpi-card"><div class="kpi-label">Unsaved Edits</div><div class="kpi-value" id="sumDirtyRows">0 row(s)</div></div></div>
         <div class="col-xl-6 col-md-12"><div class="review-kpi-card"><div class="kpi-label">Category Summary</div><div class="review-summary-list" id="sumByCategory">-</div></div></div>
       </div>
@@ -319,6 +324,7 @@
       try{ const raw = localStorage.getItem(key); if(!raw) return fallback; const parsed = JSON.parse(raw); if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value")) return parsed.value; return parsed; }catch(_){ return fallback; }
     }
     function wizardSet(key, value){ try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){ } }
+    // Review 단계에서 Finalize 준비 상태를 계산하기 위해 사용자 프로필 캐시를 먼저 읽어둔다.
     async function loadProfileCache(){
       try {
         const r = await fetch("/api/profile");
@@ -606,6 +612,7 @@
       document.getElementById("requiredSummary").textContent = missingRows ? `Missing required values in ${missingRows} row(s): date/amount/category` : "";
       applyAttentionFilter();
     }
+    // Review에서 Step 3 준비 상태를 미리 보여주고, 필요한 필드로 바로 이동할 수 있게 만든다.
     function renderFinalizePolicySummary(){
       const el = document.getElementById("finalizePolicySummary");
       if (!el) return;
@@ -676,6 +683,7 @@
       const checked = [...document.querySelectorAll("#rows .sel:checked")].map((x) => x.closest("tr")).filter(Boolean);
       return checked.length ? checked : [...document.querySelectorAll("#rows tr[data-id]")];
     }
+    // 선택된 영수증 기준으로 통화/카테고리/미국달러 환산 요약을 다시 계산한다.
     function renderSelectionSummary(){
       const trs = getSelectedTrs();
       let usdTotal = 0;
@@ -703,6 +711,22 @@
       document.getElementById("sumReceiptCount").textContent = String(trs.length);
       document.getElementById("sumCurrencies").textContent = [...byCurrency.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([code, v]) => `${code} ${v.count} · ${formatMoneyWithCurrency(code, v.amount)}`).join(" | ") || "-";
       document.getElementById("sumUsdTotal").textContent = `$ ${formatMoney(usdTotal)}`;
+      const fxRequirements = getFxRequirements();
+      const fxCard = document.getElementById("sumFxCard");
+      const fxHint = document.getElementById("sumFxHint");
+      const fxValue = document.getElementById("sumFxPending");
+      if (fxValue) fxValue.textContent = `${fxRequirements.length} rate(s)`;
+      if (fxCard) {
+        fxCard.dataset.pending = fxRequirements.length ? "1" : "0";
+        fxCard.title = fxRequirements.length
+          ? `Open FX editor (${fxRequirements.length} rate(s) pending)`
+          : "Open FX editor";
+      }
+      if (fxHint) {
+        fxHint.textContent = fxRequirements.length
+          ? `Open FX editor · ${fxRequirements.length} missing`
+          : "Open FX editor";
+      }
       const parts = [...byCategory.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([cat, v]) => `<div class="review-summary-item"><span>${esc(cat)} · ${v.count} item(s)</span><span>${esc(formatMoneyWithCurrency(v.currency, v.amount))}</span></div>`);
       document.getElementById("sumByCategory").innerHTML = parts.length ? parts.join("") : `<div class="small text-muted">-</div>`;
       document.getElementById("sumDirtyRows").textContent = `${getDirtySet().size} row(s)`;
@@ -767,6 +791,7 @@
       document.getElementById("progressSummary").textContent = `Total ${out.total} · Uploaded ${out.uploaded} · Needs Review ${out.needs_review} · Ready ${out.ready} · Assigned ${out.assigned}`;
     }
 
+    // 테넌트 정책(FX, 문서정책, 카테고리)을 Review 화면 상태와 동기화한다.
     async function loadConfig(){
       try { const r = await fetch("/api/config"); const d = await r.json(); if (r.ok) cfg = d || {}; } catch(_) {}
       categoryChoices = (cfg?.expense_types || []).filter(x => x && x.enabled && x.id).map(x => String(x.id || "").toUpperCase());
@@ -804,6 +829,7 @@
       const out = tr.querySelector(".f-amount-display");
       if (out) out.textContent = formatMoneyWithCurrency(currency, amount);
     }
+    // 행 단위 USD 금액 표시는 현재 통화/환율정책/입력값을 함께 반영해 계산한다.
     function updateUsdAmountForRow(tr){
       if (!tr) return;
       const amount = Number(tr.querySelector(".f-amount")?.value || 0);
@@ -821,6 +847,7 @@
     }
     function updateUsdAmounts(){ document.querySelectorAll("#rows tr[data-id]").forEach((tr)=>{ updateAmountDisplay(tr); updateUsdAmountForRow(tr); }); updateFxPolicyUi(); renderSelectionSummary(); }
 
+    // Review 테이블은 localStorage에 남아 있는 선택/dirty 상태까지 함께 복원한다.
     function renderRows(){
       let selected = new Set(getSavedSelection().map(Number));
       const autoSelectAll = selected.size === 0;
@@ -836,6 +863,7 @@
 
     async function loadRows(){ const r = await fetch("/api/inbox/receipts?report_status=unassigned&limit=300"); const d = await r.json(); if(!r.ok) return alert(d.error||"Failed"); rowsAll = d.receipts || []; renderProgressSummary(); renderRows(); }
 
+    // 자동저장과 수동저장 모두 같은 저장 경로를 사용해 상태가 어긋나지 않게 유지한다.
     async function saveRowByTr(tr){
       const id = Number(tr.dataset.id || 0); if (!id) return;
       setRowSaveState(tr, "saving", "Saving...");
@@ -893,6 +921,7 @@
     }
     async function onRateModeChange(){ syncFxVisibility(); saveFxState(); await ensureFxDefaults(); updateUsdAmounts(); }
 
+    // 날짜별 환율이 필요한 조합(date + currency)만 뽑아서 FX 편집기를 구성한다.
     function renderFxEditor(){
       const fxMode = String(document.getElementById("fxRateMode")?.value || "date_based");
       if (fxMode !== "date_based") { document.getElementById("fxEditor").innerHTML = ""; return; }
@@ -914,6 +943,7 @@
       if (usdToCur <= 0) return null;
       return Number((1 / usdToCur).toFixed(6));
     }
+    // 공개 환율 API에서 receipt date 기준 환율을 읽어와 편집기에 채운다.
     async function fetchRatesByDate(){
       const inputs = [...document.querySelectorAll("#fxEditor input[data-date][data-currency]")];
       if (!inputs.length) return alert("No dated non-USD receipts available.");
@@ -934,6 +964,7 @@
         rateFetchInFlight = false;
       }
     }
+    // company_average 정책일 때는 선택 영수증 날짜 기준 평균 환율을 자동 추정해 기본값으로 넣는다.
     async function ensureFxDefaults(){
       const fx = getFxState();
       if (fx.rate_mode !== "company_average" || rateFetchInFlight) {
@@ -970,6 +1001,7 @@
       }
       updateFxPolicyUi();
     }
+    // 다음 단계 진입 전에는 dirty row 저장과 FX 준비상태를 먼저 강제 확인한다.
     async function goNext(){
       if (getDirtySet().size) {
         document.getElementById("msg").textContent = "Saving recent changes before continuing...";
@@ -996,6 +1028,16 @@
       document.getElementById("msg").textContent = `Applied ${code} to ${trs.length} row(s).`;
     }
 
+    function scrollToFxEditor(){
+      const wrap = document.getElementById("dateFxWrap") || document.getElementById("fxEditor");
+      if (!wrap) return;
+      wrap.scrollIntoView({ behavior: "smooth", block: "center" });
+      const firstInput = wrap.querySelector("input[data-date][data-currency]");
+      if (firstInput) firstInput.focus();
+      else document.getElementById("fetchByDateBtn")?.focus();
+    }
+
+    // Review 화면 초기화 순서는 profile -> config -> rows -> FX/UI 동기화 순서로 맞춘다.
     (async()=>{
       const reviewUi = wizardGet(REVIEW_UI_KEY, {}) || {};
       toggleCompactMode(!!reviewUi.compact);
@@ -1019,6 +1061,14 @@
       event.preventDefault();
       const href = document.getElementById("sumFinalizeCard")?.dataset?.href || "/reports/wizard/generate";
       window.location.href = href;
+    });
+    document.getElementById("sumFxCard")?.addEventListener("click", () => {
+      scrollToFxEditor();
+    });
+    document.getElementById("sumFxCard")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      scrollToFxEditor();
     });
   </script>
 </body>

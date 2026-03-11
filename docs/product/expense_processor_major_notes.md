@@ -42,7 +42,12 @@
 ## Review UX 원칙
 - Review 상단 KPI는 단순 통계가 아니라 사용자의 다음 행동을 유도해야 한다.
 - `Finalize Inputs`는 Step 3 준비 상태를 뜻하고, 클릭 시 Finalize로 바로 이동한다.
+- `FX Pending`도 단순 카운트가 아니라 FX 편집 영역으로 바로 이동하는 액션 카드로 유지한다.
 - `Focus action-needed rows`는 required/fx/retry/dirty 기준으로 예외행만 빠르게 보는 운영 도구다.
+
+## Admin 운영 원칙
+- Accounting의 Document Type 카드는 단순 설정폼이 아니라, 템플릿 override 유무와 Finalize 정책 준비상태를 함께 보여주는 운영 카드로 유지한다.
+- Templates 탭의 상세 매핑표를 보기 전에, Accounting 카드 단계에서도 각 문서 타입의 준비 정도를 빠르게 판단할 수 있어야 한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.
