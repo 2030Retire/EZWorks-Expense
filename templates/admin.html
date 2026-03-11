@@ -1849,20 +1849,35 @@ async function loadTemplatePreview() {
       <div class="text-muted mt-1">${resolutionNote}</div>
     </div>
   `;
-  const renderPreviewSheets = (previewData) => {
+  const renderPreviewSheets = (previewData, compareData = null) => {
     const previewSheets = Array.isArray(previewData?.sheets) ? previewData.sheets : [];
+    const compareSheets = Array.isArray(compareData?.sheets) ? compareData.sheets : [];
+    let diffCount = 0;
     return previewSheets.map(s => {
       const rows = Array.isArray(s.rows) ? s.rows : [];
+      const compareSheet = compareSheets.find((x) => String(x?.name || "") === String(s?.name || ""));
+      const compareRows = Array.isArray(compareSheet?.rows) ? compareSheet.rows : [];
       if (!rows.length) {
         return `<div class="mb-3"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="small text-muted">No data rows.</div></div>`;
       }
       const cols = rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
       const thead = `<tr>${Array.from({length: cols}, (_, i) => `<th class="small">C${i + 1}</th>`).join("")}</tr>`;
-      const tbody = rows.slice(0, 8).map(r => `<tr>${Array.from({length: cols}, (_, i) => `<td class="small">${escHtml((r && r[i]) || "")}</td>`).join("")}</tr>`).join("");
+      const tbody = rows.slice(0, 8).map((r, rowIdx) => {
+        const compareRow = Array.isArray(compareRows[rowIdx]) ? compareRows[rowIdx] : [];
+        return `<tr>${Array.from({length: cols}, (_, i) => {
+          const value = (r && r[i]) || "";
+          const compareValue = compareRow[i] || "";
+          const changed = compareData && String(value) !== String(compareValue);
+          if (changed) diffCount += 1;
+          const style = changed ? ` style="background:#fff7ed;border-color:#fdba74;"` : "";
+          const badge = changed ? ` <span class="text-warning-emphasis">•</span>` : "";
+          return `<td class="small"${style}>${escHtml(value)}${badge}</td>`;
+        }).join("")}</tr>`;
+      }).join("");
       return `<div class="mb-3"><div class="small fw-semibold mb-1">${escHtml(s.name || "Sheet")}</div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
-    }).join("");
+    }).join("") + (compareData ? `<div class="small text-muted mt-2">Highlighted cells show differences from the base preview. Compared cells: ${diffCount}</div>` : "");
   };
-  const effectiveHtml = renderPreviewSheets(data);
+  const effectiveHtml = renderPreviewSheets(data, baseData);
   if (documentType && baseData) {
     area.innerHTML = `
       ${previewSummary}

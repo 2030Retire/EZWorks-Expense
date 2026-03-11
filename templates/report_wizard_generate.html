@@ -12,23 +12,25 @@
       grid-template-columns: repeat(12, minmax(0, 1fr));
       gap: .65rem;
     }
-    .wizard-field-span-2, .wizard-field-span-3, .wizard-field-span-4, .wizard-field-span-6, .wizard-field-span-12 {
-      min-width: 200px;
+    .wizard-field-span-2, .wizard-field-span-3, .wizard-field-span-4, .wizard-field-span-5, .wizard-field-span-6, .wizard-field-span-7, .wizard-field-span-12 {
+      min-width: 160px;
     }
     .wizard-field-span-2 { grid-column: span 2; }
     .wizard-field-span-3 { grid-column: span 3; }
     .wizard-field-span-4 { grid-column: span 4; }
+    .wizard-field-span-5 { grid-column: span 5; }
     .wizard-field-span-6 { grid-column: span 6; }
+    .wizard-field-span-7 { grid-column: span 7; }
     .wizard-field-span-12 { grid-column: span 12; min-width: 100%; }
     @media (max-width: 1200px) {
       .wizard-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
       .wizard-field-span-6, .wizard-field-span-12 { grid-column: span 6; }
-      .wizard-field-span-4 { grid-column: span 3; }
+      .wizard-field-span-7, .wizard-field-span-8, .wizard-field-span-5, .wizard-field-span-4 { grid-column: span 3; }
       .wizard-field-span-3, .wizard-field-span-2 { grid-column: span 2; }
     }
     @media (max-width: 768px) {
       .wizard-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
-      .wizard-field-span-2, .wizard-field-span-3, .wizard-field-span-4, .wizard-field-span-6, .wizard-field-span-12 { grid-column: span 1; min-width: 0; }
+      .wizard-field-span-2, .wizard-field-span-3, .wizard-field-span-4, .wizard-field-span-5, .wizard-field-span-6, .wizard-field-span-7, .wizard-field-span-8, .wizard-field-span-12 { grid-column: span 1; min-width: 0; }
     }
     .report-success-panel {
       border: 1px solid #bbf7d0;
@@ -79,7 +81,7 @@
     .wizard-grid.compact {
       gap: .55rem;
     }
-    .wizard-field-span-8 { grid-column: span 8; min-width: 240px; }
+    .wizard-field-span-8 { grid-column: span 8; min-width: 220px; }
     .required-summary-panel {
       border: 1px solid #fed7aa;
       background: #fff7ed;
@@ -142,7 +144,7 @@
         <div class="wizard-grid compact">
           <div class="wizard-field-span-2"><label class="form-label small mb-1">Expense Type</label><input id="mode" class="form-control form-control-sm" readonly></div>
           <div class="wizard-field-span-2"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
-          <div class="wizard-field-span-2"><label class="form-label small mb-1">Document Type <span class="field-hint-required">Required</span></label><select id="documentType" class="form-select form-select-sm"></select></div>
+          <div class="wizard-field-span-3"><label class="form-label small mb-1">Document Type <span class="field-hint-required">Required</span></label><select id="documentType" class="form-select form-select-sm"></select></div>
           <div class="wizard-field-span-2"><label class="form-label small mb-1">Period Mode <span class="field-hint-optional">Optional</span></label><select id="periodMode" class="form-select form-select-sm"><option value="auto">Auto (from receipts)</option><option value="manual">Manual</option></select></div>
           <div id="wrapPeriodFrom" class="wizard-field-span-2"><label class="form-label small mb-1">Expense Period (from) <span class="field-hint-optional">Optional</span></label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
           <div id="wrapPeriodTo" class="wizard-field-span-2"><label class="form-label small mb-1">Expense Period (to) <span class="field-hint-optional">Optional</span></label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
@@ -152,8 +154,8 @@
       <div class="finalize-section mb-2">
         <div class="finalize-section-title">Basic Info</div>
         <div class="wizard-grid compact">
-          <div id="wrapEmployeeName" class="wizard-field-span-3"><label class="form-label small mb-1">Employee Name <span class="field-hint-required">Required</span></label><input id="employeeName" class="form-control form-control-sm" required></div>
-          <div id="wrapDepartment" class="wizard-field-span-3"><label class="form-label small mb-1">Department <span class="field-hint-optional">Optional</span></label><input id="department" class="form-control form-control-sm"></div>
+          <div id="wrapEmployeeName" class="wizard-field-span-4"><label class="form-label small mb-1">Employee Name <span class="field-hint-required">Required</span></label><input id="employeeName" class="form-control form-control-sm" required></div>
+          <div id="wrapDepartment" class="wizard-field-span-2"><label class="form-label small mb-1">Department <span class="field-hint-optional">Optional</span></label><input id="department" class="form-control form-control-sm"></div>
           <div id="wrapEmployeeId" class="wizard-field-span-2"><label class="form-label small mb-1">Employee ID <span class="field-hint-optional">Optional</span></label><input id="employeeId" class="form-control form-control-sm"></div>
           <div id="wrapManager" class="wizard-field-span-2"><label class="form-label small mb-1">Manager <span class="field-hint-optional">Optional</span></label><input id="manager" class="form-control form-control-sm"></div>
           <div id="wrapManagerEmail" class="wizard-field-span-2"><label class="form-label small mb-1">Manager Email <span class="field-hint-optional">Optional</span></label><input id="managerEmail" type="email" class="form-control form-control-sm" placeholder="manager@company.com"></div>
@@ -163,11 +165,11 @@
       <div class="finalize-section">
         <div class="finalize-section-title">Report Details</div>
         <div class="wizard-grid compact">
-          <div class="wizard-field-span-8"><label class="form-label small mb-1">Title <span class="field-hint-required">Required</span></label><input id="title" class="form-control form-control-sm" required></div>
-          <div id="wrapProject" class="wizard-field-span-2"><label class="form-label small mb-1">Project <span class="field-hint-optional">Optional</span></label><input id="project" class="form-control form-control-sm"></div>
+          <div class="wizard-field-span-7"><label class="form-label small mb-1">Title <span class="field-hint-required">Required</span></label><input id="title" class="form-control form-control-sm" required></div>
+          <div id="wrapProject" class="wizard-field-span-3"><label class="form-label small mb-1">Project <span class="field-hint-optional">Optional</span></label><input id="project" class="form-control form-control-sm"></div>
           <div class="wizard-field-span-2"><label class="form-label small mb-1">Submission Date <span class="field-hint-optional">Optional</span></label><input id="submitDate" type="date" class="form-control form-control-sm"></div>
-          <div class="wizard-field-span-12"><label class="form-label small mb-1">Trip Purpose <span class="field-hint-optional">Optional</span></label><textarea id="tripPurpose" class="form-control form-control-sm" rows="3"></textarea></div>
-          <div class="wizard-field-span-12"><label class="form-label small mb-1">Notes <span class="field-hint-optional">Optional</span></label><textarea id="notes" class="form-control form-control-sm" rows="3"></textarea></div>
+          <div class="wizard-field-span-6"><label class="form-label small mb-1">Trip Purpose <span class="field-hint-optional">Optional</span></label><textarea id="tripPurpose" class="form-control form-control-sm" rows="4"></textarea></div>
+          <div class="wizard-field-span-6"><label class="form-label small mb-1">Notes <span class="field-hint-optional">Optional</span></label><textarea id="notes" class="form-control form-control-sm" rows="4"></textarea></div>
         </div>
       </div>
 

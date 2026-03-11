@@ -94,6 +94,7 @@
       border: 1px solid #fed7aa;
     }
     .save-badge {
+      appearance: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -106,6 +107,9 @@
       background: #f8fbff;
       color: #4b6385;
       white-space: nowrap;
+    }
+    .save-badge.clickable {
+      cursor: pointer;
     }
     .save-badge.saving {
       background: #eff6ff;
@@ -293,6 +297,7 @@
     function setRowSaveState(tr, state, text){
       if (!tr) return;
       tr.dataset.saveState = state || "";
+      tr.dataset.saveError = state === "error" ? "1" : "0";
       const el = tr.querySelector(".f-save-state");
       if (!el) return;
       const states = {
@@ -302,8 +307,21 @@
         error: { cls: "error", text: text || "Retry" },
       };
       const info = states[state] || { cls: "", text: text || "-" };
-      el.className = `save-badge ${info.cls}`.trim();
+      el.className = `save-badge ${info.cls} ${state === "error" ? "clickable" : ""}`.trim();
       el.textContent = info.text;
+      el.title = state === "error" ? "Click to retry save" : "";
+    }
+    async function retryRowSave(btn){
+      const tr = btn?.closest("tr[data-id]");
+      if (!tr || tr.dataset.saveError !== "1") return;
+      try {
+        await saveRowByTr(tr);
+        const fileName = String(tr.querySelector("td:nth-child(3)")?.textContent || "").trim();
+        setAutoSaveSummary(`Saved ${fileName || "row"}.`, "success");
+      } catch (err) {
+        setRowSaveState(tr, "error", "Retry");
+        setAutoSaveSummary(String(err?.message || "Retry failed."), "error");
+      }
     }
     function scheduleAutoSave(tr){
       const id = Number(tr?.dataset?.id || 0);
@@ -582,7 +600,7 @@
       if (autoSelectAll) selected = new Set(rowsAll.map((x)=>Number(x.id)));
       const dirtySet = getDirtySet();
       const body = document.getElementById("rows");
-      body.innerHTML = rowsAll.map((x)=>`<tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}"><td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td><td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td><td>${esc(x.orig_filename || "")}</td><td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td><td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="amount-num">${buildAmountCell(x)}</td><td>${buildCategoryCell(x)}</td><td class="f-required"></td><td><span class="save-badge f-save-state">${dirtySet.has(Number(x.id)) ? "Pending" : "Saved"}</span></td><td class="amount-num f-usd">$ 0</td><td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="col-optional">${esc(x.status || "-")}</td><td class="col-optional">${esc(x.lifecycle_state || "-")}</td></tr>`).join("") || `<tr><td colspan="13" class="text-muted small">No receipts.</td></tr>`;
+      body.innerHTML = rowsAll.map((x)=>`<tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}"><td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td><td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td><td>${esc(x.orig_filename || "")}</td><td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td><td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="amount-num">${buildAmountCell(x)}</td><td>${buildCategoryCell(x)}</td><td class="f-required"></td><td><button type="button" class="save-badge f-save-state" onclick="retryRowSave(this)">${dirtySet.has(Number(x.id)) ? "Pending" : "Saved"}</button></td><td class="amount-num f-usd">$ 0</td><td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="col-optional">${esc(x.status || "-")}</td><td class="col-optional">${esc(x.lifecycle_state || "-")}</td></tr>`).join("") || `<tr><td colspan="13" class="text-muted small">No receipts.</td></tr>`;
       if (autoSelectAll) wizardSet(KEY, [...selected]);
       body.querySelectorAll("tr[data-id]").forEach((tr) => setRowSaveState(tr, tr.dataset.dirty === "1" ? "dirty" : "saved"));
       renderDirtySummary(); updateUsdAmounts(); renderRequiredSummary(); renderSelectionSummary();
@@ -603,7 +621,31 @@
       renderSelectionSummary();
     }
 
-    async function saveAllDirty(){ const dirtyRows = [...document.querySelectorAll("#rows tr[data-dirty='1']")]; if (!dirtyRows.length) { document.getElementById("msg").textContent = "No dirty rows."; return; } setAutoSaveSummary(`Saving ${dirtyRows.length} row(s)...`); for (const tr of dirtyRows) await saveRowByTr(tr); document.getElementById("msg").textContent = `Saved ${dirtyRows.length} row(s).`; setAutoSaveSummary(`Saved ${dirtyRows.length} row(s).`, "success"); await loadRows(); }
+    async function saveAllDirty(){
+      const dirtyRows = [...document.querySelectorAll("#rows tr[data-dirty='1']")];
+      if (!dirtyRows.length) { document.getElementById("msg").textContent = "No dirty rows."; return true; }
+      let saved = 0;
+      let failed = 0;
+      setAutoSaveSummary(`Saving ${dirtyRows.length} row(s)...`);
+      for (const tr of dirtyRows) {
+        try {
+          await saveRowByTr(tr);
+          saved += 1;
+        } catch (_) {
+          failed += 1;
+          setRowSaveState(tr, "error", "Retry");
+        }
+      }
+      if (failed) {
+        document.getElementById("msg").textContent = `Saved ${saved} row(s). ${failed} need attention.`;
+        setAutoSaveSummary(`${failed} row(s) failed to save. Click Retry on the affected rows.`, "error");
+        return false;
+      }
+      document.getElementById("msg").textContent = `Saved ${saved} row(s).`;
+      setAutoSaveSummary(`Saved ${saved} row(s).`, "success");
+      await loadRows();
+      return true;
+    }
 
     function toggleAll(cb){ document.querySelectorAll(".sel").forEach(x=>x.checked=cb.checked); saveSelection(); }
     async function saveSelection(){ const ids = [...document.querySelectorAll(".sel:checked")].map(x=>Number(x.value)); wizardSet(KEY, ids); renderFxEditor(); saveFxState(); await ensureFxDefaults(); updateUsdAmounts(); document.getElementById("msg").textContent = "Selection saved."; }
@@ -701,7 +743,11 @@
       updateFxPolicyUi();
     }
     async function goNext(){
-      if (getDirtySet().size) { document.getElementById("msg").textContent = "Save all dirty rows first."; return; }
+      if (getDirtySet().size) {
+        document.getElementById("msg").textContent = "Saving recent changes before continuing...";
+        const ok = await saveAllDirty();
+        if (!ok || getDirtySet().size) return;
+      }
       await saveSelection();
       if (getFxRequirements().length) {
         alert("Date-based FX rates are missing. Click Fetch by Date before continuing.");
