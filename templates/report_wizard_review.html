@@ -239,6 +239,36 @@
       align-items: end;
       gap: .45rem;
     }
+    .review-fx-panel {
+      border: 1px solid #dbe6f3;
+      border-radius: 12px;
+      background: #fbfdff;
+      padding: .7rem .8rem;
+    }
+    .review-fx-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr);
+      gap: .75rem;
+      align-items: start;
+    }
+    .review-fx-title {
+      font-size: .74rem;
+      font-weight: 700;
+      color: #36507a;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: .45rem;
+    }
+    .review-fx-editor {
+      max-height: 220px;
+      overflow: auto;
+      padding-right: .2rem;
+    }
+    @media (max-width: 992px) {
+      .review-fx-grid {
+        grid-template-columns: 1fr;
+      }
+    }
     @media (max-width: 992px) {
       .review-toolbox {
         grid-template-columns: 1fr;
@@ -350,25 +380,30 @@
       </div>
 
       <div class="border-top pt-2 mt-2">
-        <div class="row g-2 align-items-end">
-          <div class="col-lg-3 col-md-6" id="fxPolicyWrap" style="display:none;">
-            <label class="form-label small mb-1">FX Policy</label>
-            <select id="fxRateMode" class="form-select form-select-sm" onchange="onRateModeChange()">
-              <option value="company_average">Company Average</option>
-              <option value="date_based">By Receipt Date</option>
-            </select>
-          </div>
-          <div class="col-lg-3 col-md-6" id="defaultFxWrap">
-            <label class="form-label small mb-1">Default FX (to USD)</label>
-            <input id="defaultFx" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1" oninput="saveFxState(); updateUsdAmounts();">
-          </div>
-          <div class="col-lg-6 col-md-12" id="dateFxWrap">
-            <label class="form-label small mb-1">Date-based FX Rates</label>
-            <div class="d-flex align-items-center gap-2 mb-1">
-              <button id="fetchByDateBtn" class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRatesByDate()">Fetch by Date</button>
-              <span class="small text-muted" id="fxUpdatedAt"></span>
+        <div class="review-fx-panel">
+          <div class="review-fx-title">FX Workspace</div>
+          <div class="review-fx-grid">
+            <div class="d-grid gap-2">
+              <div id="fxPolicyWrap" style="display:none;">
+                <label class="form-label small mb-1">FX Policy</label>
+                <select id="fxRateMode" class="form-select form-select-sm" onchange="onRateModeChange()">
+                  <option value="company_average">Company Average</option>
+                  <option value="date_based">By Receipt Date</option>
+                </select>
+              </div>
+              <div id="defaultFxWrap">
+                <label class="form-label small mb-1">Default FX (to USD)</label>
+                <input id="defaultFx" type="number" step="0.0001" min="0" class="form-control form-control-sm" value="1" oninput="saveFxState(); updateUsdAmounts();">
+              </div>
             </div>
-            <div id="fxEditor" class="small"></div>
+            <div id="dateFxWrap">
+              <label class="form-label small mb-1">Date-based FX Rates</label>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <button id="fetchByDateBtn" class="btn btn-sm btn-outline-primary" type="button" onclick="fetchRatesByDate()">Fetch by Date</button>
+                <span class="small text-muted" id="fxUpdatedAt"></span>
+              </div>
+              <div id="fxEditor" class="small review-fx-editor"></div>
+            </div>
           </div>
         </div>
       </div>

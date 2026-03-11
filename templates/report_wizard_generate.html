@@ -44,6 +44,24 @@
       gap: .5rem;
       margin-top: .75rem;
     }
+    .report-success-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .45rem;
+      margin-top: .7rem;
+    }
+    .report-success-chip {
+      border: 1px solid #bbf7d0;
+      background: rgba(255,255,255,.72);
+      border-radius: 10px;
+      padding: .45rem .55rem;
+      font-size: .76rem;
+    }
+    .report-success-chip .label {
+      display: block;
+      color: #64748b;
+      margin-bottom: .1rem;
+    }
     .profile-context {
       border: 1px solid #dbe6f3;
       background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
@@ -277,14 +295,20 @@
       font-size: .76rem;
       color: #64748b;
     }
+    .finalize-action-bar.success-linked {
+      border-top-color: #86efac;
+      box-shadow: 0 -8px 20px rgba(22, 163, 74, .08);
+    }
     @media (max-width: 1200px) {
       .wizard-field-span-8 { grid-column: span 6; }
       .finalize-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .finalize-checklist-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .report-success-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 768px) {
       .finalize-kpi-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
       .finalize-checklist-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+      .report-success-summary { grid-template-columns: repeat(1, minmax(0, 1fr)); }
     }
   </style>
 </head>
@@ -1067,7 +1091,9 @@
       localStorage.removeItem(IDS_KEY);
       localStorage.removeItem(DIRTY_KEY);
       const banner = document.getElementById("successBanner");
+      const actionBar = document.querySelector(".finalize-action-bar");
       banner.style.display = "";
+      if (actionBar) actionBar.classList.add("success-linked");
       banner.innerHTML = `
         <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
           <div>
@@ -1087,6 +1113,11 @@
               <span class="fw-semibold">Base Currency:</span> ${esc(body.currency || "USD")}
               <span class="mx-2 text-muted">|</span>
               <span class="fw-semibold">Estimated USD:</span> ${esc(formatUsd(summary.usdTotal))}
+            </div>
+            <div class="report-success-summary">
+              <div class="report-success-chip"><span class="label">Download</span><span>Use the direct file action or Reports history.</span></div>
+              <div class="report-success-chip"><span class="label">Next step</span><span>Check the exported template before sharing or submitting.</span></div>
+              <div class="report-success-chip"><span class="label">Workflow</span><span>The sticky action bar stays visible if you want one more draft edit.</span></div>
             </div>
           </div>
           <span class="badge text-bg-success">Ready</span>

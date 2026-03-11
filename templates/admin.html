@@ -2101,6 +2101,10 @@ async function loadTemplatePreview() {
     `;
     return;
   }
+  const compactSummary = `
+    ${previewSummary}
+    <div class="small text-muted mb-2">Showing the first rows only. Use this area to verify layout direction quickly before rollout.</div>
+  `;
   area.innerHTML = sheets.map(s => {
     const rows = Array.isArray(s.rows) ? s.rows : [];
     if (!rows.length) {
@@ -2111,7 +2115,7 @@ async function loadTemplatePreview() {
     const tbody = rows.slice(0, 8).map(r => `<tr>${Array.from({length: cols}, (_, i) => `<td class="small">${escHtml((r && r[i]) || "")}</td>`).join("")}</tr>`).join("");
     return `<div class="mb-3"><div class="small fw-semibold mb-1">${escHtml(s.name || "Sheet")}</div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
   }).join("");
-  area.innerHTML = previewSummary + area.innerHTML;
+  area.innerHTML = compactSummary + area.innerHTML;
 }
 function handleTplFile(files) {
   selectedTplFile = files[0] || null;
