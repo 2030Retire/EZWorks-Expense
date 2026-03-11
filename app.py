@@ -266,6 +266,22 @@ DEFAULT_CONFIG = {
         {"id": "expense_report", "label": "경비보고서", "enabled": True},
         {"id": "trip_expense", "label": "출장비 정산서", "enabled": True},
     ],
+    "document_presets": {
+        "expense_report": {
+            "suggested_title_domestic": "Expense Report",
+            "suggested_title_international": "International Expense Report",
+            "trip_purpose_placeholder": "Business purpose or expense context",
+            "notes_placeholder": "Additional approval notes or accounting comments",
+            "hint": "Standard expense reports focus on accurate categorization and clean approval notes.",
+        },
+        "trip_expense": {
+            "suggested_title_domestic": "Domestic Trip Expense",
+            "suggested_title_international": "International Trip Expense",
+            "trip_purpose_placeholder": "Destination, business objective, attendees, or trip summary",
+            "notes_placeholder": "Exceptions, reimbursement comments, travel policy notes",
+            "hint": "Trip expense reports usually need a clearer trip purpose and travel context before approval.",
+        },
+    },
     "login_page": {
         "interval_sec": 8,
         "slides": [],
@@ -345,6 +361,8 @@ def _merge_with_default(data: dict) -> dict:
         merged["expense_types"] = data["expense_types"]
     if "document_types" in data and isinstance(data["document_types"], list):
         merged["document_types"] = data["document_types"]
+    if "document_presets" in data and isinstance(data["document_presets"], dict):
+        merged["document_presets"].update(data["document_presets"])
     return merged
 
 
@@ -2865,6 +2883,10 @@ def admin_save_config():
         ok, err = _require_any_permission(host, ["policy.manage"])
         if not ok:
             return jsonify({"error": err}), 403
+    if "document_presets" in body:
+        ok, err = _require_any_permission(host, ["policy.manage"])
+        if not ok:
+            return jsonify({"error": err}), 403
     cfg  = load_config(host)
 
     # company
@@ -2975,6 +2997,22 @@ def admin_save_config():
             })
         if doc_types:
             cfg["document_types"] = doc_types
+
+    # document_presets
+    if "document_presets" in body and isinstance(body["document_presets"], dict):
+        presets = {}
+        for raw_id, raw_preset in body["document_presets"].items():
+            did = str(raw_id or "").strip().lower().replace(" ", "_")
+            if not did or not isinstance(raw_preset, dict):
+                continue
+            presets[did[:40]] = {
+                "suggested_title_domestic": str(raw_preset.get("suggested_title_domestic") or "").strip()[:120],
+                "suggested_title_international": str(raw_preset.get("suggested_title_international") or "").strip()[:120],
+                "trip_purpose_placeholder": str(raw_preset.get("trip_purpose_placeholder") or "").strip()[:180],
+                "notes_placeholder": str(raw_preset.get("notes_placeholder") or "").strip()[:180],
+                "hint": str(raw_preset.get("hint") or "").strip()[:240],
+            }
+        cfg["document_presets"] = presets
 
     save_config(cfg, host)
     return jsonify({"status": "ok", "config": cfg})

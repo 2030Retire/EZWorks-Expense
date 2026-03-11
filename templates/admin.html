@@ -41,6 +41,11 @@
     .template-line-label { font-weight:600; color:#334155; }
     .template-line-meta { text-align:right; font-size:.78rem; color:#64748b; }
     .template-upload-helper { border:1px dashed #c9dbf7; border-radius:12px; background:#f8fbff; padding:.85rem 1rem; }
+    .doc-type-card { border:1px solid #dbe6f3; border-radius:10px; background:#fbfdff; padding:.7rem .8rem; margin-bottom:.75rem; }
+    .doc-type-main { display:flex; align-items:center; gap:.5rem; }
+    .doc-preset-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:.65rem; margin-top:.75rem; }
+    .doc-preset-grid textarea { min-height:66px; resize:vertical; }
+    .doc-preset-help { font-size:.78rem; color:#64748b; margin-top:.4rem; }
   </style>
 </head>
 <body class="app-shell">
@@ -255,7 +260,7 @@
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
           <div class="fw-semibold small">Document Types</div>
-          <div class="small text-muted">These choices appear in Finalize and can be mapped by tenant templates.</div>
+          <div class="small text-muted">These choices appear in Finalize, can be mapped by tenant templates, and can carry document-specific title/placeholders.</div>
         </div>
         <button class="btn btn-sm btn-outline-primary" onclick="addDocumentType()">
           <i class="fa-solid fa-plus me-1"></i>Add Document Type
@@ -966,19 +971,48 @@ function renderDocumentTypes() {
   const items = Array.isArray(cfg?.document_types) && cfg.document_types.length
     ? cfg.document_types
     : [{ id: "expense_report", label: "Expense Report", enabled: true }];
-  container.innerHTML = items.map((t) => `
-    <div class="type-row">
-      <i class="fa-solid fa-grip-vertical drag-handle" style="opacity:.35;"></i>
-      <div class="form-check form-switch mb-0">
-        <input class="form-check-input doc-enabled" type="checkbox" ${t.enabled !== false ? "checked" : ""}>
+  const presets = cfg?.document_presets || {};
+  container.innerHTML = items.map((t) => {
+    const preset = presets[t.id] || {};
+    return `
+    <div class="doc-type-card">
+      <div class="type-row doc-type-main">
+        <i class="fa-solid fa-grip-vertical drag-handle" style="opacity:.35;"></i>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input doc-enabled" type="checkbox" ${t.enabled !== false ? "checked" : ""}>
+        </div>
+        <input type="text" class="form-control form-control-sm doc-label" value="${escHtml(t.label || "")}" placeholder="Display label" style="max-width:260px;">
+        <input type="text" class="form-control form-control-sm doc-id" value="${escHtml(t.id || "")}" placeholder="document id" style="max-width:180px;">
+        <button class="del-btn" title="Remove" onclick="this.closest('.doc-type-card').remove()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
-      <input type="text" class="form-control form-control-sm doc-label" value="${escHtml(t.label || "")}" placeholder="Display label" style="max-width:260px;">
-      <input type="text" class="form-control form-control-sm doc-id" value="${escHtml(t.id || "")}" placeholder="document id" style="max-width:180px;">
-      <button class="del-btn" title="Remove" onclick="this.closest('.type-row').remove()">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
+      <div class="doc-preset-grid">
+        <div>
+          <label class="form-label small fw-semibold mb-1">Suggested Title (Domestic)</label>
+          <input type="text" class="form-control form-control-sm doc-preset-domestic" value="${escHtml(preset.suggested_title_domestic || "")}" placeholder="Expense Report">
+        </div>
+        <div>
+          <label class="form-label small fw-semibold mb-1">Suggested Title (International)</label>
+          <input type="text" class="form-control form-control-sm doc-preset-international" value="${escHtml(preset.suggested_title_international || "")}" placeholder="International Expense Report">
+        </div>
+        <div>
+          <label class="form-label small fw-semibold mb-1">Trip Purpose Placeholder</label>
+          <input type="text" class="form-control form-control-sm doc-preset-trip" value="${escHtml(preset.trip_purpose_placeholder || "")}" placeholder="Business purpose or trip summary">
+        </div>
+        <div>
+          <label class="form-label small fw-semibold mb-1">Notes Placeholder</label>
+          <input type="text" class="form-control form-control-sm doc-preset-notes" value="${escHtml(preset.notes_placeholder || "")}" placeholder="Approval notes or accounting comments">
+        </div>
+        <div style="grid-column:1 / -1;">
+          <label class="form-label small fw-semibold mb-1">Finalize Guidance</label>
+          <textarea class="form-control form-control-sm doc-preset-hint" placeholder="Explain what this document type needs before approval.">${escHtml(preset.hint || "")}</textarea>
+        </div>
+      </div>
+      <div class="doc-preset-help">These values drive Finalize suggested title, helper copy, and field placeholders for this document type.</div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 function addDocumentType() {
   cfg.document_types = cfg.document_types || [];
@@ -1013,15 +1047,26 @@ function renderTemplateDocumentTypeOptions() {
 async function saveAccountingPolicy() {
   const fx_policy = String(document.getElementById("accountingFxPolicy")?.value || "date_based").toLowerCase();
   const company_average_fx = Number(document.getElementById("companyAverageFx")?.value || 1);
-  const document_types = [...document.querySelectorAll("#documentTypesList .type-row")].map((row) => {
-    const id = String(row.querySelector(".doc-id")?.value || "").trim().toLowerCase().replace(/\s+/g, "_");
-    const label = String(row.querySelector(".doc-label")?.value || "").trim();
-    const enabled = !!row.querySelector(".doc-enabled")?.checked;
+  const document_presets = {};
+  const document_types = [...document.querySelectorAll("#documentTypesList .doc-type-card")].map((card) => {
+    const id = String(card.querySelector(".doc-id")?.value || "").trim().toLowerCase().replace(/\s+/g, "_");
+    const label = String(card.querySelector(".doc-label")?.value || "").trim();
+    const enabled = !!card.querySelector(".doc-enabled")?.checked;
+    if (id) {
+      document_presets[id] = {
+        suggested_title_domestic: String(card.querySelector(".doc-preset-domestic")?.value || "").trim(),
+        suggested_title_international: String(card.querySelector(".doc-preset-international")?.value || "").trim(),
+        trip_purpose_placeholder: String(card.querySelector(".doc-preset-trip")?.value || "").trim(),
+        notes_placeholder: String(card.querySelector(".doc-preset-notes")?.value || "").trim(),
+        hint: String(card.querySelector(".doc-preset-hint")?.value || "").trim(),
+      };
+    }
     return { id, label, enabled };
   }).filter((x) => x.id && x.label);
   const res = await postJSON("/admin/config", {
     accounting: { fx_policy, company_average_fx },
     document_types,
+    document_presets,
   });
   showMsg("accountingMsg", res);
   if (res.ok) {

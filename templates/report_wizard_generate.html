@@ -360,17 +360,27 @@
       const docId = String(sel?.selectedOptions?.[0]?.dataset?.docId || "").trim().toLowerCase();
       const docLabel = String(sel?.value || "").trim();
       const mode = String(document.getElementById("mode")?.value || "domestic").trim().toLowerCase();
-      const modeLabel = mode === "international" ? "International" : "Domestic";
+      const modeKey = mode === "international" ? "suggested_title_international" : "suggested_title_domestic";
+      const configured = (cfg?.document_presets && docId) ? (cfg.document_presets[docId] || {}) : {};
+      const fallbackModeLabel = mode === "international" ? "International" : "Domestic";
+      if (configured && Object.keys(configured).length) {
+        return {
+          title: String(configured[modeKey] || configured.suggested_title_domestic || docLabel || "").trim(),
+          tripPurposePlaceholder: String(configured.trip_purpose_placeholder || "Business purpose or expense context").trim(),
+          notesPlaceholder: String(configured.notes_placeholder || "Additional approval notes or accounting comments").trim(),
+          hint: String(configured.hint || "Use the configured guidance for this document type before final approval.").trim(),
+        };
+      }
       if (docId === "trip_expense") {
         return {
-          title: `${modeLabel} Trip Expense`,
+          title: `${fallbackModeLabel} Trip Expense`,
           tripPurposePlaceholder: "Destination, business objective, attendees, or trip summary",
           notesPlaceholder: "Exceptions, reimbursement comments, travel policy notes",
           hint: "Trip expense reports usually need a clearer trip purpose and travel context before approval.",
         };
       }
       return {
-        title: mode === "international" ? `${modeLabel} Expense Report` : "Expense Report",
+        title: mode === "international" ? `${fallbackModeLabel} Expense Report` : "Expense Report",
         tripPurposePlaceholder: "Business purpose or expense context",
         notesPlaceholder: "Additional approval notes or accounting comments",
         hint: "Standard expense reports focus on accurate categorization and clean approval notes.",
