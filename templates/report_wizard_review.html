@@ -213,6 +213,37 @@
       background: #eff6ff;
       color: #1d4ed8;
     }
+    .review-toolbox {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: .55rem;
+      margin-bottom: .55rem;
+    }
+    .review-toolbox-group {
+      border: 1px solid #dbe6f3;
+      border-radius: 12px;
+      background: #fbfdff;
+      padding: .6rem .7rem;
+    }
+    .review-toolbox-label {
+      font-size: .73rem;
+      font-weight: 700;
+      color: #36507a;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: .45rem;
+    }
+    .review-toolbox-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: .45rem;
+    }
+    @media (max-width: 992px) {
+      .review-toolbox {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -250,37 +281,47 @@
         <div class="col-xl-6 col-md-12"><div class="review-kpi-card readonly"><div class="kpi-label">Category Summary</div><div class="review-summary-list" id="sumByCategory">-</div><div class="review-kpi-hint">Count and amount by category</div></div></div>
       </div>
 
-      <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
-        <div>
-          <label class="form-label small mb-1">Apply Currency</label>
-          <select id="bulkCurrency" class="form-select form-select-sm">
-            <option value="USD">USD</option>
-            <option value="KRW">KRW</option>
-            <option value="EUR">EUR</option>
-            <option value="JPY">JPY</option>
-            <option value="CNY">CNY</option>
-            <option value="GBP">GBP</option>
-          </select>
+      <div class="review-toolbox">
+        <div class="review-toolbox-group">
+          <div class="review-toolbox-label">Bulk Currency</div>
+          <div class="review-toolbox-row">
+            <div>
+              <label class="form-label small mb-1">Apply Currency</label>
+              <select id="bulkCurrency" class="form-select form-select-sm">
+                <option value="USD">USD</option>
+                <option value="KRW">KRW</option>
+                <option value="EUR">EUR</option>
+                <option value="JPY">JPY</option>
+                <option value="CNY">CNY</option>
+                <option value="GBP">GBP</option>
+              </select>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applyCurrencyBulk('selected')">Apply to selected</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applyCurrencyBulk('all')">Apply to all</button>
+          </div>
         </div>
-        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applyCurrencyBulk('selected')">Apply to selected</button>
-        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applyCurrencyBulk('all')">Apply to all</button>
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" id="attentionToggle" onchange="toggleAttentionMode()">
-          <label class="form-check-label small" for="attentionToggle">Focus action-needed rows</label>
-        </div>
-        <div id="attentionReasonWrap" style="display:none;">
-          <label class="form-label small mb-1">Action filter</label>
-          <select id="attentionReason" class="form-select form-select-sm attention-filter-select" onchange="applyAttentionFilter()">
-            <option value="all">All attention rows</option>
-            <option value="required">Missing required</option>
-            <option value="fx">FX pending</option>
-            <option value="retry">Save retry</option>
-            <option value="dirty">Unsaved edits</option>
-          </select>
-        </div>
-        <div class="form-check form-switch ms-auto">
-          <input class="form-check-input" type="checkbox" id="compactToggle" onchange="toggleCompactMode()">
-          <label class="form-check-label small" for="compactToggle">Compact table</label>
+        <div class="review-toolbox-group">
+          <div class="review-toolbox-label">View Options</div>
+          <div class="review-toolbox-row">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="attentionToggle" onchange="toggleAttentionMode()">
+              <label class="form-check-label small" for="attentionToggle">Focus action-needed rows</label>
+            </div>
+            <div id="attentionReasonWrap" style="display:none;">
+              <label class="form-label small mb-1">Action filter</label>
+              <select id="attentionReason" class="form-select form-select-sm attention-filter-select" onchange="applyAttentionFilter()">
+                <option value="all">All attention rows</option>
+                <option value="required">Missing required</option>
+                <option value="fx">FX pending</option>
+                <option value="retry">Save retry</option>
+                <option value="dirty">Unsaved edits</option>
+              </select>
+            </div>
+            <div class="form-check form-switch ms-auto">
+              <input class="form-check-input" type="checkbox" id="compactToggle" onchange="toggleCompactMode()">
+              <label class="form-check-label small" for="compactToggle">Compact table</label>
+            </div>
+          </div>
         </div>
       </div>
       <div id="attentionFilterHint" class="small mb-2" style="display:none;"></div>

@@ -40,6 +40,7 @@
 - Finalize 상단 패널은 길게 늘어지기보다, readiness 요약과 receipt/period/review sync 상태를 압축해서 보여주는 방향을 유지한다.
 - Finalize의 설명 문구와 카드/섹션 간격은 최대한 압축해, 첫 화면에서 핵심 입력 필드가 바로 보이도록 유지한다.
 - Finalize의 저장/생성 액션은 스크롤 중에도 찾기 쉽도록 하단 액션 바를 유지하는 방향이 좋다.
+- Finalize 내부 필드 폭은 같은 섹션 안에서 `핵심 입력은 넓게, 보조 입력은 좁게` 배치해 시선 흐름을 안정적으로 유지한다.
 - Review의 `Still missing`과 `Finalize Inputs`는 Finalize 해당 필드로 바로 이동할 수 있어야 한다.
 
 ## Review UX 원칙
@@ -49,12 +50,14 @@
 - `FX Pending`도 단순 카운트가 아니라 FX 편집 영역으로 바로 이동하는 액션 카드로 유지한다.
 - `Required Fixes`, `Unsaved Edits`도 KPI 카드에서 바로 attention filter를 켜는 액션 카드로 유지한다.
 - `Focus action-needed rows`는 required/fx/retry/dirty 기준으로 예외행만 빠르게 보는 운영 도구다.
+- Review 상단 편집 도구는 `Bulk Currency`와 `View Options`처럼 목적별 그룹으로 묶어, 화면이 넓어져도 흩어져 보이지 않게 유지한다.
 
 ## Admin 운영 원칙
 - Accounting의 Document Type 카드는 단순 설정폼이 아니라, 템플릿 override 유무와 Finalize 정책 준비상태를 함께 보여주는 운영 카드로 유지한다.
 - Templates 탭의 상세 매핑표를 보기 전에, Accounting 카드 단계에서도 각 문서 타입의 준비 정도를 빠르게 판단할 수 있어야 한다.
 - Accounting는 `quick readiness`, Templates는 `file-level detail and preview` 역할로 구분해, 같은 정보를 두 탭에서 과하게 반복하지 않도록 유지한다.
 - Admin 문구는 `정책 설정 -> 파일 업로드/비교` 순서를 짧게 안내해, 운영자가 탭 역할을 바로 이해하도록 유지한다.
+- Templates 탭 overview는 운영 순서를 짧은 체크포인트 형태로 보여줘, 관리자가 어떤 순서로 점검해야 하는지 바로 이해할 수 있게 유지한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.
