@@ -67,6 +67,10 @@
 - Templates preview는 상세 비교 전에도 `무엇을 보고 있는지`와 `빠른 확인 포인트`를 먼저 보여줘, 긴 표보다 맥락을 먼저 읽게 유지한다.
 - Templates preview에는 현재 `mode / base or document override / scope`를 chip 형태로 먼저 보여줘, 표를 읽기 전에 지금 보고 있는 템플릿의 위치를 바로 이해하게 유지한다.
 - Templates preview 비교 화면은 표 자체보다 먼저 `sheet 수 / preview 범위 / diff cell 규모`를 요약해, 운영자가 롤아웃 전 위험도를 빠르게 판단하게 유지한다.
+- Templates preview compare 모드는 `resolved -> base` 읽기 순서를 짧게 안내해, 긴 비교표를 보기 전에 해석 규칙부터 이해하게 유지한다.
+
+## 필드 이동 UX 원칙
+- Review나 Finalize checklist에서 특정 입력칸으로 이동시키는 경우, 도착한 필드를 잠깐 강조해 사용자가 현재 포커스 위치를 즉시 인지하게 유지한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.

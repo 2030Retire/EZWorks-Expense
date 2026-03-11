@@ -2087,6 +2087,11 @@ async function loadTemplatePreview() {
         <span class="template-chip">Rows previewed ${Math.max(...(Array.isArray(data.sheets) ? data.sheets.map((s) => Array.isArray(s.rows) ? Math.min(s.rows.length, 8) : 0) : [0]))}</span>
         ${documentType && baseData ? `<span class="template-chip">Diff cells ${effectivePreview.diffCount}</span>` : ``}
       </div>
+      <div class="small text-muted mt-2">
+        ${documentType && baseData
+          ? `Read left to right: resolved override first, then base comparison. Highlighted cells on the left are the effective differences.`
+          : `Use this quick preview to confirm base layout direction before rollout. Only the first rows are shown here.`}
+      </div>
     </div>
   `;
   if (documentType && baseData) {

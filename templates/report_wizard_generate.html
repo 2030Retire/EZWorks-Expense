@@ -323,6 +323,25 @@
       border-top-color: #86efac;
       box-shadow: 0 -8px 20px rgba(22, 163, 74, .08);
     }
+    .finalize-focus-flash {
+      animation: finalizeFocusFlash 1.45s ease;
+      box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .16);
+      border-radius: 10px;
+    }
+    @keyframes finalizeFocusFlash {
+      0% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+        background: transparent;
+      }
+      18% {
+        box-shadow: 0 0 0 .24rem rgba(37, 99, 235, .20);
+        background: rgba(219, 234, 254, .58);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+        background: transparent;
+      }
+    }
     @media (max-width: 1200px) {
       .wizard-field-span-8 { grid-column: span 6; }
       .finalize-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -450,6 +469,7 @@
       title: "title",
       document_type: "documentType",
     };
+    let lastFocusedFinalizeField = null;
     let visibleFieldState = {
       employee_name: true,
       department: true,
@@ -924,8 +944,22 @@
       if (!targetId) return false;
       const el = document.getElementById(targetId);
       if (!el || el.closest('[style*="display:none"]')) return false;
+      // 이동 직후 필드를 잠깐 강조해 사용자가 도착 위치를 즉시 인지하게 한다.
+      const focusShell = el.closest(".wizard-field-span-8, .wizard-field-span-6, .wizard-field-span-4, .wizard-field-span-3, .wizard-field-span-12") || el;
+      if (lastFocusedFinalizeField && lastFocusedFinalizeField !== focusShell) {
+        lastFocusedFinalizeField.classList.remove("finalize-focus-flash");
+      }
+      focusShell.classList.remove("finalize-focus-flash");
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       try { el.focus({ preventScroll: true }); } catch(_) { try { el.focus(); } catch(__){} }
+      window.setTimeout(() => {
+        focusShell.classList.add("finalize-focus-flash");
+        lastFocusedFinalizeField = focusShell;
+      }, 40);
+      window.setTimeout(() => {
+        focusShell.classList.remove("finalize-focus-flash");
+        if (lastFocusedFinalizeField === focusShell) lastFocusedFinalizeField = null;
+      }, 1600);
       return true;
     }
     function applyRequestedFocus(){
