@@ -46,6 +46,8 @@
     .doc-preset-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:.65rem; margin-top:.75rem; }
     .doc-preset-grid textarea { min-height:66px; resize:vertical; }
     .doc-preset-help { font-size:.78rem; color:#64748b; margin-top:.4rem; }
+    .doc-required-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:.35rem .65rem; margin-top:.2rem; }
+    .doc-required-item { display:flex; align-items:center; gap:.4rem; font-size:.82rem; color:#334155; }
   </style>
 </head>
 <body class="app-shell">
@@ -972,8 +974,22 @@ function renderDocumentTypes() {
     ? cfg.document_types
     : [{ id: "expense_report", label: "Expense Report", enabled: true }];
   const presets = cfg?.document_presets || {};
+  const requiredFieldDefs = [
+    ["employee_name", "Employee Name"],
+    ["department", "Department"],
+    ["employee_id", "Employee ID"],
+    ["manager", "Manager"],
+    ["manager_email", "Manager Email"],
+    ["project", "Project / Cost Center"],
+    ["period", "Expense Period"],
+    ["submission_date", "Submission Date"],
+    ["trip_purpose", "Trip Purpose"],
+    ["notes", "Notes"],
+    ["title", "Title"],
+  ];
   container.innerHTML = items.map((t) => {
     const preset = presets[t.id] || {};
+    const requiredFields = new Set(Array.isArray(preset.required_fields) ? preset.required_fields : []);
     return `
     <div class="doc-type-card">
       <div class="type-row doc-type-main">
@@ -1007,6 +1023,17 @@ function renderDocumentTypes() {
         <div style="grid-column:1 / -1;">
           <label class="form-label small fw-semibold mb-1">Finalize Guidance</label>
           <textarea class="form-control form-control-sm doc-preset-hint" placeholder="Explain what this document type needs before approval.">${escHtml(preset.hint || "")}</textarea>
+        </div>
+        <div style="grid-column:1 / -1;">
+          <label class="form-label small fw-semibold mb-1">Required Fields in Finalize</label>
+          <div class="doc-required-grid">
+            ${requiredFieldDefs.map(([key, label]) => `
+              <label class="doc-required-item">
+                <input type="checkbox" class="form-check-input doc-required-field" value="${escHtml(key)}" ${requiredFields.has(key) ? "checked" : ""}>
+                <span>${escHtml(label)}</span>
+              </label>
+            `).join("")}
+          </div>
         </div>
       </div>
       <div class="doc-preset-help">These values drive Finalize suggested title, helper copy, and field placeholders for this document type.</div>
@@ -1059,6 +1086,7 @@ async function saveAccountingPolicy() {
         trip_purpose_placeholder: String(card.querySelector(".doc-preset-trip")?.value || "").trim(),
         notes_placeholder: String(card.querySelector(".doc-preset-notes")?.value || "").trim(),
         hint: String(card.querySelector(".doc-preset-hint")?.value || "").trim(),
+        required_fields: [...card.querySelectorAll(".doc-required-field:checked")].map((el) => String(el.value || "").trim()).filter(Boolean),
       };
     }
     return { id, label, enabled };

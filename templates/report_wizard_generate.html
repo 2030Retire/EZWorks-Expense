@@ -244,6 +244,20 @@
     let cfg = {};
     let profileMeta = {};
     let lastPresetApplied = { title: "", tripPurpose: "", notes: "" };
+    const requiredFieldLabelMap = {
+      employee_name: "Employee Name",
+      department: "Department",
+      employee_id: "Employee ID",
+      manager: "Manager",
+      manager_email: "Manager Email",
+      project: "Project",
+      period: "Expense Period",
+      submission_date: "Submission Date",
+      trip_purpose: "Trip Purpose",
+      notes: "Notes",
+      title: "Title",
+      document_type: "Document Type",
+    };
     let visibleFieldState = {
       employee_name: true,
       department: true,
@@ -429,6 +443,7 @@
       lastPresetApplied = { title: preset.title || docType, tripPurpose: "", notes: "" };
       presetNote.style.display = "";
       presetNote.innerHTML = `<span class="fw-semibold">${esc(docType || "Document type")}</span> preset: ${esc(preset.hint)}<span class="d-block mt-1">Suggested title: <span class="fw-semibold">${esc(preset.title || docType || "Report")}</span></span>`;
+      syncRequiredBadges();
     }
 
     async function loadSelectedSummary(){
@@ -479,6 +494,43 @@
       if (!el) return;
       el.style.display = visible ? "" : "none";
       el.textContent = text;
+    }
+    function getActiveRequiredKeys(){
+      const sel = document.getElementById("documentType");
+      const docId = String(sel?.selectedOptions?.[0]?.dataset?.docId || "").trim().toLowerCase();
+      const configured = (cfg?.document_presets && docId) ? (cfg.document_presets[docId] || {}) : {};
+      const required = new Set(["document_type"]);
+      const values = Array.isArray(configured.required_fields) && configured.required_fields.length
+        ? configured.required_fields
+        : ["employee_name", "title"];
+      values.forEach((x) => required.add(String(x || "").trim().toLowerCase()));
+      return required;
+    }
+    function syncRequiredBadges(){
+      const required = getActiveRequiredKeys();
+      const mapping = {
+        employee_name: "wrapEmployeeName",
+        department: "wrapDepartment",
+        employee_id: "wrapEmployeeId",
+        manager: "wrapManager",
+        manager_email: "wrapManagerEmail",
+        project: "wrapProject",
+        period: "wrapPeriodFrom",
+        submission_date: "submitDate",
+        trip_purpose: "tripPurpose",
+        notes: "notes",
+        title: "title",
+        document_type: "documentType",
+      };
+      Object.entries(mapping).forEach(([key, id]) => {
+        const el = document.getElementById(id);
+        const label = el?.closest?.("div")?.querySelector?.("label");
+        const badge = label?.querySelector?.(".field-hint-required, .field-hint-optional");
+        if (!badge) return;
+        const isRequired = required.has(key);
+        badge.className = isRequired ? "field-hint-required" : "field-hint-optional";
+        badge.textContent = isRequired ? "Required" : "Optional";
+      });
     }
     function renderProfileFieldBadges(){
       setBadge("badgeEmployeeName", visibleFieldState.employee_name && !!profileMeta.name);
@@ -597,6 +649,7 @@
       setVisible("wrapPeriodTo", periodEnabled);
       renderProfileFieldBadges();
       renderProfileContext();
+      syncRequiredBadges();
     }
 
     function setInvalid(el, flag){
@@ -606,23 +659,50 @@
     }
     function getMissingRequiredFields(){
       const missing = [];
-      const employeeWrap = document.getElementById("wrapEmployeeName");
-      const employeeEl = document.getElementById("employeeName");
-      const titleEl = document.getElementById("title");
-      const documentTypeEl = document.getElementById("documentType");
-      const employeeVisible = employeeWrap?.style.display !== "none";
-      if (employeeVisible && !String(employeeEl?.value || "").trim()) missing.push({ el: employeeEl, label: "Employee Name" });
-      if (!String(titleEl?.value || "").trim()) missing.push({ el: titleEl, label: "Title" });
-      if (!String(documentTypeEl?.value || "").trim()) missing.push({ el: documentTypeEl, label: "Document Type" });
+      const required = getActiveRequiredKeys();
+      const checks = [
+        ["employee_name", document.getElementById("employeeName"), visibleFieldState.employee_name],
+        ["department", document.getElementById("department"), visibleFieldState.department],
+        ["employee_id", document.getElementById("employeeId"), visibleFieldState.employee_id],
+        ["manager", document.getElementById("manager"), visibleFieldState.manager],
+        ["manager_email", document.getElementById("managerEmail"), visibleFieldState.manager],
+        ["project", document.getElementById("project"), visibleFieldState.project],
+        ["title", document.getElementById("title"), true],
+        ["document_type", document.getElementById("documentType"), true],
+        ["submission_date", document.getElementById("submitDate"), true],
+        ["trip_purpose", document.getElementById("tripPurpose"), true],
+        ["notes", document.getElementById("notes"), true],
+      ];
+      checks.forEach(([key, el, visible]) => {
+        if (!required.has(key) || !visible) return;
+        if (!String(el?.value || "").trim()) missing.push({ el, label: requiredFieldLabelMap[key] || key });
+      });
+      if (required.has("period") && visibleFieldState.period) {
+        const fromEl = document.getElementById("periodFrom");
+        const toEl = document.getElementById("periodTo");
+        if (!String(fromEl?.value || "").trim() || !String(toEl?.value || "").trim()) {
+          missing.push({ el: fromEl, label: requiredFieldLabelMap.period });
+        }
+      }
       return missing;
     }
     function renderRequiredSummary(){
       const wrap = document.getElementById("requiredSummaryPanel");
       if (!wrap) return;
       const missing = getMissingRequiredFields();
-      setInvalid(document.getElementById("employeeName"), missing.some((x) => x.label === "Employee Name"));
-      setInvalid(document.getElementById("title"), missing.some((x) => x.label === "Title"));
-      setInvalid(document.getElementById("documentType"), missing.some((x) => x.label === "Document Type"));
+      setInvalid(document.getElementById("employeeName"), missing.some((x) => x.label === requiredFieldLabelMap.employee_name));
+      setInvalid(document.getElementById("department"), missing.some((x) => x.label === requiredFieldLabelMap.department));
+      setInvalid(document.getElementById("employeeId"), missing.some((x) => x.label === requiredFieldLabelMap.employee_id));
+      setInvalid(document.getElementById("manager"), missing.some((x) => x.label === requiredFieldLabelMap.manager));
+      setInvalid(document.getElementById("managerEmail"), missing.some((x) => x.label === requiredFieldLabelMap.manager_email));
+      setInvalid(document.getElementById("project"), missing.some((x) => x.label === requiredFieldLabelMap.project));
+      setInvalid(document.getElementById("periodFrom"), missing.some((x) => x.label === requiredFieldLabelMap.period));
+      setInvalid(document.getElementById("periodTo"), missing.some((x) => x.label === requiredFieldLabelMap.period));
+      setInvalid(document.getElementById("submitDate"), missing.some((x) => x.label === requiredFieldLabelMap.submission_date));
+      setInvalid(document.getElementById("tripPurpose"), missing.some((x) => x.label === requiredFieldLabelMap.trip_purpose));
+      setInvalid(document.getElementById("notes"), missing.some((x) => x.label === requiredFieldLabelMap.notes));
+      setInvalid(document.getElementById("title"), missing.some((x) => x.label === requiredFieldLabelMap.title));
+      setInvalid(document.getElementById("documentType"), missing.some((x) => x.label === requiredFieldLabelMap.document_type));
       if (!missing.length) {
         wrap.style.display = "none";
         wrap.innerHTML = "";

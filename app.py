@@ -273,6 +273,7 @@ DEFAULT_CONFIG = {
             "trip_purpose_placeholder": "Business purpose or expense context",
             "notes_placeholder": "Additional approval notes or accounting comments",
             "hint": "Standard expense reports focus on accurate categorization and clean approval notes.",
+            "required_fields": ["employee_name", "title"],
         },
         "trip_expense": {
             "suggested_title_domestic": "Domestic Trip Expense",
@@ -280,6 +281,7 @@ DEFAULT_CONFIG = {
             "trip_purpose_placeholder": "Destination, business objective, attendees, or trip summary",
             "notes_placeholder": "Exceptions, reimbursement comments, travel policy notes",
             "hint": "Trip expense reports usually need a clearer trip purpose and travel context before approval.",
+            "required_fields": ["employee_name", "title", "trip_purpose"],
         },
     },
     "login_page": {
@@ -2997,6 +2999,15 @@ def admin_save_config():
                 "trip_purpose_placeholder": str(raw_preset.get("trip_purpose_placeholder") or "").strip()[:180],
                 "notes_placeholder": str(raw_preset.get("notes_placeholder") or "").strip()[:180],
                 "hint": str(raw_preset.get("hint") or "").strip()[:240],
+                "required_fields": [
+                    str(x).strip().lower()
+                    for x in (raw_preset.get("required_fields") or [])
+                    if str(x).strip().lower() in {
+                        "employee_name", "department", "employee_id", "manager",
+                        "manager_email", "project", "period", "submission_date",
+                        "trip_purpose", "notes", "title",
+                    }
+                ],
             }
         cfg["document_presets"] = presets
 
