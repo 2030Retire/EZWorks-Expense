@@ -42,6 +42,26 @@
       gap: .5rem;
       margin-top: .75rem;
     }
+    .profile-context {
+      border: 1px solid #dbe6f3;
+      background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
+      border-radius: 12px;
+      padding: .75rem .9rem;
+      margin-bottom: .75rem;
+    }
+    .profile-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      border: 1px solid #c9dbf7;
+      background: #fff;
+      border-radius: 999px;
+      padding: .2rem .55rem;
+      font-size: .78rem;
+      color: #36507a;
+      margin-right: .35rem;
+      margin-bottom: .35rem;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -60,6 +80,7 @@
         There are unsaved edits from Review. Save them first.
       </div>
       <div id="successBanner" class="report-success-panel py-3 px-3 mb-3" style="display:none;"></div>
+      <div id="profileContext" class="profile-context" style="display:none;"></div>
 
       <div class="small fw-semibold mt-1 mb-1">Document Settings</div>
       <div class="wizard-grid mb-2">
@@ -106,6 +127,7 @@
     const FX_KEY = "report_wizard_fx_by_date_v1";
     let selectedRows = [];
     let cfg = {};
+    let profileMeta = {};
 
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
@@ -204,12 +226,31 @@
         const d = await r.json();
         if(!r.ok) return;
         const p = d.profile || {};
+        profileMeta = p;
         document.getElementById("employeeName").value = p.name || "";
         document.getElementById("department").value = p.department || "";
         document.getElementById("employeeId").value = p.employee_id || "";
         document.getElementById("manager").value = p.manager || "";
         document.getElementById("managerEmail").value = p.manager_email || "";
+        renderProfileContext();
       }catch(_){ }
+    }
+    function renderProfileContext(){
+      const wrap = document.getElementById("profileContext");
+      if (!wrap) return;
+      const provider = String(profileMeta.provider || "").trim().toLowerCase();
+      const orgName = String(profileMeta.org_name || "").trim();
+      const parts = [];
+      if (provider) parts.push(`<span class="profile-chip">Source: ${esc(provider === "microsoft" ? "Microsoft 365" : provider)}</span>`);
+      if (orgName) parts.push(`<span class="profile-chip">Organization: ${esc(orgName)}</span>`);
+      if (profileMeta.email) parts.push(`<span class="profile-chip">User: ${esc(profileMeta.email)}</span>`);
+      if (!parts.length) {
+        wrap.style.display = "none";
+        wrap.innerHTML = "";
+        return;
+      }
+      wrap.style.display = "";
+      wrap.innerHTML = `<div class="small fw-semibold mb-1">Profile Context</div><div>${parts.join("")}</div><div class="small text-muted mt-1">These profile values are used to prefill the report and can still be adjusted before generation.</div>`;
     }
 
     async function saveProfile(){
