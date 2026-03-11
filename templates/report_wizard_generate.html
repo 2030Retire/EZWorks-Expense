@@ -62,6 +62,27 @@
       margin-right: .35rem;
       margin-bottom: .35rem;
     }
+    .finalize-section {
+      border: 1px solid #e5edf8;
+      border-radius: 12px;
+      padding: .8rem .9rem;
+      background: #fcfdff;
+    }
+    .finalize-section-title {
+      font-size: .8rem;
+      font-weight: 700;
+      color: #36507a;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: .55rem;
+    }
+    .wizard-grid.compact {
+      gap: .55rem;
+    }
+    .wizard-field-span-8 { grid-column: span 8; min-width: 240px; }
+    @media (max-width: 1200px) {
+      .wizard-field-span-8 { grid-column: span 6; }
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -82,32 +103,38 @@
       <div id="successBanner" class="report-success-panel py-3 px-3 mb-3" style="display:none;"></div>
       <div id="profileContext" class="profile-context" style="display:none;"></div>
 
-      <div class="small fw-semibold mt-1 mb-1">Document Settings</div>
-      <div class="wizard-grid mb-2">
-        <div class="wizard-field-span-2"><label class="form-label small mb-1">Expense Type</label><input id="mode" class="form-control form-control-sm" readonly></div>
-        <div class="wizard-field-span-2"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
-        <div class="wizard-field-span-2"><label class="form-label small mb-1">Document Type</label><select id="documentType" class="form-select form-select-sm"></select></div>
-        <div class="wizard-field-span-2"><label class="form-label small mb-1">Period Mode</label><select id="periodMode" class="form-select form-select-sm"><option value="auto">Auto (from receipts)</option><option value="manual">Manual</option></select></div>
-        <div id="wrapPeriodFrom" class="wizard-field-span-2"><label class="form-label small mb-1">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
-        <div id="wrapPeriodTo" class="wizard-field-span-2"><label class="form-label small mb-1">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
+      <div class="finalize-section mb-2">
+        <div class="finalize-section-title">Document Settings</div>
+        <div class="wizard-grid compact">
+          <div class="wizard-field-span-2"><label class="form-label small mb-1">Expense Type</label><input id="mode" class="form-control form-control-sm" readonly></div>
+          <div class="wizard-field-span-2"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
+          <div class="wizard-field-span-2"><label class="form-label small mb-1">Document Type</label><select id="documentType" class="form-select form-select-sm"></select></div>
+          <div class="wizard-field-span-2"><label class="form-label small mb-1">Period Mode</label><select id="periodMode" class="form-select form-select-sm"><option value="auto">Auto (from receipts)</option><option value="manual">Manual</option></select></div>
+          <div id="wrapPeriodFrom" class="wizard-field-span-2"><label class="form-label small mb-1">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
+          <div id="wrapPeriodTo" class="wizard-field-span-2"><label class="form-label small mb-1">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
+        </div>
       </div>
 
-      <div class="small fw-semibold mt-2 mb-1">Basic Info</div>
-      <div class="wizard-grid mb-2">
-        <div id="wrapEmployeeName" class="wizard-field-span-3"><label class="form-label small mb-1">Employee Name <span class="text-danger">*</span></label><input id="employeeName" class="form-control form-control-sm" required></div>
-        <div id="wrapDepartment" class="wizard-field-span-3"><label class="form-label small mb-1">Department</label><input id="department" class="form-control form-control-sm"></div>
-        <div id="wrapEmployeeId" class="wizard-field-span-2"><label class="form-label small mb-1">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
-        <div id="wrapManager" class="wizard-field-span-2"><label class="form-label small mb-1">Manager</label><input id="manager" class="form-control form-control-sm"></div>
-        <div id="wrapManagerEmail" class="wizard-field-span-2"><label class="form-label small mb-1">Manager Email</label><input id="managerEmail" type="email" class="form-control form-control-sm" placeholder="manager@company.com"></div>
+      <div class="finalize-section mb-2">
+        <div class="finalize-section-title">Basic Info</div>
+        <div class="wizard-grid compact">
+          <div id="wrapEmployeeName" class="wizard-field-span-3"><label class="form-label small mb-1">Employee Name <span class="text-danger">*</span></label><input id="employeeName" class="form-control form-control-sm" required></div>
+          <div id="wrapDepartment" class="wizard-field-span-3"><label class="form-label small mb-1">Department</label><input id="department" class="form-control form-control-sm"></div>
+          <div id="wrapEmployeeId" class="wizard-field-span-2"><label class="form-label small mb-1">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
+          <div id="wrapManager" class="wizard-field-span-2"><label class="form-label small mb-1">Manager</label><input id="manager" class="form-control form-control-sm"></div>
+          <div id="wrapManagerEmail" class="wizard-field-span-2"><label class="form-label small mb-1">Manager Email</label><input id="managerEmail" type="email" class="form-control form-control-sm" placeholder="manager@company.com"></div>
+        </div>
       </div>
 
-      <div class="small fw-semibold mt-2 mb-1">Report Details</div>
-      <div class="wizard-grid">
-        <div class="wizard-field-span-6"><label class="form-label small mb-1">Title <span class="text-danger">*</span></label><input id="title" class="form-control form-control-sm" required></div>
-        <div id="wrapProject" class="wizard-field-span-3"><label class="form-label small mb-1">Project</label><input id="project" class="form-control form-control-sm"></div>
-        <div class="wizard-field-span-3"><label class="form-label small mb-1">Submission Date</label><input id="submitDate" type="date" class="form-control form-control-sm"></div>
-        <div class="wizard-field-span-12"><label class="form-label small mb-1">Trip Purpose</label><textarea id="tripPurpose" class="form-control form-control-sm" rows="3"></textarea></div>
-        <div class="wizard-field-span-12"><label class="form-label small mb-1">Notes</label><textarea id="notes" class="form-control form-control-sm" rows="3"></textarea></div>
+      <div class="finalize-section">
+        <div class="finalize-section-title">Report Details</div>
+        <div class="wizard-grid compact">
+          <div class="wizard-field-span-8"><label class="form-label small mb-1">Title <span class="text-danger">*</span></label><input id="title" class="form-control form-control-sm" required></div>
+          <div id="wrapProject" class="wizard-field-span-2"><label class="form-label small mb-1">Project</label><input id="project" class="form-control form-control-sm"></div>
+          <div class="wizard-field-span-2"><label class="form-label small mb-1">Submission Date</label><input id="submitDate" type="date" class="form-control form-control-sm"></div>
+          <div class="wizard-field-span-12"><label class="form-label small mb-1">Trip Purpose</label><textarea id="tripPurpose" class="form-control form-control-sm" rows="3"></textarea></div>
+          <div class="wizard-field-span-12"><label class="form-label small mb-1">Notes</label><textarea id="notes" class="form-control form-control-sm" rows="3"></textarea></div>
+        </div>
       </div>
 
       <div class="d-flex justify-content-between mt-3">

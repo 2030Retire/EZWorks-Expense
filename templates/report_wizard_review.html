@@ -65,6 +65,14 @@
     #rows .input-group {
       min-width: 220px;
     }
+    .compact-review #rows .col-optional,
+    .compact-review #rows th.col-optional {
+      display: none;
+    }
+    .compact-review .f-memo {
+      min-width: 140px;
+      max-width: 190px;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -113,6 +121,10 @@
         </div>
         <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applyCurrencyBulk('selected')">Apply to selected</button>
         <button class="btn btn-sm btn-outline-secondary" type="button" onclick="applyCurrencyBulk('all')">Apply to all</button>
+        <div class="form-check form-switch ms-auto">
+          <input class="form-check-input" type="checkbox" id="compactToggle" onchange="toggleCompactMode()">
+          <label class="form-check-label small" for="compactToggle">Compact table</label>
+        </div>
       </div>
 
       <div class="table-responsive">
@@ -128,8 +140,8 @@
               <th>USD Amount</th>
               <th>Category</th>
               <th>Memo</th>
-              <th>Status</th>
-              <th>Lifecycle</th>
+              <th class="col-optional">Status</th>
+              <th class="col-optional">Lifecycle</th>
               <th>Required</th>
             </tr>
           </thead>
@@ -172,6 +184,7 @@
     const DIRTY_KEY = "report_wizard_dirty_ids_v1";
     const FX_KEY = "report_wizard_fx_by_date_v1";
     const SETTINGS_KEY = "report_wizard_settings_v2";
+    const REVIEW_UI_KEY = "report_wizard_review_ui_v1";
     let rowsAll = [];
     let categoryChoices = [];
     let cfg = {};
@@ -182,6 +195,14 @@
       try{ const raw = localStorage.getItem(key); if(!raw) return fallback; const parsed = JSON.parse(raw); if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "value")) return parsed.value; return parsed; }catch(_){ return fallback; }
     }
     function wizardSet(key, value){ try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){ } }
+    function toggleCompactMode(forceValue){
+      const body = document.body;
+      const next = typeof forceValue === "boolean" ? forceValue : !!document.getElementById("compactToggle")?.checked;
+      body.classList.toggle("compact-review", next);
+      const toggle = document.getElementById("compactToggle");
+      if (toggle) toggle.checked = next;
+      wizardSet(REVIEW_UI_KEY, { compact: next });
+    }
 
     function normalizeDateInput(v){
       const s = String(v || "").trim();
@@ -466,7 +487,7 @@
       if (autoSelectAll) selected = new Set(rowsAll.map((x)=>Number(x.id)));
       const dirtySet = getDirtySet();
       const body = document.getElementById("rows");
-      body.innerHTML = rowsAll.map((x)=>`<tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}"><td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td><td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td><td>${esc(x.orig_filename || "")}</td><td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td><td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="amount-num">${buildAmountCell(x)}</td><td class="amount-num f-usd">$ 0</td><td>${buildCategoryCell(x)}</td><td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td><td>${esc(x.status || "-")}</td><td>${esc(x.lifecycle_state || "-")}</td><td class="f-required"></td></tr>`).join("") || `<tr><td colspan="12" class="text-muted small">No receipts.</td></tr>`;
+      body.innerHTML = rowsAll.map((x)=>`<tr data-id="${x.id}" data-dirty="${dirtySet.has(Number(x.id)) ? "1" : "0"}" class="${dirtySet.has(Number(x.id)) ? "table-active" : ""}"><td><input type="checkbox" class="sel" value="${x.id}" ${selected.has(Number(x.id)) ? "checked" : ""} onchange="saveSelection()"></td><td><img src="/api/inbox/image/${Number(x.id)}" alt="preview" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;"></td><td>${esc(x.orig_filename || "")}</td><td><input class="form-control form-control-sm f-date" type="date" value="${esc(normalizeDateInput(x.date || ""))}" oninput="markDirty(this.closest('tr'))"></td><td><input class="form-control form-control-sm f-merchant" value="${esc(x.merchant || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="amount-num">${buildAmountCell(x)}</td><td class="amount-num f-usd">$ 0</td><td>${buildCategoryCell(x)}</td><td><input class="form-control form-control-sm f-memo" value="${esc(x.memo || "")}" oninput="markDirty(this.closest('tr'))"></td><td class="col-optional">${esc(x.status || "-")}</td><td class="col-optional">${esc(x.lifecycle_state || "-")}</td><td class="f-required"></td></tr>`).join("") || `<tr><td colspan="12" class="text-muted small">No receipts.</td></tr>`;
       if (autoSelectAll) wizardSet(KEY, [...selected]);
       renderDirtySummary(); updateUsdAmounts(); renderRequiredSummary(); renderSelectionSummary();
     }
@@ -600,7 +621,16 @@
       document.getElementById("msg").textContent = `Applied ${code} to ${trs.length} row(s).`;
     }
 
-    (async()=>{ await loadConfig(); await loadRows(); renderFxEditor(); saveFxState(); await ensureFxDefaults(); updateUsdAmounts(); })();
+    (async()=>{
+      const reviewUi = wizardGet(REVIEW_UI_KEY, {}) || {};
+      toggleCompactMode(!!reviewUi.compact);
+      await loadConfig();
+      await loadRows();
+      renderFxEditor();
+      saveFxState();
+      await ensureFxDefaults();
+      updateUsdAmounts();
+    })();
   </script>
 </body>
 </html>
