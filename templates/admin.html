@@ -2024,6 +2024,14 @@ async function loadTemplatePreview() {
       ? `Resolved to document-type override (${escHtml(slot.scope || "template override")})`
       : `No override uploaded. Falling back to base ${escHtml(mode)} template`;
   }
+  const previewStatusChips = `
+    <div class="mb-2">
+      <span class="template-chip me-1 mb-1">Mode ${escHtml(mode)}</span>
+      <span class="template-chip me-1 mb-1">${documentType ? `Document ${escHtml(documentType)}` : "Base template preview"}</span>
+      <span class="template-chip me-1 mb-1">${documentType ? "Override check" : "Base coverage check"}</span>
+      <span class="template-chip me-1 mb-1">${escHtml(data.scope || "-")}</span>
+    </div>
+  `;
   const previewSummary = `
     <div class="alert alert-light border py-2 px-3 small mb-2">
       <div><span class="fw-semibold">Preview context</span></div>
@@ -2076,6 +2084,7 @@ async function loadTemplatePreview() {
       ? `<div class="small text-muted mt-2">Change summary: ${effectivePreview.sheetDiffs.map((x) => `${escHtml(x.name)} ${x.count} cell(s)`).join(" · ")}</div>`
       : `<div class="small text-muted mt-2">No visible cell changes in the preview window.</div>`;
     area.innerHTML = `
+      ${previewStatusChips}
       ${previewSummary}
       <div class="alert alert-warning py-2 px-3 small mb-3">
         <div class="fw-semibold mb-1">Base comparison summary</div>
@@ -2102,6 +2111,7 @@ async function loadTemplatePreview() {
     return;
   }
   const compactSummary = `
+    ${previewStatusChips}
     ${previewSummary}
     <div class="small text-muted mb-2">Showing the first rows only. Use this area to verify layout direction quickly before rollout.</div>
   `;

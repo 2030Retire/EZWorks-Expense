@@ -282,6 +282,36 @@
       font-size: .76rem;
       color: #64748b;
     }
+    .review-action-status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      align-items: center;
+      margin-top: .35rem;
+    }
+    .review-action-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: .28rem;
+      padding: .2rem .48rem;
+      border-radius: 999px;
+      border: 1px solid #d8e5f6;
+      background: #f8fbff;
+      color: #3b5174;
+      font-size: .72rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .review-action-pill.warn {
+      background: #fff7ed;
+      border-color: #fdba74;
+      color: #9a3412;
+    }
+    .review-action-pill.ok {
+      background: #ecfdf3;
+      border-color: #86efac;
+      color: #166534;
+    }
     @media (max-width: 992px) {
       .review-fx-grid {
         grid-template-columns: 1fr;
@@ -426,7 +456,10 @@
         </div>
       </div>
       <div class="review-action-bar">
-        <div class="review-action-meta">Complete required fixes and FX preparation here, then continue to Finalize.</div>
+        <div>
+          <div class="review-action-meta">Complete required fixes and FX preparation here, then continue to Finalize.</div>
+          <div class="review-action-status" id="reviewActionStatus"></div>
+        </div>
         <div class="d-flex justify-content-between align-items-center flex-grow-1 gap-2">
           <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
           <button id="nextBtn" class="btn btn-sm btn-primary" onclick="goNext()">Next: Generate</button>
@@ -505,6 +538,21 @@
       tag.textContent = text;
       tag.classList.remove("ready", "warn");
       if (tone) tag.classList.add(tone);
+    }
+    // 하단 액션 바에는 다음 단계 진입에 영향을 주는 핵심 상태만 압축해서 노출한다.
+    function renderReviewActionStatus(overrides = {}){
+      const wrap = document.getElementById("reviewActionStatus");
+      if (!wrap) return;
+      const requiredCount = Number(overrides.requiredCount ?? document.querySelectorAll("#rows .req-badge.missing").length ?? 0);
+      const fxPending = Number(overrides.fxPending ?? getFxRequirements().length ?? 0);
+      const dirtyCount = Number(overrides.dirtyCount ?? getDirtySet().size ?? 0);
+      const finalizePending = Number(overrides.finalizePending ?? Number(document.getElementById("sumFinalizeInputs")?.dataset.pending || 0));
+      wrap.innerHTML = [
+        `<span class="review-action-pill ${requiredCount ? "warn" : "ok"}">Required ${requiredCount ? `${requiredCount} row(s)` : "ready"}</span>`,
+        `<span class="review-action-pill ${fxPending ? "warn" : "ok"}">FX ${fxPending ? `${fxPending} pending` : "ready"}</span>`,
+        `<span class="review-action-pill ${dirtyCount ? "warn" : "ok"}">Save ${dirtyCount ? `${dirtyCount} dirty` : "clean"}</span>`,
+        `<span class="review-action-pill ${finalizePending ? "warn" : "ok"}">Finalize ${finalizePending ? `${finalizePending} input(s)` : "ready"}</span>`
+      ].join("");
     }
 
     function normalizeDateInput(v){
@@ -715,6 +763,7 @@
       const note = document.getElementById("fxPolicyNote");
       const nextBtn = document.getElementById("nextBtn");
       document.getElementById("sumFxPending").textContent = `${missing.length} rate(s)`;
+      renderReviewActionStatus({ fxPending: missing.length });
       if (fx.rate_mode === "company_average") {
         note.innerHTML = `<span class="badge text-bg-info me-1">Company Average</span> Estimated company average FX is prefilled from receipt dates. Final posted rate may vary by accounting policy.`;
         nextBtn.disabled = false;
@@ -766,6 +815,7 @@
       const hint = document.getElementById("sumRequiredHint");
       if (hint) hint.textContent = missingRows ? `Show ${missingRows} row(s) with missing date/amount/category` : "No required fixes right now";
       document.getElementById("requiredSummary").textContent = missingRows ? `Missing required values in ${missingRows} row(s): date/amount/category` : "";
+      renderReviewActionStatus({ requiredCount: missingRows });
       applyAttentionFilter();
     }
     // Review에서 Step 3 준비 상태를 미리 보여주고, 필요한 필드로 바로 이동할 수 있게 만든다.
@@ -816,7 +866,10 @@
         return `<a class="policy-chip policy-chip-link" href="/reports/wizard/generate?focus=${encodeURIComponent(key)}">${esc(label)}</a>`;
       }).join("");
       const kpi = document.getElementById("sumFinalizeInputs");
-      if (kpi) kpi.textContent = `${pending.length} pending`;
+      if (kpi) {
+        kpi.textContent = `${pending.length} pending`;
+        kpi.dataset.pending = String(pending.length);
+      }
       const kpiCard = document.getElementById("sumFinalizeCard");
       const kpiHint = document.getElementById("sumFinalizeHint");
       const firstPending = String(pending[0] || "").trim().toLowerCase();
@@ -830,6 +883,7 @@
       if (kpiHint) {
         kpiHint.textContent = pending.length ? `Open Step 3 · first focus: ${labelMap[firstPending] || firstPending}` : "Open Step 3";
       }
+      renderReviewActionStatus({ finalizePending: pending.length });
       el.innerHTML = `
         <span class="policy-chip">Planned document: ${esc(docLabel)}</span>
         <span class="policy-chip">Finalize required: ${esc(fields.join(", ") || "Employee Name, Title")}</span>
@@ -895,6 +949,7 @@
       setKpiActionTag("sumDirtyTag", dirtyCount ? "Filter" : "Saved", dirtyCount ? "warn" : "ready");
       const dirtyHint = document.getElementById("sumDirtyHint");
       if (dirtyHint) dirtyHint.textContent = dirtyCount ? `Show ${dirtyCount} unsaved row(s)` : "No unsaved edits";
+      renderReviewActionStatus({ fxPending: fxRequirements.length, dirtyCount });
       syncWizardSettingsFromSelection(trs);
       renderFinalizePolicySummary();
     }
@@ -943,6 +998,7 @@
       if (hint) hint.textContent = cnt ? `Show ${cnt} unsaved row(s)` : "No unsaved edits";
       document.getElementById("dirtySummary").textContent = cnt ? `Unsaved edits: ${cnt}` : "";
       if (!cnt) setAutoSaveSummary("All visible changes are saved.", "success");
+      renderReviewActionStatus({ dirtyCount: cnt });
     }
 
     function renderProgressSummary(){
