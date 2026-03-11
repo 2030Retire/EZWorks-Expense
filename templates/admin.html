@@ -276,6 +276,7 @@
           <i class="fa-solid fa-plus me-1"></i>Add Document Type
         </button>
       </div>
+      <div class="small text-muted mb-2">Accounting shows quick readiness for each document type. Use the Templates tab for file-level template comparison and preview.</div>
       <div id="documentTypesList"></div>
       <div class="sticky-save">
         <button class="btn btn-success btn-sm" onclick="saveAccountingPolicy()">
@@ -1867,6 +1868,7 @@ async function loadTemplateStatus() {
   });
   const overviewHtml = `
     <div class="small fw-semibold mb-2">Template + policy overview</div>
+    <div class="small text-muted mb-2">This tab is the detailed workspace for uploaded files, base fallback, and override comparison. Accounting keeps the lightweight readiness view.</div>
     <div class="template-overview-grid">
       <div class="template-overview-card">
         <div class="template-overview-label">Base Templates</div>
