@@ -29,23 +29,23 @@
         <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Base Currency</label><input id="currency" class="form-control form-control-sm" readonly></div>
         <div class="col-xl-2 col-lg-2 col-md-6"><label class="form-label small mb-1">Document Type</label><select id="documentType" class="form-select form-select-sm"></select></div>
         <div class="col-xl-2 col-lg-2 col-md-6"><label class="form-label small mb-1">Period Mode</label><select id="periodMode" class="form-select form-select-sm"><option value="auto">Auto (from receipts)</option><option value="manual">Manual</option></select></div>
-        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
-        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
+        <div id="wrapPeriodFrom" class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Expense Period (from)</label><input id="periodFrom" type="date" class="form-control form-control-sm"></div>
+        <div id="wrapPeriodTo" class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Expense Period (to)</label><input id="periodTo" type="date" class="form-control form-control-sm"></div>
       </div>
 
       <div class="small fw-semibold mt-2 mb-1">Basic Info</div>
       <div class="row g-2 mb-2">
-        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Employee Name <span class="text-danger">*</span></label><input id="employeeName" class="form-control form-control-sm" required></div>
-        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Department</label><input id="department" class="form-control form-control-sm"></div>
-        <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
-        <div class="col-xl-3 col-lg-3 col-md-6"><label class="form-label small mb-1">Manager</label><input id="manager" class="form-control form-control-sm"></div>
-        <div class="col-xl-3 col-lg-12 col-md-12"><label class="form-label small mb-1">Manager Email</label><input id="managerEmail" type="email" class="form-control form-control-sm" placeholder="manager@company.com"></div>
+        <div id="wrapEmployeeName" class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Employee Name <span class="text-danger">*</span></label><input id="employeeName" class="form-control form-control-sm" required></div>
+        <div id="wrapDepartment" class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Department</label><input id="department" class="form-control form-control-sm"></div>
+        <div id="wrapEmployeeId" class="col-xl-2 col-lg-3 col-md-6"><label class="form-label small mb-1">Employee ID</label><input id="employeeId" class="form-control form-control-sm"></div>
+        <div id="wrapManager" class="col-xl-3 col-lg-3 col-md-6"><label class="form-label small mb-1">Manager</label><input id="manager" class="form-control form-control-sm"></div>
+        <div id="wrapManagerEmail" class="col-xl-3 col-lg-12 col-md-12"><label class="form-label small mb-1">Manager Email</label><input id="managerEmail" type="email" class="form-control form-control-sm" placeholder="manager@company.com"></div>
       </div>
 
       <div class="small fw-semibold mt-2 mb-1">Report Details</div>
       <div class="row g-2">
         <div class="col-xl-6 col-lg-6 col-md-12"><label class="form-label small mb-1">Title <span class="text-danger">*</span></label><input id="title" class="form-control form-control-sm" required></div>
-        <div class="col-xl-3 col-lg-3 col-md-6"><label class="form-label small mb-1">Project</label><input id="project" class="form-control form-control-sm"></div>
+        <div id="wrapProject" class="col-xl-3 col-lg-3 col-md-6"><label class="form-label small mb-1">Project</label><input id="project" class="form-control form-control-sm"></div>
         <div class="col-xl-3 col-lg-3 col-md-6"><label class="form-label small mb-1">Submission Date</label><input id="submitDate" type="date" class="form-control form-control-sm"></div>
         <div class="col-12"><label class="form-label small mb-1">Trip Purpose</label><textarea id="tripPurpose" class="form-control form-control-sm" rows="3"></textarea></div>
         <div class="col-12"><label class="form-label small mb-1">Notes</label><textarea id="notes" class="form-control form-control-sm" rows="3"></textarea></div>
@@ -202,6 +202,28 @@
         fx.default_rate = Number(cfg?.accounting?.company_average_fx || fx.default_rate || 1);
       }
       try { localStorage.setItem(FX_KEY, JSON.stringify({ ts: Date.now(), value: fx })); } catch(_) {}
+      applyFieldVisibility();
+    }
+    function setVisible(id, visible){
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.display = visible ? "" : "none";
+    }
+    function applyFieldVisibility(){
+      const fields = cfg?.fields || {};
+      const isEnabled = (key, fallback = true) => {
+        if (Object.prototype.hasOwnProperty.call(fields, key)) return fields[key]?.enabled !== false;
+        return fallback;
+      };
+      setVisible("wrapEmployeeName", isEnabled("employee_name"));
+      setVisible("wrapDepartment", isEnabled("department"));
+      setVisible("wrapEmployeeId", isEnabled("employee_id", false));
+      setVisible("wrapManager", isEnabled("manager", false));
+      setVisible("wrapManagerEmail", isEnabled("manager", false));
+      setVisible("wrapProject", isEnabled("project", false));
+      const periodEnabled = isEnabled("period");
+      setVisible("wrapPeriodFrom", periodEnabled);
+      setVisible("wrapPeriodTo", periodEnabled);
     }
 
     function setInvalid(el, flag){
@@ -213,7 +235,8 @@
     function validateRequiredFields(){
       const employeeEl = document.getElementById("employeeName");
       const titleEl = document.getElementById("title");
-      const employeeOk = !!String(employeeEl.value || "").trim();
+      const employeeVisible = document.getElementById("wrapEmployeeName")?.style.display !== "none";
+      const employeeOk = !employeeVisible || !!String(employeeEl.value || "").trim();
       const titleOk = !!String(titleEl.value || "").trim();
       setInvalid(employeeEl, !employeeOk);
       setInvalid(titleEl, !titleOk);

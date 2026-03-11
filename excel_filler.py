@@ -100,6 +100,13 @@ def _find_date_row(ws) -> int:
     return DATE_ROW
 
 
+def _is_international_weekly_sheet(ws) -> bool:
+    return (
+        str(ws.cell(row=10, column=3).value or "").strip().lower() == "foreign"
+        and str(ws.cell(row=10, column=4).value or "").strip().lower() == "usd"
+    )
+
+
 def _find_category_rows(ws, active_types: list, date_row: int) -> dict:
     """
     카테고리 ID → 행 번호 매핑.
@@ -143,17 +150,29 @@ def auto_create_weekly_sheets(wb, receipt_dates: list,
         else:
             new_ws = wb[sheet_name]
 
-        date_row   = _find_date_row(new_ws)
+        is_intl = _is_international_weekly_sheet(new_ws)
+        date_row   = DATE_ROW if is_intl else _find_date_row(new_ws)
         week_start = week_end - timedelta(days=6)
 
         # 날짜 헤더 기입
         date_col_map = {}
-        d, col = week_start, DATE_START_COL
-        while d <= week_end and col < DATE_START_COL + DATE_MAX_COLS:
-            new_ws.cell(row=date_row, column=col).value = d
-            date_col_map[d] = col
-            d += timedelta(days=1)
-            col += 1
+        if is_intl:
+            d = week_start
+            for idx in range(DATE_MAX_COLS):
+                if d > week_end:
+                    break
+                col = 3 + idx * 2
+                new_ws.cell(row=date_row, column=col).value = d
+                new_ws.cell(row=date_row, column=col).number_format = "mm/dd/yyyy"
+                date_col_map[d] = col
+                d += timedelta(days=1)
+        else:
+            d, col = week_start, DATE_START_COL
+            while d <= week_end and col < DATE_START_COL + DATE_MAX_COLS:
+                new_ws.cell(row=date_row, column=col).value = d
+                date_col_map[d] = col
+                d += timedelta(days=1)
+                col += 1
 
         weekly[sheet_name] = {
             "ws":           new_ws,
@@ -173,15 +192,24 @@ def detect_weekly_sheets(wb, year: Optional[int] = None) -> dict:
         if not (name.isdigit() and len(name) in (3, 4)):
             continue
         ws       = wb[name]
-        date_row = _find_date_row(ws)
+        is_intl = _is_international_weekly_sheet(ws)
+        date_row = DATE_ROW if is_intl else _find_date_row(ws)
         date_set = set()
         date_col_map = {}
 
-        for col in range(DATE_START_COL, DATE_START_COL + DATE_MAX_COLS):
-            d = parse_date(ws.cell(row=date_row, column=col).value)
-            if d:
-                date_set.add(d)
-                date_col_map[d] = col
+        if is_intl:
+            for idx in range(DATE_MAX_COLS):
+                col = 3 + idx * 2
+                d = parse_date(ws.cell(row=date_row, column=col).value)
+                if d:
+                    date_set.add(d)
+                    date_col_map[d] = col
+        else:
+            for col in range(DATE_START_COL, DATE_START_COL + DATE_MAX_COLS):
+                d = parse_date(ws.cell(row=date_row, column=col).value)
+                if d:
+                    date_set.add(d)
+                    date_col_map[d] = col
 
         if not date_set:
             # 시트 이름에서 주 범위 추정
@@ -491,12 +519,24 @@ def fill_employee_info(wb, employee_info: dict, trip_title: str = "",
     }
 
     for ws in wb.worksheets:
-        for col in range(2, 10):
-            if ws.cell(row=DATE_ROW, column=col).value is not None:
-                ws.column_dimensions[get_column_letter(col)].width = max(
-                    float(ws.column_dimensions[get_column_letter(col)].width or 0), 12.0
-                )
-                ws.cell(row=DATE_ROW, column=col).number_format = "mm/dd/yyyy"
+        if _is_international_weekly_sheet(ws):
+            for idx in range(DATE_MAX_COLS):
+                col = 3 + idx * 2
+                if ws.cell(row=DATE_ROW, column=col).value is not None:
+                    ws.column_dimensions[get_column_letter(col)].width = max(
+                        float(ws.column_dimensions[get_column_letter(col)].width or 0), 10.0
+                    )
+                    ws.column_dimensions[get_column_letter(col + 1)].width = max(
+                        float(ws.column_dimensions[get_column_letter(col + 1)].width or 0), 10.0
+                    )
+                    ws.cell(row=DATE_ROW, column=col).number_format = "mm/dd/yyyy"
+        else:
+            for col in range(2, 10):
+                if ws.cell(row=DATE_ROW, column=col).value is not None:
+                    ws.column_dimensions[get_column_letter(col)].width = max(
+                        float(ws.column_dimensions[get_column_letter(col)].width or 0), 12.0
+                    )
+                    ws.cell(row=DATE_ROW, column=col).number_format = "mm/dd/yyyy"
         for row in range(1, 15):
             for col in range(1, 12):
                 cell = ws.cell(row=row, column=col)

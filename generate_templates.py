@@ -43,6 +43,15 @@ def align(h="left", v="center", wrap=False):
 def set_col_width(ws, col_letter, width):
     ws.column_dimensions[col_letter].width = width
 
+def configure_print(ws, area: str, landscape: bool = False):
+    ws.print_area = area
+    ws.page_setup.orientation = "landscape" if landscape else "portrait"
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 1
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.print_options.horizontalCentered = True
+    ws.print_options.verticalCentered = False
+
 def merge_write(ws, cell_range, value, fnt=None, aln=None, brd=None, fll=None):
     ws.merge_cells(cell_range)
     cell = ws[cell_range.split(":")[0]]
@@ -166,6 +175,7 @@ def _build_list_sheet_domestic(ws, company, fields):
 
     # 서명란
     _write_signature_section(ws, total_row + 2, col_count=6)
+    configure_print(ws, f"A1:F{total_row+4}")
 
 
 def _write_info_section_domestic(ws, start_row, fields):
@@ -371,6 +381,7 @@ def _build_report_sheet_domestic(ws, company, fields, types):
 
     # ── 서명란 ──
     _write_signature_section(ws, total_row + 2, col_count=11)
+    configure_print(ws, f"A1:K{total_row+4}", landscape=True)
 
 
 def _write_info_section_report(ws, start_row, fields, col_span=11):
@@ -502,6 +513,7 @@ def _build_list_sheet_intl(ws, company, fields):
     ws.cell(row=total_row, column=8).number_format = '#,##0.00'
 
     _write_signature_section(ws, total_row + 2, col_count=9)
+    configure_print(ws, f"A1:I{total_row+4}", landscape=True)
 
 
 def _build_report_sheet_intl(ws, company, fields, types):
@@ -530,17 +542,19 @@ def _build_report_sheet_intl(ws, company, fields, types):
     _info_report_pair(ws, 7, 1, 8, "Destination Country")
     _info_report_pair(ws, 7, 9, 16, "Local Currency")
 
-    # 날짜 헤더 (row 9 = group, row 10 = sub-header)
+    # 날짜 헤더 (row 8 = merged date, row 9 = day group, row 10 = sub-header)
+    DATE_ROW = 8
     GRP_ROW = 9
     SUB_ROW = 10
-    DATE_ROW = 10   # excel_filler 는 이 행에서 날짜를 읽음
+    ws.row_dimensions[DATE_ROW].height = 18
     ws.row_dimensions[GRP_ROW].height = 18
     ws.row_dimensions[SUB_ROW].height = 16
 
     # col A = category label (A~B 병합)
+    ws.merge_cells(f"A{DATE_ROW}:B{DATE_ROW}")
     ws.merge_cells(f"A{GRP_ROW}:B{GRP_ROW}")
     ws.merge_cells(f"A{SUB_ROW}:B{SUB_ROW}")
-    for rr in (GRP_ROW, SUB_ROW):
+    for rr in (DATE_ROW, GRP_ROW, SUB_ROW):
         c = ws[f"A{rr}"]
         c.value     = "Expense Category" if rr == GRP_ROW else ""
         c.font      = font(bold=True, size=9, color=C_HEADER_FG)
@@ -556,7 +570,14 @@ def _build_report_sheet_intl(ws, company, fields, types):
         g_letter   = get_column_letter(g_col)
         usd_letter = get_column_letter(usd_col)
 
-        # 그룹 헤더 (날짜 자리 — auto_create 가 채움)
+        # 날짜 헤더 (auto_create_weekly_sheets 가 채움)
+        ws.merge_cells(f"{g_letter}{DATE_ROW}:{usd_letter}{DATE_ROW}")
+        dc = ws[f"{g_letter}{DATE_ROW}"]
+        dc.font      = font(bold=True, size=9)
+        dc.alignment = align("center")
+        dc.border    = border()
+
+        # 그룹 헤더 (요일)
         ws.merge_cells(f"{g_letter}{GRP_ROW}:{usd_letter}{GRP_ROW}")
         gc = ws[f"{g_letter}{GRP_ROW}"]
         gc.value     = day
@@ -660,6 +681,7 @@ def _build_report_sheet_intl(ws, company, fields, types):
     wt.number_format = '#,##0.00'
 
     _write_signature_section(ws, total_row + 2, col_count=WTOTAL_COL)
+    configure_print(ws, f"A1:Q{total_row+4}", landscape=True)
 
 
 # ═══════════════════════════════════════════════════

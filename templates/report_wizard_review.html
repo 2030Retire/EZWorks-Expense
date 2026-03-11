@@ -27,6 +27,7 @@
       <div id="progressSummary" class="small text-muted mb-1"></div>
       <div id="dirtySummary" class="small text-warning mb-1"></div>
       <div id="requiredSummary" class="small text-danger mb-2"></div>
+      <div id="fxPolicyNote" class="small text-muted mb-2"></div>
 
       <div class="table-responsive">
         <table class="table table-sm align-middle">
@@ -75,7 +76,7 @@
       </div>
       <div class="d-flex justify-content-between mt-2">
         <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
-        <button class="btn btn-sm btn-primary" onclick="goNext()">Next: Generate</button>
+        <button id="nextBtn" class="btn btn-sm btn-primary" onclick="goNext()">Next: Generate</button>
       </div>
       <div id="msg" class="small text-muted mt-2"></div>
     </div>
@@ -87,6 +88,7 @@
     let rowsAll = [];
     let categoryChoices = [];
     let cfg = {};
+    let rateFetchInFlight = false;
 
     function esc(v){return String(v||"").replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
     function wizardGet(key, fallback){
@@ -148,7 +150,44 @@
       const byDate = (fx.rates || {})[d] || {};
       const specific = Number(byDate[c] || 0);
       if (specific > 0) return specific;
-      return Number(fx.default_rate || 1);
+      return null;
+    }
+    function getFxRequirements(){
+      const fx = getFxState();
+      const rows = getEffectiveRowsForFx();
+      const missing = [];
+      const seen = new Set();
+      for (const r of rows){
+        const currency = String(r.currency || "").trim().toUpperCase();
+        const dateIso = normalizeDateInput(r.date || "");
+        if (!currency || currency === "USD") continue;
+        if (fx.rate_mode === "company_average") continue;
+        const key = `${dateIso}|${currency}`;
+        const rate = Number((fx.rates || {})[dateIso]?.[currency] || 0);
+        if (!dateIso || rate <= 0) {
+          if (!seen.has(key)) missing.push({ date: dateIso, currency });
+          seen.add(key);
+        }
+      }
+      return missing;
+    }
+    function updateFxPolicyUi(){
+      const fx = getFxState();
+      const missing = getFxRequirements();
+      const note = document.getElementById("fxPolicyNote");
+      const nextBtn = document.getElementById("nextBtn");
+      if (fx.rate_mode === "company_average") {
+        note.textContent = "Estimated company average FX is prefilled from receipt dates. Final posted rate may vary by accounting policy.";
+        nextBtn.disabled = false;
+        return;
+      }
+      if (missing.length) {
+        note.textContent = `Date-based FX is required before next step. Missing ${missing.length} rate(s).`;
+        nextBtn.disabled = true;
+        return;
+      }
+      note.textContent = "Date-based FX is ready.";
+      nextBtn.disabled = false;
     }
 
     function countMissingFromTr(tr){
@@ -244,8 +283,22 @@
       return `<div class="input-group input-group-sm"><span class="input-group-text f-currency-symbol" style="min-width:38px;">${esc(currencySymbol(cur))}</span><input class="form-control form-control-sm f-amount text-end amount-num" type="number" min="0" step="0.01" value="${amount}" oninput="markDirty(this.closest('tr'))"><select class="form-select form-select-sm f-currency" style="max-width:92px;" onchange="syncCurrencySymbol(this); markDirty(this.closest('tr'));">${["USD","KRW","EUR","JPY","CNY","GBP"].map((c)=>`<option value="${c}" ${c===cur?"selected":""}>${c}</option>`).join("")}</select></div>`;
     }
     function syncCurrencySymbol(sel){ const tr = sel.closest("tr"); const sym = tr.querySelector(".f-currency-symbol"); if (sym) sym.textContent = currencySymbol(sel.value); updateUsdAmountForRow(tr); }
-    function updateUsdAmountForRow(tr){ if (!tr) return; const amount = Number(tr.querySelector(".f-amount")?.value || 0); const currency = String(tr.querySelector(".f-currency")?.value || "USD").toUpperCase(); const dateIso = normalizeDateInput(tr.querySelector(".f-date")?.value || ""); const rate = getFxRate(dateIso, currency); const usd = amount * rate; const el = tr.querySelector(".f-usd"); if (el) el.textContent = `$ ${formatMoney(usd)}`; }
-    function updateUsdAmounts(){ document.querySelectorAll("#rows tr[data-id]").forEach((tr)=>updateUsdAmountForRow(tr)); }
+    function updateUsdAmountForRow(tr){
+      if (!tr) return;
+      const amount = Number(tr.querySelector(".f-amount")?.value || 0);
+      const currency = String(tr.querySelector(".f-currency")?.value || "USD").toUpperCase();
+      const dateIso = normalizeDateInput(tr.querySelector(".f-date")?.value || "");
+      const rate = getFxRate(dateIso, currency);
+      const el = tr.querySelector(".f-usd");
+      if (!el) return;
+      if (currency !== "USD" && !(Number(rate) > 0)) {
+        el.innerHTML = `<span class="text-warning">FX required</span>`;
+        return;
+      }
+      const usd = amount * Number(rate || 1);
+      el.textContent = `$ ${formatMoney(usd)}`;
+    }
+    function updateUsdAmounts(){ document.querySelectorAll("#rows tr[data-id]").forEach((tr)=>updateUsdAmountForRow(tr)); updateFxPolicyUi(); }
 
     function renderRows(){
       let selected = new Set(getSavedSelection().map(Number));
@@ -271,11 +324,22 @@
     async function saveAllDirty(){ const dirtyRows = [...document.querySelectorAll("#rows tr[data-dirty='1']")]; if (!dirtyRows.length) { document.getElementById("msg").textContent = "No dirty rows."; return; } for (const tr of dirtyRows) await saveRowByTr(tr); document.getElementById("msg").textContent = `Saved ${dirtyRows.length} row(s).`; await loadRows(); }
 
     function toggleAll(cb){ document.querySelectorAll(".sel").forEach(x=>x.checked=cb.checked); saveSelection(); }
-    function saveSelection(){ const ids = [...document.querySelectorAll(".sel:checked")].map(x=>Number(x.value)); wizardSet(KEY, ids); renderFxEditor(); saveFxState(); updateUsdAmounts(); document.getElementById("msg").textContent = "Selection saved."; }
+    async function saveSelection(){ const ids = [...document.querySelectorAll(".sel:checked")].map(x=>Number(x.value)); wizardSet(KEY, ids); renderFxEditor(); saveFxState(); await ensureFxDefaults(); updateUsdAmounts(); document.getElementById("msg").textContent = "Selection saved."; }
     function getEffectiveRowsForFx(){ const ids = new Set(getSavedSelection().map(Number)); const selected = rowsAll.filter((r) => ids.has(Number(r.id))); return selected.length ? selected : rowsAll; }
 
-    function syncFxVisibility(){ const mode = String(document.getElementById("fxRateMode")?.value || "date_based"); const dateWrap = document.getElementById("dateFxWrap"); if (mode === "date_based") dateWrap.style.display = ""; else dateWrap.style.display = "none"; }
-    function onRateModeChange(){ syncFxVisibility(); saveFxState(); updateUsdAmounts(); }
+    function syncFxVisibility(){
+      const mode = String(document.getElementById("fxRateMode")?.value || "date_based");
+      const dateWrap = document.getElementById("dateFxWrap");
+      const defaultWrap = document.getElementById("defaultFxWrap");
+      if (mode === "date_based") {
+        dateWrap.style.display = "";
+        defaultWrap.style.display = "none";
+      } else {
+        dateWrap.style.display = "none";
+        defaultWrap.style.display = "";
+      }
+    }
+    async function onRateModeChange(){ syncFxVisibility(); saveFxState(); await ensureFxDefaults(); updateUsdAmounts(); }
 
     function renderFxEditor(){
       const fxMode = String(document.getElementById("fxRateMode")?.value || "date_based");
@@ -291,10 +355,80 @@
       document.querySelectorAll("#fxEditor input[data-date][data-currency]").forEach((el) => { const d = String(el.dataset.date || "").trim(); const c = String(el.dataset.currency || "").trim().toUpperCase(); if (rates[d] && rates[d][c]) el.value = String(rates[d][c]); });
     }
 
-    async function fetchRatesByDate(){ const inputs = [...document.querySelectorAll("#fxEditor input[data-date][data-currency]")]; if (!inputs.length) return alert("No dated non-USD receipts available."); for (const el of inputs){ const d = String(el.dataset.date || ""); const c = String(el.dataset.currency || ""); try{ const r = await fetch(`https://api.frankfurter.app/${encodeURIComponent(d)}?from=USD&to=${encodeURIComponent(c)}`); const data = await r.json(); const usdToCur = Number(data?.rates?.[c] || 0); if (usdToCur > 0) el.value = String((1 / usdToCur).toFixed(6)); }catch(_){ } } saveFxState(); updateUsdAmounts(); document.getElementById("fxUpdatedAt").textContent = `Updated: ${new Date().toLocaleString()}`; }
-    function goNext(){ if (getDirtySet().size) { document.getElementById("msg").textContent = "Save all dirty rows first."; return; } saveSelection(); window.location.href = "/reports/wizard/generate"; }
+    async function fetchUsdToCurrency(dateIso, currency){
+      const r = await fetch(`https://api.frankfurter.app/${encodeURIComponent(dateIso)}?from=USD&to=${encodeURIComponent(currency)}`);
+      const data = await r.json();
+      const usdToCur = Number(data?.rates?.[currency] || 0);
+      if (usdToCur <= 0) return null;
+      return Number((1 / usdToCur).toFixed(6));
+    }
+    async function fetchRatesByDate(){
+      const inputs = [...document.querySelectorAll("#fxEditor input[data-date][data-currency]")];
+      if (!inputs.length) return alert("No dated non-USD receipts available.");
+      rateFetchInFlight = true;
+      try {
+        for (const el of inputs){
+          const d = String(el.dataset.date || "");
+          const c = String(el.dataset.currency || "");
+          try {
+            const rate = await fetchUsdToCurrency(d, c);
+            if (rate && rate > 0) el.value = String(rate);
+          } catch(_) {}
+        }
+        saveFxState();
+        updateUsdAmounts();
+        document.getElementById("fxUpdatedAt").textContent = `Updated: ${new Date().toLocaleString()}`;
+      } finally {
+        rateFetchInFlight = false;
+      }
+    }
+    async function ensureFxDefaults(){
+      const fx = getFxState();
+      if (fx.rate_mode !== "company_average" || rateFetchInFlight) {
+        updateFxPolicyUi();
+        return;
+      }
+      const rows = getEffectiveRowsForFx();
+      const pairs = [];
+      const seen = new Set();
+      for (const r of rows){
+        const dateIso = normalizeDateInput(r.date || "");
+        const currency = String(r.currency || "").trim().toUpperCase();
+        if (!dateIso || !currency || currency === "USD") continue;
+        const key = `${dateIso}|${currency}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pairs.push({ dateIso, currency });
+      }
+      if (!pairs.length) {
+        updateFxPolicyUi();
+        return;
+      }
+      const rates = [];
+      for (const pair of pairs){
+        try {
+          const rate = await fetchUsdToCurrency(pair.dateIso, pair.currency);
+          if (rate && rate > 0) rates.push(rate);
+        } catch(_) {}
+      }
+      if (rates.length) {
+        const avg = rates.reduce((sum, val) => sum + val, 0) / rates.length;
+        document.getElementById("defaultFx").value = avg.toFixed(6);
+        saveFxState();
+      }
+      updateFxPolicyUi();
+    }
+    async function goNext(){
+      if (getDirtySet().size) { document.getElementById("msg").textContent = "Save all dirty rows first."; return; }
+      await saveSelection();
+      if (getFxRequirements().length) {
+        alert("Date-based FX rates are missing. Click Fetch by Date before continuing.");
+        return;
+      }
+      window.location.href = "/reports/wizard/generate";
+    }
 
-    (async()=>{ await loadConfig(); await loadRows(); renderFxEditor(); saveFxState(); updateUsdAmounts(); })();
+    (async()=>{ await loadConfig(); await loadRows(); renderFxEditor(); saveFxState(); await ensureFxDefaults(); updateUsdAmounts(); })();
   </script>
 </body>
 </html>

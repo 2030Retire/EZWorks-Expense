@@ -175,7 +175,7 @@
           <td>${esc(x.lifecycle_state || "-")}</td>
           <td>
             ${inFlight
-              ? '<div class="progress" style="height:22px; min-width:120px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:100%">Processing</div></div>'
+              ? '<div class="progress" style="height:32px; width:86px; display:inline-flex; vertical-align:middle;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:100%; font-size:12px;">...</div></div>'
               : `<button class="btn btn-sm btn-outline-primary" ${canOcr ? "" : "disabled"} onclick="runOcr(${Number(x.id)})">${canOcr ? "OCR" : "Done"}</button>`
             }
             <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteReceipt(${Number(x.id)})">Delete</button>
