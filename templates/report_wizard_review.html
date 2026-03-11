@@ -364,6 +364,11 @@
       align-items: center;
       margin-top: .35rem;
     }
+    .review-action-shortcut {
+      display: none;
+      align-items: center;
+      gap: .35rem;
+    }
     .review-action-pill {
       display: inline-flex;
       align-items: center;
@@ -538,6 +543,9 @@
         </div>
         <div class="d-flex justify-content-between align-items-center flex-grow-1 gap-2">
           <a href="/reports/wizard/upload" class="btn btn-sm btn-outline-secondary">Back</a>
+          <div class="review-action-shortcut" id="reviewRetryShortcut">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="jumpToAttentionRow('retry')">Jump to retry row</button>
+          </div>
           <button id="nextBtn" class="btn btn-sm btn-primary" onclick="goNext()">Next: Finalize</button>
         </div>
       </div>
@@ -619,20 +627,25 @@
     function renderReviewActionStatus(overrides = {}){
       const wrap = document.getElementById("reviewActionStatus");
       const meta = document.getElementById("reviewActionMeta");
+      const retryShortcut = document.getElementById("reviewRetryShortcut");
       if (!wrap) return;
       const requiredCount = Number(overrides.requiredCount ?? document.querySelectorAll("#rows .req-badge.missing").length ?? 0);
       const fxPending = Number(overrides.fxPending ?? getFxRequirements().length ?? 0);
       const dirtyCount = Number(overrides.dirtyCount ?? getDirtySet().size ?? 0);
       const finalizePending = Number(overrides.finalizePending ?? Number(document.getElementById("sumFinalizeInputs")?.dataset.pending || 0));
+      const retryCount = Number(overrides.retryCount ?? document.querySelectorAll('#rows tr[data-save-error="1"]').length ?? 0);
       wrap.innerHTML = [
         `<span class="review-action-pill ${requiredCount ? "warn" : "ok"}">Required ${requiredCount ? `${requiredCount} row(s)` : "ready"}</span>`,
         `<span class="review-action-pill ${fxPending ? "warn" : "ok"}">FX ${fxPending ? `${fxPending} pending` : "ready"}</span>`,
         `<span class="review-action-pill ${dirtyCount ? "warn" : "ok"}">Save ${dirtyCount ? `${dirtyCount} dirty` : "clean"}</span>`,
         `<span class="review-action-pill ${finalizePending ? "warn" : "ok"}">Finalize ${finalizePending ? `${finalizePending} remaining` : "ready"}</span>`
       ].join("");
+      if (retryShortcut) retryShortcut.style.display = retryCount ? "inline-flex" : "none";
       // Review 하단 메타 문구도 현재 막히는 이유 순서대로 바꿔, 테이블 -> FX -> Finalize 흐름을 바로 읽게 만든다.
       if (meta) {
-        if (requiredCount) {
+        if (retryCount) {
+          meta.textContent = `Retry ${retryCount} failed save row(s) first, then continue.`;
+        } else if (requiredCount) {
           meta.textContent = `Fix ${requiredCount} row(s) with missing required values before moving on.`;
         } else if (dirtyCount) {
           meta.textContent = `${dirtyCount} row edit(s) are still unsaved. Wait for auto-save or save them before continuing.`;
@@ -644,6 +657,15 @@
           meta.textContent = "Review looks ready. You can continue to Finalize to confirm document details and generate the report.";
         }
       }
+    }
+    // attention 필터와 같은 기준으로 첫 대상 행을 찾아 곧바로 재작업 위치로 이동한다.
+    function jumpToAttentionRow(reason){
+      const rows = [...document.querySelectorAll("#rows tr[data-id]")];
+      const target = rows.find((tr) => rowMatchesAttentionReason(tr, reason || "all"));
+      if (!target) return;
+      if (!document.getElementById("attentionToggle")?.checked) activateAttentionFilter(reason || "all");
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.querySelector("input, select, textarea, button")?.focus();
     }
 
     function normalizeDateInput(v){

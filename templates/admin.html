@@ -93,6 +93,9 @@
       gap:.35rem;
       flex-wrap:wrap;
     }
+    .template-sheet-jump {
+      cursor:pointer;
+    }
     .template-diff-cell {
       background:#fff7ed !important;
       border-color:#fb923c !important;
@@ -2086,6 +2089,12 @@ async function loadTemplatePreview() {
       <div class="text-muted mt-1">${resolutionNote}</div>
     </div>
   `;
+  const toSheetAnchor = (name) => String(name || "sheet").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "sheet";
+  const jumpToPreviewSheet = (anchor) => {
+    const el = document.getElementById(anchor);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const renderPreviewSheets = (previewData, compareData = null) => {
     const previewSheets = Array.isArray(previewData?.sheets) ? previewData.sheets : [];
     const compareSheets = Array.isArray(compareData?.sheets) ? compareData.sheets : [];
@@ -2097,7 +2106,7 @@ async function loadTemplatePreview() {
       const compareRows = Array.isArray(compareSheet?.rows) ? compareSheet.rows : [];
       let sheetDiffCount = 0;
       if (!rows.length) {
-        return `<div class="mb-3"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta"><span class="template-chip">No preview rows</span></div></div><div class="small text-muted">No data rows.</div></div>`;
+        return `<div class="mb-3" id="preview-sheet-${toSheetAnchor(s.name || "Sheet")}"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta"><span class="template-chip">No preview rows</span></div></div><div class="small text-muted">No data rows.</div></div>`;
       }
       const cols = rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
       const thead = `<tr>${Array.from({length: cols}, (_, i) => `<th class="small">C${i + 1}</th>`).join("")}</tr>`;
@@ -2122,9 +2131,9 @@ async function loadTemplatePreview() {
       // 시트 제목 가까이에 diff 수를 붙여서, 긴 표를 보기 전에 변화 규모를 먼저 읽게 한다.
       // 시트 단위 diff를 제목 가까이에 붙여, 어떤 시트부터 봐야 할지 바로 판단하게 만든다.
       const metaChips = compareData
-        ? `<span class="template-chip ${sheetDiffCount ? "warn" : ""}">Diff ${sheetDiffCount}</span><span class="template-chip">Rows ${Math.min(rows.length, 8)}</span>`
+        ? `<button type="button" class="template-chip template-sheet-jump ${sheetDiffCount ? "warn" : ""}" onclick="jumpToPreviewSheet('preview-sheet-${toSheetAnchor(s.name || "Sheet")}')">Diff ${sheetDiffCount}</button><span class="template-chip">Rows ${Math.min(rows.length, 8)}</span>`
         : `<span class="template-chip">Rows ${Math.min(rows.length, 8)}</span>`;
-      return `<div class="mb-3"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta">${metaChips}</div></div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
+      return `<div class="mb-3" id="preview-sheet-${toSheetAnchor(s.name || "Sheet")}"><div class="template-sheet-head"><div class="small fw-semibold">${escHtml(s.name || "Sheet")}</div><div class="template-sheet-meta">${metaChips}</div></div><div class="table-responsive"><table class="table table-sm table-bordered"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
     }).join("");
     const summaryHtml = compareData ? `<div class="small text-muted mt-2">Highlighted cells show differences from the base preview. Compared cells: ${diffCount}</div>` : "";
     return { html: html + summaryHtml, diffCount, sheetDiffs };
@@ -2149,7 +2158,7 @@ async function loadTemplatePreview() {
   if (documentType && baseData) {
     // 비교 요약은 긴 문장보다 chip 중심으로 압축해서, 어떤 시트가 가장 많이 달라졌는지 먼저 읽게 만든다.
     const topDiffChips = effectivePreview.sheetDiffs.slice(0, 3)
-      .map((x) => `<span class="template-chip">${escHtml(x.name)} ${x.count}</span>`)
+      .map((x) => `<button type="button" class="template-chip template-sheet-jump" onclick="jumpToPreviewSheet('preview-sheet-${toSheetAnchor(x.name)}')">${escHtml(x.name)} ${x.count}</button>`)
       .join("");
     const extraDiffSheets = Math.max(effectivePreview.sheetDiffs.length - 3, 0);
     const diffSummary = effectivePreview.sheetDiffs.length
