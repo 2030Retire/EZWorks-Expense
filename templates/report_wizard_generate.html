@@ -30,6 +30,18 @@
       .wizard-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
       .wizard-field-span-2, .wizard-field-span-3, .wizard-field-span-4, .wizard-field-span-6, .wizard-field-span-12 { grid-column: span 1; min-width: 0; }
     }
+    .report-success-panel {
+      border: 1px solid #bbf7d0;
+      background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+      border-radius: 14px;
+      box-shadow: 0 12px 24px rgba(22, 163, 74, .08);
+    }
+    .report-success-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-top: .75rem;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -47,7 +59,7 @@
       <div id="dirtyBanner" class="alert alert-warning py-2 px-3 small mb-2" style="display:none;">
         There are unsaved edits from Review. Save them first.
       </div>
-      <div id="successBanner" class="alert alert-success py-3 px-3 mb-3" style="display:none;"></div>
+      <div id="successBanner" class="report-success-panel py-3 px-3 mb-3" style="display:none;"></div>
 
       <div class="small fw-semibold mt-1 mb-1">Document Settings</div>
       <div class="wizard-grid mb-2">
@@ -319,7 +331,21 @@
       localStorage.removeItem(DIRTY_KEY);
       const banner = document.getElementById("successBanner");
       banner.style.display = "";
-      banner.innerHTML = `<div class="fw-semibold mb-1">Report generated successfully</div><div class="small">Download: <a href="${d.download_url}">${esc(d.report.output_filename)}</a></div>`;
+      banner.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+          <div>
+            <div class="fw-semibold mb-1">Report generated successfully</div>
+            <div class="small text-muted">The file is ready for download and now appears in Reports history.</div>
+            <div class="small mt-1"><span class="fw-semibold">File:</span> <a href="${d.download_url}">${esc(d.report.output_filename)}</a></div>
+          </div>
+          <span class="badge text-bg-success">Ready</span>
+        </div>
+        <div class="report-success-actions">
+          <a class="btn btn-sm btn-success" href="${d.download_url}">Download file</a>
+          <a class="btn btn-sm btn-outline-success" href="/reports">Open Reports</a>
+          <a class="btn btn-sm btn-outline-secondary" href="/reports/wizard/upload">Start another report</a>
+        </div>
+      `;
       banner.scrollIntoView({ behavior: "smooth", block: "nearest" });
       document.getElementById("msg").innerHTML = `<span class="text-success">Generated: <a href="${d.download_url}">${esc(d.report.output_filename)}</a></span>`;
     }

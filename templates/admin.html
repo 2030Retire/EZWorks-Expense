@@ -32,6 +32,15 @@
     .company-snapshot-fallback { width:160px; height:54px; border-radius:8px; background:#f8fbff; border:1px solid #d9e6f8; display:flex; align-items:center; justify-content:center; overflow:hidden; }
     .company-snapshot-fallback img { width:100%; height:100%; object-fit:contain; padding:.28rem; }
     .admin-tabs .btn { min-width:110px; font-weight:600; }
+    .template-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px; }
+    .template-card { border:1px solid #dbe6f3; border-radius:12px; padding:1rem; background:#fff; box-shadow:0 6px 16px rgba(15,47,87,.05); }
+    .template-card h6 { margin:0 0 .35rem; font-size:.95rem; }
+    .template-chip { display:inline-flex; align-items:center; gap:.3rem; border:1px solid #dbe6f3; background:#f8fbff; border-radius:999px; padding:.18rem .55rem; font-size:.75rem; font-weight:600; color:#36507a; }
+    .template-line { display:flex; justify-content:space-between; gap:.75rem; padding:.35rem 0; border-top:1px dashed #e6edf7; }
+    .template-line:first-of-type { border-top:none; padding-top:0; }
+    .template-line-label { font-weight:600; color:#334155; }
+    .template-line-meta { text-align:right; font-size:.78rem; color:#64748b; }
+    .template-upload-helper { border:1px dashed #c9dbf7; border-radius:12px; background:#f8fbff; padding:.85rem 1rem; }
   </style>
 </head>
 <body class="app-shell">
@@ -573,7 +582,9 @@
       </div>
 
       <!-- Manual Upload -->
-      <div class="mt-3">
+      <div class="mt-3 template-upload-helper">
+        <div class="small fw-semibold mb-1">Template upload rules</div>
+        <div class="small text-muted mb-2">Base templates apply to every document type. If you upload a document-specific template, that one overrides the base for only that document type and mode.</div>
         <p class="fw-semibold small mb-2">Upload tenant custom template (isolated per host):</p>
         <div class="row g-2 align-items-end">
           <div class="col-auto">
@@ -1704,38 +1715,55 @@ async function loadTemplateStatus() {
   const data = await res.json();
   const area = document.getElementById("templateStatusArea");
   const rows = [
-    ["domestic",      "🏠 Domestic",      data.base?.domestic || {}],
-    ["international", "🌍 International",  data.base?.international || {}],
+    ["Domestic", data.base?.domestic || {}, "Used when receipts resolve to USD-only reporting."],
+    ["International", data.base?.international || {}, "Used when one or more receipts stay in foreign currency."],
+    ["Default", data.base?.default || {}, "Fallback if a mode-specific template is unavailable."],
   ];
-  const baseHtml = rows.map(([key, label, info]) => {
-    if (info.exists) {
-      const scopeTxt = info.scope === "tenant" ? "tenant custom" : "shared default";
-      return `<div class="tpl-status-ok d-flex align-items-center gap-2 mb-2">
-        <i class="fa-solid fa-circle-check text-success"></i>
-        <span class="fw-semibold">${label}</span>
-        <span class="text-muted small">— ${info.filename}, ${info.size_kb} KB, updated ${info.modified} (${scopeTxt})</span>
-      </div>`;
-    } else {
-      return `<div class="tpl-status-missing d-flex align-items-center gap-2 mb-2">
-        <i class="fa-solid fa-triangle-exclamation text-warning"></i>
-        <span class="fw-semibold text-warning">${label} — not uploaded yet</span>
-      </div>`;
-    }
-  }).join("");
+  const renderSlotMeta = (slot, emptyText) => {
+    if (!slot || !slot.exists) return `<span class="text-muted">${emptyText}</span>`;
+    const scopeTxt = slot.scope === "tenant" ? "tenant custom" : "shared default";
+    return `${escHtml(slot.filename || "")}<br><span class="text-muted">${escHtml(String(slot.size_kb || 0))} KB · ${escHtml(slot.modified || "")} · ${scopeTxt}</span>`;
+  };
+  const baseHtml = rows.map(([label, info, desc]) => `
+    <div class="template-card">
+      <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+        <div>
+          <h6>${label} Base</h6>
+          <div class="small text-muted">${desc}</div>
+        </div>
+        <span class="template-chip">${info.exists ? "Ready" : "Missing"}</span>
+      </div>
+      <div class="template-line">
+        <div class="template-line-label">Current file</div>
+        <div class="template-line-meta">${renderSlotMeta(info, "Generate or upload a template")}</div>
+      </div>
+    </div>
+  `).join("");
   const docTemplates = data.document_templates || {};
-  const docHtml = Object.entries(docTemplates).map(([docId, info]) => {
-    const dom = info?.domestic || {};
-    const intl = info?.international || {};
-    const line = (label, slot) => slot.exists
-      ? `<div class="small"><span class="fw-semibold">${label}</span>: ${escHtml(slot.filename || "")} · ${escHtml(slot.scope || "")}</div>`
-      : `<div class="small text-muted"><span class="fw-semibold">${label}</span>: fallback to base template</div>`;
-    return `<div class="border rounded p-2 mb-2">
-      <div class="fw-semibold small mb-1">${escHtml(info.label || docId)}</div>
-      ${line("Domestic", dom)}
-      ${line("International", intl)}
-    </div>`;
-  }).join("");
-  area.innerHTML = baseHtml + (docHtml ? `<div class="mt-3"><div class="small fw-semibold mb-2">Document-specific templates</div>${docHtml}</div>` : "");
+  const docHtml = Object.entries(docTemplates).map(([docId, info]) => `
+    <div class="template-card">
+      <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+        <div>
+          <h6>${escHtml(info.label || docId)}</h6>
+          <div class="small text-muted">Override only this document type. Missing modes fall back to the base template.</div>
+        </div>
+        <span class="template-chip">${escHtml(docId)}</span>
+      </div>
+      <div class="template-line">
+        <div class="template-line-label">Domestic</div>
+        <div class="template-line-meta">${renderSlotMeta(info?.domestic || {}, "Fallback to Domestic Base")}</div>
+      </div>
+      <div class="template-line">
+        <div class="template-line-label">International</div>
+        <div class="template-line-meta">${renderSlotMeta(info?.international || {}, "Fallback to International Base")}</div>
+      </div>
+    </div>
+  `).join("");
+  area.innerHTML = `
+    <div class="small fw-semibold mb-2">Base template library</div>
+    <div class="template-grid">${baseHtml}</div>
+    ${docHtml ? `<div class="small fw-semibold mt-3 mb-2">Document-type overrides</div><div class="template-grid">${docHtml}</div>` : ""}
+  `;
 }
 async function generateTemplates(which) {
   const modes = which === "both" ? ["domestic","international"]
@@ -1800,13 +1828,16 @@ async function uploadTemplate() {
   if (!selectedTplFile) return;
   const fd = new FormData();
   fd.append("template", selectedTplFile);
-  fd.append("mode",     document.getElementById("uploadMode").value);
-  fd.append("document_type", document.getElementById("uploadDocumentType")?.value || "");
+  const mode = document.getElementById("uploadMode").value;
+  const documentType = document.getElementById("uploadDocumentType")?.value || "";
+  fd.append("mode", mode);
+  fd.append("document_type", documentType);
   const res = await fetch("/admin/upload-template", { method:"POST", body:fd });
   const data = await res.json();
   const msgEl = document.getElementById("uploadTplMsg");
   if (res.ok) {
-    msgEl.innerHTML = `<span class="text-success"><i class="fa-solid fa-check me-1"></i>${data.filename} uploaded (${(data.size/1024).toFixed(1)} KB)</span>`;
+    const target = documentType ? `${documentType} / ${mode}` : `base / ${mode}`;
+    msgEl.innerHTML = `<span class="text-success"><i class="fa-solid fa-check me-1"></i>${data.filename} uploaded to ${escHtml(target)} (${(data.size/1024).toFixed(1)} KB)</span>`;
     await loadTemplateStatus();
     await loadTemplatePreview();
   } else {

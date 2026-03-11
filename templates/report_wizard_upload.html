@@ -18,20 +18,15 @@
 
     <div class="card p-3">
       <h6 class="mb-2">Step 1. Process Receipts</h6>
-      <div class="row g-2 mb-2">
-        <div class="col-lg-3 col-md-6">
-          <div class="border rounded p-2 h-100">
-            <div class="small text-muted">Suggested Expense Type</div>
-            <div class="fw-semibold" id="detectedReportType">Domestic</div>
-          </div>
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+        <div>
+          <div class="small fw-semibold">Upload first, then OCR determines report mode and base currency.</div>
+          <div id="startMsg" class="small text-muted">We infer this from recognized receipts. You can still adjust currency per item or in bulk during Review.</div>
         </div>
-        <div class="col-lg-3 col-md-6">
-          <div class="border rounded p-2 h-100">
-            <div class="small text-muted">Suggested Base Currency</div>
-            <div class="fw-semibold" id="detectedBaseCurrency">USD</div>
-          </div>
+        <div class="d-flex flex-wrap gap-2">
+          <span class="badge text-bg-light border" id="detectedReportType">Expense Type: waiting for OCR</span>
+          <span class="badge text-bg-light border" id="detectedBaseCurrency">Base Currency: waiting for OCR</span>
         </div>
-        <div class="col-lg-6 col-md-12 d-flex align-items-end"><div id="startMsg" class="small text-muted">Upload first. OCR detects receipt currency automatically, and you can still adjust per item or in bulk in Review.</div></div>
       </div>
 
       <div class="d-flex justify-content-between align-items-center mb-2">
@@ -94,8 +89,19 @@
     }
     function wizardSet(key, value){ try{ localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value })); }catch(_){} }
 
+    function canInferFromRow(row){
+      const lifecycle = String(row?.lifecycle_state || "").toUpperCase();
+      const status = String(row?.status || "").toLowerCase();
+      if (["READY_FOR_REPORT", "ASSIGNED_TO_REPORT"].includes(lifecycle)) return true;
+      if (status === "processed") return true;
+      if (String(row?.merchant || "").trim()) return true;
+      if (String(row?.date || "").trim()) return true;
+      if (Number(row?.amount || 0) > 0) return true;
+      return false;
+    }
     function inferWizardSettingsFromRows(items){
-      const list = Array.isArray(items) ? items : [];
+      const list = (Array.isArray(items) ? items : []).filter(canInferFromRow);
+      if (!list.length) return { reportType: "", currency: "", pending: true };
       const counts = new Map();
       let hasNonUsd = false;
       for (const row of list){
@@ -113,21 +119,27 @@
       });
       const reportType = hasNonUsd ? "international" : "domestic";
       const currency = reportType === "domestic" ? "USD" : (dominant || "USD");
-      return { reportType, currency };
+      return { reportType, currency, pending: false };
     }
     function applySuggestedSettings(items){
       const s = wizardGet(SETTINGS_KEY, {}) || {};
       const inferred = inferWizardSettingsFromRows(items);
+      const reportTypeEl = document.getElementById("detectedReportType");
+      const currencyEl = document.getElementById("detectedBaseCurrency");
+      if (inferred.pending) {
+        reportTypeEl.textContent = "Expense Type: waiting for OCR";
+        currencyEl.textContent = "Base Currency: waiting for OCR";
+        return;
+      }
       s.reportType = inferred.reportType;
       s.currency = inferred.currency;
       wizardSet(SETTINGS_KEY, s);
-      document.getElementById("detectedReportType").textContent = inferred.reportType === "international" ? "International" : "Domestic";
-      document.getElementById("detectedBaseCurrency").textContent = inferred.currency;
+      reportTypeEl.textContent = `Expense Type: ${inferred.reportType === "international" ? "International" : "Domestic"}`;
+      currencyEl.textContent = `Base Currency: ${inferred.currency}`;
     }
     async function initStartOptions(){
-      const s = wizardGet(SETTINGS_KEY, {}) || {};
-      document.getElementById("detectedReportType").textContent = String(s.reportType || "domestic").toLowerCase() === "international" ? "International" : "Domestic";
-      document.getElementById("detectedBaseCurrency").textContent = String(s.currency || "USD").toUpperCase();
+      document.getElementById("detectedReportType").textContent = "Expense Type: waiting for OCR";
+      document.getElementById("detectedBaseCurrency").textContent = "Base Currency: waiting for OCR";
     }
 
     function summarizeLifecycle(items){
