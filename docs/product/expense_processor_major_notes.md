@@ -73,6 +73,8 @@
 - Review나 Finalize checklist에서 특정 입력칸으로 이동시키는 경우, 도착한 필드를 잠깐 강조해 사용자가 현재 포커스 위치를 즉시 인지하게 유지한다.
 - Finalize 경고/체크리스트에는 `다음으로 채워야 할 첫 필드`로 바로 이동하는 액션을 유지해, 사용자가 목록을 읽고 다시 찾는 비용을 줄인다.
 - Template Preview compare 화면은 `resolved(주요 화면)`과 `base(reference)` 역할을 헤더에서 바로 구분해, 좌우 비교 순서를 한눈에 이해하게 유지한다.
+- Finalize 하단 액션 바에도 `Required / Review sync / Receipts / Period` 상태를 압축 노출해, Review와의 연결 상태를 아래에서도 즉시 읽게 유지한다.
+- Template Preview diff 요약은 긴 문장보다 `diff cell 수 / 영향 시트 수 / 상위 변경 시트` 중심으로 압축해 읽게 유지한다.
 
 ## 주의할 점
 - wizard 설정은 localStorage에 저장되므로, 서로 다른 브라우저/기기 간에는 자동 동기화되지 않는다.

@@ -2112,8 +2112,10 @@ async function loadTemplatePreview() {
     </div>
   `;
   if (documentType && baseData) {
+    const topSheetDiffs = effectivePreview.sheetDiffs.slice(0, 3).map((x) => `${escHtml(x.name)} ${x.count}`).join(" · ");
+    const extraDiffSheets = Math.max(effectivePreview.sheetDiffs.length - 3, 0);
     const diffSummary = effectivePreview.sheetDiffs.length
-      ? `<div class="small text-muted mt-2">Change summary: ${effectivePreview.sheetDiffs.map((x) => `${escHtml(x.name)} ${x.count} cell(s)`).join(" · ")}</div>`
+      ? `<div class="small text-muted mt-2">Top changes: ${topSheetDiffs}${extraDiffSheets ? ` · +${extraDiffSheets} more sheet(s)` : ""}</div>`
       : `<div class="small text-muted mt-2">No visible cell changes in the preview window.</div>`;
     area.innerHTML = `
       ${previewStatusChips}
@@ -2121,7 +2123,7 @@ async function loadTemplatePreview() {
       ${previewKpi}
       <div class="alert alert-warning py-2 px-3 small mb-3">
         <div class="fw-semibold mb-1">Base comparison summary</div>
-        <div>${effectivePreview.diffCount} highlighted cell(s) differ from the base ${escHtml(mode)} template.</div>
+        <div>${effectivePreview.diffCount} highlighted cell(s) across ${effectivePreview.sheetDiffs.length || 0} sheet(s) differ from the base ${escHtml(mode)} template.</div>
         ${diffSummary}
       </div>
       <div class="row g-3">
