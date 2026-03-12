@@ -56,6 +56,18 @@ python app.py
 open http://localhost:5000
 ```
 
+### 테스트 실행
+
+```bash
+# 테스트 의존성 포함 설치
+pip install -r requirements.txt
+
+# 자동 스모크 테스트 실행
+python -m pytest -q tests
+```
+
+배포 직전 수동 점검 포인트는 `docs/ux/release_smoke_checklist.md`를 기준으로 확인합니다.
+
 ---
 
 ## 사용 방법

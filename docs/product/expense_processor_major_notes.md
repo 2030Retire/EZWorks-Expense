@@ -116,6 +116,14 @@
 - 테넌트가 이미 커스텀 템플릿을 올려둔 경우 기본 템플릿 변경만으로는 바로 결과가 바뀌지 않을 수 있다.
 - Finalize required field 정책과 field visibility 정책이 서로 충돌하지 않도록 항상 함께 확인해야 한다.
 
+## 테스트/릴리즈 운영 원칙
+- 자동 테스트가 거의 없는 상태에서는 위저드/권한 UX를 계속 다듬을수록 회귀 위험이 커지므로, 우선순위는 기능 폭보다 `테넌트 경계 / 로그인 정책 / own vs all 권한` 스모크 커버리지 확보에 둔다.
+- Flask 앱이 단일 모듈 구조라서 완전한 app factory 전환 전까지는, pytest에서 DB 경로/설정 경로를 임시 파일로 바꿔 주입하는 방식으로 핵심 경계를 보호한다. 관련 파일: `tests/conftest.py`, `tests/test_auth_and_permissions.py`
+- 초기 자동 스모크 범위는 `비로그인 차단`, `allowed domain 로그인`, `receipt/report own vs all`, `report generate 후 assigned 상태 전이`, `shared preset lock`, `cross-tenant admin 제한`까지를 최소 릴리즈 게이트로 삼는다. 관련 파일: `tests/test_auth_and_permissions.py`
+- 운영자/관리자 회귀를 줄이기 위해 이후 스모크는 `OCR duplicate 상태 전이`, `admin user-permissions`, `audit log export`, `template upload/generate`, `report line-item export`까지 포함해 확장한다. 관련 파일: `tests/test_auth_and_permissions.py`
+- 로컬과 CI 실행 명령이 어긋나지 않게 `pytest.ini`로 기본 경로를 고정하고, GitHub Actions에서 `python -m pytest`를 push/PR마다 돌리는 구성을 기본값으로 둔다. 관련 파일: `pytest.ini`, `.github/workflows/pytest.yml`, `README.md`
+- 테스트가 커질수록 한 파일에 몰아두면 정책 경계가 흐려지므로, 스모크는 `auth`, `reports`, `admin` 파일로 나눠 유지하고, 배포 직전 수동 검증은 `docs/ux/release_smoke_checklist.md`로 자동 테스트 범위와 같은 언어를 쓰게 유지한다. 관련 파일: `tests/test_auth_flows.py`, `tests/test_report_flows.py`, `tests/test_admin_flows.py`, `docs/ux/release_smoke_checklist.md`
+
 ## 다음에 우선 보기 좋은 파일
 - `templates/report_wizard_upload.html`
 - `templates/report_wizard_review.html`
