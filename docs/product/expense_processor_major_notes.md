@@ -123,6 +123,8 @@
 - 운영자/관리자 회귀를 줄이기 위해 이후 스모크는 `OCR duplicate 상태 전이`, `admin user-permissions`, `audit log export`, `template upload/generate`, `report line-item export`까지 포함해 확장한다. 관련 파일: `tests/test_auth_and_permissions.py`
 - 로컬과 CI 실행 명령이 어긋나지 않게 `pytest.ini`로 기본 경로를 고정하고, GitHub Actions에서 `python -m pytest`를 push/PR마다 돌리는 구성을 기본값으로 둔다. 관련 파일: `pytest.ini`, `.github/workflows/pytest.yml`, `README.md`
 - 테스트가 커질수록 한 파일에 몰아두면 정책 경계가 흐려지므로, 스모크는 `auth`, `reports`, `admin` 파일로 나눠 유지하고, 배포 직전 수동 검증은 `docs/ux/release_smoke_checklist.md`로 자동 테스트 범위와 같은 언어를 쓰게 유지한다. 관련 파일: `tests/test_auth_flows.py`, `tests/test_report_flows.py`, `tests/test_admin_flows.py`, `docs/ux/release_smoke_checklist.md`
+- 지금 시점의 다음 우선순위는 신규 기능 추가보다 `실환경 SSO / 실OCR / 실템플릿 / 수동 UAT 증적`을 채워 release blocker를 없애는 것이다. 관련 파일: `docs/product/release_risks_and_next_steps_2026-03-12.md`, `docs/ux/release_smoke_checklist.md`
+- blocker 해소 작업이 흩어지지 않게, 해당 주 실행 순서는 별도 주간 체크리스트 문서로 고정해 두고 진행하는 편이 좋다. 관련 파일: `docs/ux/weekly_execution_checklist_2026-03-12.md`
 
 ## 다음에 우선 보기 좋은 파일
 - `templates/report_wizard_upload.html`
